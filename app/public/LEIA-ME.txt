@@ -1,0 +1,5 @@
+Arquivos nesta pasta são copiados para a raiz do site no build (pasta dist).
+
+- favicon.svg, manifest.json, robots.txt, sitemap.xml, .htaccess = já inclusos.
+- og-image.jpg = opcional. Para preview ao compartilhar o site em redes sociais,
+  adicione aqui uma imagem 1200x630 pixels (JPG ou PNG) com o nome og-image.jpg.

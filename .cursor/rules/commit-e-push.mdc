@@ -1,0 +1,12 @@
+---
+description: Após qualquer alteração, fazer commit e push por aqui; proibido criar script ou doc para o usuário fazer fora
+alwaysApply: true
+---
+
+# Commit e push obrigatórios
+
+- **Remote:** https://github.com/developeragencia/meufreelas27
+- Sempre que alterar arquivos: fazer **commit** e **push** por aqui (nesta sessão).
+- **Proibido** criar documento ou script para o usuário executar commit/push fora; fazer sempre os comandos git aqui.
+
+Passos: `git add .` → `git commit -m "mensagem"` → `git push origin main`. Se der lock (index.lock), encerrar processos git e remover `.git/index.lock` antes.

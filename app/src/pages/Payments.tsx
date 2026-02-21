@@ -1,0 +1,286 @@
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { 
+  DollarSign, 
+  CreditCard, 
+  Wallet,
+  TrendingUp,
+  Download,
+  CheckCircle,
+  Clock,
+  AlertCircle
+} from 'lucide-react';
+
+interface Transaction {
+  id: string;
+  description: string;
+  amount: string;
+  type: 'entrada' | 'saida';
+  status: 'Concluído' | 'Pendente' | 'Em processamento';
+  date: string;
+  project?: string;
+}
+
+export default function Payments() {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'resumo' | 'historico' | 'saque'>('resumo');
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [balance, setBalance] = useState('R$ 0,00');
+  const pending = 'R$ 0,00';
+
+  useEffect(() => {
+    // Load transactions from localStorage
+    const savedTransactions = JSON.parse(localStorage.getItem('meufreelas_transactions') || '[]');
+    const userTransactions = savedTransactions.filter((t: any) => t.userId === user?.id);
+    setTransactions(userTransactions);
+
+    // Calculate balance
+    const totalBalance = userTransactions
+      .filter((t: any) => t.status === 'Concluído')
+      .reduce((acc: number, t: any) => {
+        const amount = parseFloat(t.amount.replace(/[^0-9.,]/g, '').replace(',', '.'));
+        return t.type === 'entrada' ? acc + amount : acc - amount;
+      }, 0);
+    
+    setBalance(`R$ ${totalBalance.toFixed(2).replace('.', ',')}`);
+  }, [user]);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Concluído':
+        return 'bg-green-100 text-green-700';
+      case 'Pendente':
+        return 'bg-yellow-100 text-yellow-700';
+      default:
+        return 'bg-blue-100 text-blue-700';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'Concluído':
+        return <CheckCircle className="w-4 h-4" />;
+      case 'Pendente':
+        return <Clock className="w-4 h-4" />;
+      default:
+        return <AlertCircle className="w-4 h-4" />;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      {/* Header */}
+      <header className="bg-99dark text-white">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            <Link to="/" className="text-2xl font-bold">
+              meu<span className="font-light">freelas</span>
+            </Link>
+            <Link to={user?.type === 'freelancer' ? '/freelancer/dashboard' : '/dashboard'} className="text-gray-300 hover:text-white">
+              Voltar ao Dashboard
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <h1 className="text-2xl font-semibold text-gray-800 mb-6">Pagamentos</h1>
+
+        {/* Tabs */}
+        <div className="flex space-x-2 mb-6">
+          {(['resumo', 'historico', 'saque'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === tab
+                  ? 'bg-99blue text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'resumo' && (
+          <>
+            {/* Balance Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-green-100 rounded-lg">
+                    <Wallet className="w-6 h-6 text-green-600" />
+                  </div>
+                </div>
+                <p className="text-gray-500 text-sm">Saldo disponível</p>
+                <p className="text-3xl font-semibold text-gray-800">{balance}</p>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-yellow-100 rounded-lg">
+                    <Clock className="w-6 h-6 text-yellow-600" />
+                  </div>
+                </div>
+                <p className="text-gray-500 text-sm">Valor pendente</p>
+                <p className="text-3xl font-semibold text-gray-800">{pending}</p>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-blue-100 rounded-lg">
+                    <TrendingUp className="w-6 h-6 text-blue-600" />
+                  </div>
+                </div>
+                <p className="text-gray-500 text-sm">Total recebido (mês)</p>
+                <p className="text-3xl font-semibold text-gray-800">R$ 0,00</p>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">Ações Rápidas</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button 
+                  onClick={() => setActiveTab('saque')}
+                  className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-99blue hover:bg-sky-50 transition-colors"
+                >
+                  <div className="p-3 bg-99blue rounded-lg mr-4">
+                    <DollarSign className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-gray-800">Sacar Dinheiro</p>
+                    <p className="text-sm text-gray-500">Transferir para conta bancária</p>
+                  </div>
+                </button>
+
+                <button className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-99blue hover:bg-sky-50 transition-colors">
+                  <div className="p-3 bg-purple-500 rounded-lg mr-4">
+                    <CreditCard className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-gray-800">Configurar Pagamento</p>
+                    <p className="text-sm text-gray-500">Adicionar ou editar métodos</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeTab === 'historico' && (
+          <div className="bg-white rounded-lg shadow-sm">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-800">Histórico de Transações</h2>
+                <button className="flex items-center text-99blue hover:underline text-sm">
+                  <Download className="w-4 h-4 mr-2" />
+                  Exportar
+                </button>
+              </div>
+            </div>
+            <div className="divide-y divide-gray-200">
+              {transactions.length > 0 ? (
+                transactions.map((transaction) => (
+                  <div key={transaction.id} className="p-6 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className={`p-3 rounded-lg mr-4 ${
+                          transaction.type === 'entrada' ? 'bg-green-100' : 'bg-red-100'
+                        }`}>
+                          {transaction.type === 'entrada' ? (
+                            <TrendingUp className="w-5 h-5 text-green-600" />
+                          ) : (
+                            <DollarSign className="w-5 h-5 text-red-600" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-800">{transaction.description}</p>
+                          {transaction.project && (
+                            <p className="text-sm text-gray-500">Projeto: {transaction.project}</p>
+                          )}
+                          <p className="text-sm text-gray-400">{transaction.date}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`font-semibold ${
+                          transaction.type === 'entrada' ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {transaction.type === 'entrada' ? '+' : '-'}{transaction.amount}
+                        </p>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1 ${getStatusColor(transaction.status)}`}>
+                          {getStatusIcon(transaction.status)}
+                          <span className="ml-1">{transaction.status}</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-12 text-center">
+                  <DollarSign className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">Nenhuma transação ainda</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'saque' && (
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-6">Solicitar Saque</h2>
+            
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-500">Saldo disponível para saque</p>
+              <p className="text-2xl font-semibold text-gray-800">{balance}</p>
+            </div>
+
+            <form className="space-y-4" onSubmit={(e) => {
+              e.preventDefault();
+              alert('Funcionalidade em desenvolvimento');
+            }}>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Valor do saque
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
+                  <input
+                    type="text"
+                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
+                    placeholder="0,00"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Conta bancária
+                </label>
+                <select className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent">
+                  <option>Selecione uma conta</option>
+                  <option>Adicionar nova conta</option>
+                </select>
+              </div>
+
+              <div className="pt-4">
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-99blue text-white rounded-lg hover:bg-sky-400 transition-colors font-medium"
+                >
+                  Solicitar Saque
+                </button>
+              </div>
+
+              <p className="text-sm text-gray-500 text-center">
+                O saque será processado em até 2 dias úteis.
+              </p>
+            </form>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
