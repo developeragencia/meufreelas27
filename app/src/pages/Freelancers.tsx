@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, ChevronDown, ChevronUp, Briefcase, ThumbsUp, Calendar, Crown, Star, Menu, X } from 'lucide-react';
 
@@ -62,76 +62,38 @@ const sortOptions = [
   { value: 'rec_low', label: 'Recomendações (Menor)' }
 ];
 
-const mockFreelancers: Freelancer[] = [
-  {
-    id: '1',
-    name: 'Rafael Pires Jenei',
-    username: 'rafael-jenei',
-    title: 'Publicitário Criativo',
-    bio: 'Cansado da mesmice de sempre? Da mesma velha publicidade em todo canto? De textos sempre iguais, que qualquer pessoa lê por aí? Seja bem-vindo, me chamo Rafael e busco há 5 anos surpreender todos os clientes em todas áreas em que trabalho: redação, criação, planejamento, edição de áudio e vídeo.',
-    skills: ['Adobe Premiere', 'Animação', 'Criação de Campanhas', 'Criação de Personagens', 'Copywriting'],
-    rating: 4.82,
-    totalReviews: 1538,
-    completedProjects: 1539,
-    recommendations: 1481,
-    memberSince: '17/10/2018',
-    ranking: 1,
-    isPremium: true,
-    hasPhoto: true
-  },
-  {
-    id: '2',
-    name: 'Bruno Quintino',
-    username: 'bqdesign',
-    title: 'ESPECIALISTA EM LOGO/IDENTIDADE VISUAL',
-    bio: 'Tive meu primeiro contato com o design em 2010, onde tive oportunidade de trabalhar em um jornal impresso, executando tarefas de diagramação de arte final, passei por algumas gráficas e empresas de comunicação visual no decorrer dos anos.',
-    skills: ['Arte-Final', 'Blender 3D', 'Corel Draw', 'Design 3D', 'Identidade Visual'],
-    rating: 4.89,
-    totalReviews: 542,
-    completedProjects: 526,
-    recommendations: 530,
-    memberSince: '26/07/2016',
-    ranking: 2,
-    isPremium: true,
-    hasPhoto: true
-  },
-  {
-    id: '3',
-    name: 'Daniel Neves',
-    username: 'odanineves',
-    title: 'Brand Designer | Especialista em Logotipos e Identidade Visual',
-    bio: 'Muito prazer! Me chamo Daniel Neves. Desde 2018, atuo no mercado de design gráfico, acumulando experiências em algumas das mais renomadas agências de publicidade do Brasil.',
-    skills: ['Adobe Illustrator', 'Adobe Photoshop', 'Adobe Premiere', 'Adobe After Effects', 'Branding'],
-    rating: 4.9,
-    totalReviews: 324,
-    completedProjects: 322,
-    recommendations: 321,
-    memberSince: '09/01/2021',
-    ranking: 3,
-    isPremium: true,
-    hasPhoto: true
-  },
-  {
-    id: '4',
-    name: 'Dickinson Dwizard',
-    username: 'dwizard',
-    title: 'DESIGNER & MARKETING',
-    bio: 'Somos Especialistas em Logomarcas, Identidade Visual, Rótulos e Embalagens. Consultoria e Registro no INPI. Criamos Sites, landingpages, Tráfego Pago e tudo o que você precisar.',
-    skills: ['Corel Draw', 'Adobe Photoshop', 'Design de Cartão de Visita', 'Comunicação Visual', 'Marketing'],
-    rating: 4.94,
-    totalReviews: 511,
-    completedProjects: 509,
-    recommendations: 509,
-    memberSince: '01/05/2018',
-    ranking: 4,
-    isPremium: true,
-    hasPhoto: true
+function loadFreelancersFromStorage(): Freelancer[] {
+  try {
+    const users = JSON.parse(localStorage.getItem('meufreelas_users') || '[]');
+    return users
+      .filter((u: any) => u.type === 'freelancer' || u.hasFreelancerAccount)
+      .map((u: any, i: number) => ({
+        id: u.id,
+        name: u.name || '',
+        username: (u.name || u.id).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || u.id,
+        title: '',
+        bio: u.bio || '',
+        skills: Array.isArray(u.skills) ? u.skills : (u.skills ? [u.skills] : []),
+        rating: Number(u.rating) || 0,
+        totalReviews: 0,
+        completedProjects: Number(u.completedProjects) || 0,
+        recommendations: 0,
+        memberSince: '',
+        ranking: i + 1,
+        isPremium: !!u.isPremium,
+        hasPhoto: !!u.avatar,
+      }));
+  } catch {
+    return [];
   }
-];
+}
 
 export default function Freelancers() {
-  const [freelancers] = useState<Freelancer[]>(mockFreelancers);
+  const [freelancers, setFreelancers] = useState<Freelancer[]>(() => loadFreelancersFromStorage());
   const [keywords, setKeywords] = useState('');
+  useEffect(() => {
+    setFreelancers(loadFreelancersFromStorage());
+  }, []);
   const [selectedArea, setSelectedArea] = useState('Todas as áreas');
   const [selectedRanking, setSelectedRanking] = useState('any');
   const [selectedRecommendations, setSelectedRecommendations] = useState('any');
@@ -384,7 +346,13 @@ export default function Freelancers() {
 
             {/* Freelancers List */}
             <div className="space-y-4">
-              {filteredFreelancers.map((freelancer) => (
+              {filteredFreelancers.length === 0 ? (
+                <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-500">
+                  <Briefcase className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p className="font-medium">Nenhum freelancer encontrado</p>
+                  <p className="text-sm mt-1">Os freelancers cadastrados aparecerão aqui.</p>
+                </div>
+              ) : filteredFreelancers.map((freelancer) => (
                 <div key={freelancer.id} className="bg-white rounded-lg shadow-sm p-4 md:p-6">
                   {/* Header Row - Name + Badge + Invite */}
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">

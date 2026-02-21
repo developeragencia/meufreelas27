@@ -42,8 +42,8 @@ export default function Header() {
                   </button>
                   {showDropdown && (
                     <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded shadow-lg py-2 animate-fade-in">
-                      <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Freelancers</a>
-                      <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Projetos</a>
+                      <a href="/freelancers" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Freelancers</a>
+                      <a href="/projects" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Projetos</a>
                     </div>
                   )}
                 </div>
@@ -60,14 +60,14 @@ export default function Header() {
 
             {/* Right Navigation - Desktop Only */}
             <div className="hidden md:flex items-center space-x-4">
-              <a href="#" className="text-gray-300 hover:text-white text-sm font-medium transition-colors">
+              <a href="/login" className="text-gray-300 hover:text-white text-sm font-medium transition-colors">
                 Login
               </a>
-              <a href="#" className="text-gray-300 hover:text-white text-sm font-medium transition-colors">
+              <a href="/register" className="text-gray-300 hover:text-white text-sm font-medium transition-colors">
                 Cadastre-se
               </a>
               <a
-                href="#"
+                href="/project/new"
                 className="px-5 py-2 bg-99blue text-white text-sm font-semibold rounded hover:bg-sky-400 transition-colors"
               >
                 Publicar projeto

@@ -38,7 +38,7 @@ export default function FreelancerDashboard() {
   const [showSwitchModal, setShowSwitchModal] = useState(false);
   const [switchLoading, setSwitchLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [notifications] = useState(3);
+  const [notifications] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -71,18 +71,8 @@ export default function FreelancerDashboard() {
     if (success) navigate('/dashboard');
   };
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/login');
-    }
-  }, [user, navigate]);
-
   if (!user) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-99blue"></div>
-      </div>
-    );
+    return null;
   }
 
   const stats = [
@@ -93,7 +83,7 @@ export default function FreelancerDashboard() {
   ];
 
   const quickLinks: MenuItem[] = [
-    { icon: MessageSquare, label: 'Mensagens', href: '/messages', badge: 2 },
+    { icon: MessageSquare, label: 'Mensagens', href: '/messages' },
     { icon: DollarSign, label: 'Pagamentos', href: '/payments' },
     { icon: Settings, label: 'Configurações', href: '/settings' },
   ];

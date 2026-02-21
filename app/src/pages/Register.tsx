@@ -53,7 +53,8 @@ export default function Register() {
     try {
       const success = await register(name, email, password, userType);
       if (success) {
-        navigate('/dashboard');
+        const dest = userType === 'freelancer' ? '/freelancer/dashboard' : '/dashboard';
+        navigate(dest, { replace: true });
       } else {
         setError('Este email já está cadastrado');
       }

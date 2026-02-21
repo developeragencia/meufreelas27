@@ -20,7 +20,9 @@ export default function Login() {
     try {
       const success = await login(email, password);
       if (success) {
-        navigate('/dashboard');
+        const u = JSON.parse(localStorage.getItem('meufreelas_user') || '{}');
+        const dest = u?.type === 'freelancer' ? '/freelancer/dashboard' : '/dashboard';
+        navigate(dest, { replace: true });
       } else {
         setError('Email ou senha incorretos');
       }

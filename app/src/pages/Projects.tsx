@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, ChevronDown, ChevronUp, Clock, Users, FileText, Menu, X, Home, Briefcase, User, MessageSquare } from 'lucide-react';
 
@@ -68,83 +68,29 @@ const sortOptions = [
   { value: 'interested_low', label: 'Menos interessados' }
 ];
 
-const mockProjects: Project[] = [
-  {
-    id: '1',
-    title: 'Desenvolvimento de DApp e aplicações Web3 (Blockchain)',
-    category: 'Web, Mobile & Software',
-    subcategory: 'Desenvolvimento Web',
-    level: 'Especialista',
-    publishedAt: '21 horas atrás',
-    timeRemaining: '14 dias e 2 horas',
-    proposals: 10,
-    interested: 17,
-    description: 'Procuramos programador(a) Web3/DApp/Blockchain (cripto). Estamos em busca de um(a) desenvolvedor(a) apaixonado(a) por tecnologia descentralizada para participar da construção de uma aplicação Web3 inovadora.',
-    clientName: 'Wagner Q.',
-    clientUsername: 'wagner-quintana',
-    isFeatured: true
-  },
-  {
-    id: '2',
-    title: 'Assistente virtual e auxiliar administrativo remoto',
-    category: 'Suporte Administrativo',
-    subcategory: 'Assistente Virtual',
-    level: 'Iniciante',
-    publishedAt: '2 dias atrás',
-    timeRemaining: '27 dias e 23 horas',
-    proposals: 841,
-    interested: 884,
-    description: 'Olá! Estamos em busca de um(a) profissional organizado(a), proativo(a) e com excelente comunicação escrita para atuar como assistente administrativo remoto.',
-    clientName: 'Frederico F.',
-    clientUsername: 'frederico-freitas'
-  },
-  {
-    id: '3',
-    title: 'Edição de mini VSL (5–6 min) para nicho nutra feminino 35+',
-    category: 'Fotografia & AudioVisual',
-    subcategory: 'Vídeo - Edição',
-    level: 'Iniciante',
-    publishedAt: '26 minutos atrás',
-    timeRemaining: '2 dias e 23 horas',
-    proposals: 2,
-    interested: 3,
-    description: 'Olá! Estou procurando um editor experiente em VSL (Video Sales Letter) para editar uma mini VSL de aproximadamente 5 a 6 minutos.',
-    clientName: 'Cliente',
-    clientUsername: 'cliente-anonimo',
-    clientRating: 4,
-    clientReviews: 4
-  },
-  {
-    id: '4',
-    title: 'Planejamento comercial e execução de vendas',
-    category: 'Vendas & Marketing',
-    subcategory: 'Comercial',
-    level: 'Intermediário',
-    publishedAt: '54 minutos atrás',
-    timeRemaining: '2 dias e 23 horas',
-    proposals: 1,
-    interested: 3,
-    description: 'Desenvolvimento e implementação de um plano comercial estruturado, com foco no aumento de faturamento.',
-    clientName: 'Cliente',
-    clientUsername: 'cliente-anonimo'
-  },
-  {
-    id: '5',
-    title: 'Cadastro de produtos em sistema de estoque (Bling)',
-    category: 'Suporte Administrativo',
-    subcategory: 'Entrada de Dados',
-    level: 'Intermediário',
-    publishedAt: '1 hora atrás',
-    timeRemaining: '14 dias e 22 horas',
-    proposals: 12,
-    interested: 25,
-    description: 'Organização e cadastro de estoque de produtos, incluindo itens com variação. Experiência no sistema Bling.',
-    clientName: 'Cliente',
-    clientUsername: 'cliente-anonimo',
-    clientRating: 5,
-    clientReviews: 2
+function loadProjectsFromStorage(): Project[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]');
+    return raw.map((p: any) => ({
+      id: p.id || '',
+      title: p.title || '',
+      category: p.category || 'Outra Categoria',
+      subcategory: p.subcategory,
+      level: (p.experienceLevel === 'expert' ? 'Especialista' : p.experienceLevel === 'beginner' ? 'Iniciante' : 'Intermediário') as Project['level'],
+      publishedAt: p.createdAt ? 'Publicado' : '',
+      timeRemaining: '',
+      proposals: 0,
+      interested: 0,
+      description: p.description || '',
+      clientName: p.clientName || 'Cliente',
+      clientUsername: p.clientUsername || '',
+      isFeatured: false,
+      isUrgent: false,
+    }));
+  } catch {
+    return [];
   }
-];
+}
 
 const menuItems = [
   { icon: Home, label: 'Início', href: '/' },
@@ -154,8 +100,11 @@ const menuItems = [
 ];
 
 export default function Projects() {
-  const [projects] = useState<Project[]>(mockProjects);
+  const [projects, setProjects] = useState<Project[]>(() => loadProjectsFromStorage());
   const [keywords, setKeywords] = useState('');
+  useEffect(() => {
+    setProjects(loadProjectsFromStorage());
+  }, []);
   const [selectedCategory, setSelectedCategory] = useState('Todas as categorias');
   const [featuredOnly, setFeaturedOnly] = useState(false);
   const [urgentOnly, setUrgentOnly] = useState(false);
@@ -353,7 +302,13 @@ export default function Projects() {
 
             {/* Projects List */}
             <div className="space-y-4">
-              {filteredProjects.map((project) => (
+              {filteredProjects.length === 0 ? (
+                <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-500">
+                  <Briefcase className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p className="font-medium">Nenhum projeto encontrado</p>
+                  <p className="text-sm mt-1">Os projetos publicados aparecerão aqui.</p>
+                </div>
+              ) : filteredProjects.map((project) => (
                 <div key={project.id} className="bg-white rounded-lg shadow-sm p-4 md:p-6">
                   <Link to={`/project/${project.id}`} className="text-base md:text-lg font-semibold text-99blue hover:underline block mb-2">{project.title}</Link>
                   

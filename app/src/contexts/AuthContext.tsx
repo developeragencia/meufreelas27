@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
+import { apiAuth, hasApi } from '../lib/api';
 
 export type UserType = 'freelancer' | 'client' | 'admin' | null;
 
@@ -42,18 +43,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      if (hasApi()) {
+        const res = await apiAuth('login', { email, password });
+        if (res.ok && res.user) {
+          setUser(res.user as User);
+          localStorage.setItem('meufreelas_user', JSON.stringify(res.user));
+          return true;
+        }
+        return false;
+      }
       const users = JSON.parse(localStorage.getItem('meufreelas_users') || '[]');
       const foundUser = users.find((u: any) => u.email === email && u.password === password);
-      
       if (foundUser) {
-        const { password, ...userWithoutPassword } = foundUser;
+        const { password: _, ...userWithoutPassword } = foundUser;
         setUser(userWithoutPassword);
         localStorage.setItem('meufreelas_user', JSON.stringify(userWithoutPassword));
         return true;
       }
-      
       return false;
     } catch (error) {
       console.error('Login error:', error);
@@ -62,22 +68,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (
-    name: string, 
-    email: string, 
-    password: string, 
+    name: string,
+    email: string,
+    password: string,
     type: Exclude<UserType, 'admin' | null>
   ): Promise<boolean> => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      if (hasApi()) {
+        const res = await apiAuth('register', { name, email, password, type });
+        if (res.ok && res.user) {
+          setUser(res.user as User);
+          localStorage.setItem('meufreelas_user', JSON.stringify(res.user));
+          return true;
+        }
+        return false;
+      }
       const users = JSON.parse(localStorage.getItem('meufreelas_users') || '[]');
-      
-      // Check if email exists with same type
       const existingUser = users.find((u: any) => u.email === email);
       if (existingUser) {
-        // If user exists with different type, allow creating secondary account
         if (existingUser.type !== type) {
-          // Update existing user to have both account types
           const updatedUser = {
             ...existingUser,
             hasFreelancerAccount: existingUser.type === 'freelancer' || type === 'freelancer',
@@ -86,7 +95,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const userIndex = users.findIndex((u: any) => u.id === existingUser.id);
           users[userIndex] = updatedUser;
           localStorage.setItem('meufreelas_users', JSON.stringify(users));
-          
           const { password: _, ...userWithoutPassword } = updatedUser;
           setUser(userWithoutPassword);
           localStorage.setItem('meufreelas_user', JSON.stringify(userWithoutPassword));
@@ -94,7 +102,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return false;
       }
-      
       const newUser: User = {
         id: Date.now().toString(),
         name,
@@ -106,14 +113,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hasFreelancerAccount: type === 'freelancer',
         hasClientAccount: type === 'client',
       };
-      
-      const userWithPassword = { ...newUser, password };
-      users.push(userWithPassword);
+      users.push({ ...newUser, password });
       localStorage.setItem('meufreelas_users', JSON.stringify(users));
-      
       setUser(newUser);
       localStorage.setItem('meufreelas_user', JSON.stringify(newUser));
-      
       return true;
     } catch (error) {
       console.error('Register error:', error);
