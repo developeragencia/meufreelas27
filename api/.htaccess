@@ -1,0 +1,6 @@
+# API MeuFreelas - meufreelas.com.br
+<Files ".env">
+    Require all denied
+</Files>
+php_flag display_errors off
+php_value log_errors on
