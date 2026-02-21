@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { getSortedSkills } from '../constants/skills';
 import { 
   User, Mail, Phone, MapPin, Briefcase, GraduationCap, 
   Globe, Linkedin, Github, Camera, Save, ArrowLeft,
-  DollarSign, Clock, FileText, Award, CheckCircle, Plus, X, Trash2, ExternalLink
+  DollarSign, Clock, FileText, Award, CheckCircle, Plus, X, Trash2, ExternalLink, ChevronDown
 } from 'lucide-react';
 
 interface Skill {
@@ -49,7 +50,10 @@ export default function EditProfile() {
   
   // Skills
   const [skills, setSkills] = useState<Skill[]>([]);
-  const [newSkill, setNewSkill] = useState('');
+  const [skillSearch, setSkillSearch] = useState('');
+  const [showSkillsDropdown, setShowSkillsDropdown] = useState(false);
+  const skillsDropdownRef = useRef<HTMLDivElement>(null);
+  const allSkillsOptions = getSortedSkills();
   
   // Portfolio
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
@@ -107,12 +111,30 @@ export default function EditProfile() {
     }
   };
 
-  const handleAddSkill = () => {
-    if (newSkill.trim() && !skills.find(s => s.name.toLowerCase() === newSkill.toLowerCase())) {
-      setSkills([...skills, { id: Date.now().toString(), name: newSkill.trim() }]);
-      setNewSkill('');
+  const handleAddSkill = (skillName: string) => {
+    const name = skillName.trim();
+    if (name && !skills.find(s => s.name.toLowerCase() === name.toLowerCase())) {
+      setSkills([...skills, { id: Date.now().toString(), name }]);
+      setSkillSearch('');
+      setShowSkillsDropdown(false);
     }
   };
+
+  const filteredSkillsForSelect = allSkillsOptions.filter(
+    (s) =>
+      s.toLowerCase().includes(skillSearch.toLowerCase()) &&
+      !skills.some((added) => added.name.toLowerCase() === s.toLowerCase())
+  );
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (skillsDropdownRef.current && !skillsDropdownRef.current.contains(e.target as Node)) {
+        setShowSkillsDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleRemoveSkill = (id: string) => {
     setSkills(skills.filter(s => s.id !== id));
@@ -433,26 +455,55 @@ export default function EditProfile() {
 
   const renderSkillsTab = () => (
     <div className="space-y-6">
-      <div>
+      <div ref={skillsDropdownRef} className="relative">
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Adicionar habilidade
         </label>
-        <div className="flex space-x-2">
+        <div className="relative">
           <input
             type="text"
-            value={newSkill}
-            onChange={(e) => setNewSkill(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSkill())}
-            placeholder="Ex: React, Node.js, Design..."
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
+            value={skillSearch}
+            onChange={(e) => {
+              setSkillSearch(e.target.value);
+              setShowSkillsDropdown(true);
+            }}
+            onFocus={() => setShowSkillsDropdown(true)}
+            placeholder="Buscar ou selecione uma habilidade (ex: React, Photoshop, SEO...)"
+            className="w-full pl-4 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
           />
-          <button
-            onClick={handleAddSkill}
-            className="px-6 py-3 bg-99blue text-white rounded-lg hover:bg-99blue-light transition-colors"
-          >
-            Adicionar
-          </button>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
         </div>
+        {showSkillsDropdown && (
+          <div className="absolute z-50 mt-1 w-full max-h-72 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+            {filteredSkillsForSelect.length === 0 ? (
+              <div className="px-4 py-3 text-gray-500 text-sm">
+                {skillSearch.trim() ? 'Nenhuma habilidade encontrada ou já adicionada.' : 'Digite para buscar.'}
+              </div>
+            ) : (
+              <ul className="py-1">
+                {filteredSkillsForSelect.slice(0, 80).map((skill) => (
+                  <li key={skill}>
+                    <button
+                      type="button"
+                      onClick={() => handleAddSkill(skill)}
+                      className="w-full text-left px-4 py-2.5 text-gray-800 hover:bg-99blue/10 hover:text-99blue transition-colors"
+                    >
+                      {skill}
+                    </button>
+                  </li>
+                ))}
+                {filteredSkillsForSelect.length > 80 && (
+                  <li className="px-4 py-2 text-gray-500 text-sm">
+                    + {filteredSkillsForSelect.length - 80} outras. Continue digitando para filtrar.
+                  </li>
+                )}
+              </ul>
+            )}
+          </div>
+        )}
+        <p className="mt-1.5 text-sm text-gray-500">
+          Todas as opções disponíveis (Web, Design, Marketing, Escrita, etc.). Busque e clique para adicionar.
+        </p>
       </div>
 
       <div>
