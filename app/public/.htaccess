@@ -9,11 +9,14 @@
   RewriteCond %{HTTPS} off
   RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
+  # Não reescrever a pasta /api/ (PHP da API)
+  RewriteCond %{REQUEST_URI} ^/api/ [OR]
   # Não reescrever arquivos ou pastas existentes
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
 
-  # SPA: encaminhar todas as rotas para index.html
+  # SPA: encaminhar todas as outras rotas para index.html
   RewriteRule ^ index.html [QSA,L]
 </IfModule>
 

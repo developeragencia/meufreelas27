@@ -3,18 +3,45 @@
  * MeuFreelas - Criação automática das tabelas (executar uma vez na Hostinger)
  * Acesso: https://meufreelas.com.br/api/setup.php
  */
+error_reporting(E_ALL);
+ini_set('display_errors', '0');
 
-require __DIR__ . '/config.php';
+$envFile = __DIR__ . '/.env';
+if (file_exists($envFile)) {
+    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        if (strpos(trim($line), '#') === 0) continue;
+        if (strpos($line, '=') !== false) {
+            list($key, $val) = explode('=', $line, 2);
+            $_ENV[trim($key)] = trim($val, " \t\"'");
+        }
+    }
+}
+
+$dbHost = $_ENV['DB_HOST'] ?? 'localhost';
+$dbName = $_ENV['DB_NAME'] ?? 'u892594395_meufreelas';
+$dbUser = $_ENV['DB_USER'] ?? 'u892594395_meufreelas27';
+$dbPass = $_ENV['DB_PASS'] ?? '';
+
+header('Content-Type: application/json; charset=utf-8');
+
+try {
+    $dsn = 'mysql:host=' . $dbHost . ';dbname=' . $dbName . ';charset=utf8mb4';
+    $pdo = new PDO($dsn, $dbUser, $dbPass, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    ]);
+} catch (PDOException $e) {
+    die(json_encode([
+        'ok' => false,
+        'error' => 'Conexão com o banco falhou.',
+        'detail' => $e->getMessage(),
+        'dica' => 'Confira api/.env (DB_HOST, DB_NAME, DB_USER, DB_PASS) e se a pasta api/ está em public_html/api/ na Hostinger.'
+    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+}
 
 $created = [];
 $errors = [];
-
-try {
-    $pdo = db();
-} catch (PDOException $e) {
-    // Pode ser que o banco ainda não exista - criar só as tabelas após conexão manual
-    die(json_encode(['ok' => false, 'error' => 'Conexão com o banco falhou. Crie o banco no hPanel e defina api/.env com DB_HOST, DB_NAME, DB_USER, DB_PASS.', 'detail' => $e->getMessage()]));
-}
 
 $tables = [
     "CREATE TABLE IF NOT EXISTS users (
