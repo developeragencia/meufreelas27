@@ -35,6 +35,40 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function isUserType(value: unknown): value is Exclude<UserType, null> {
+  return value === 'freelancer' || value === 'client' || value === 'admin';
+}
+
+function normalizeUser(raw: Record<string, unknown>): User | null {
+  const id = raw.id;
+  const email = raw.email;
+  const name = raw.name;
+  const type = raw.type;
+
+  if (typeof id !== 'string' || typeof email !== 'string' || typeof name !== 'string' || !isUserType(type)) {
+    return null;
+  }
+
+  return {
+    id,
+    email,
+    name,
+    type,
+    avatar: typeof raw.avatar === 'string' ? raw.avatar : undefined,
+    phone: typeof raw.phone === 'string' ? raw.phone : undefined,
+    location: typeof raw.location === 'string' ? raw.location : undefined,
+    bio: typeof raw.bio === 'string' ? raw.bio : undefined,
+    skills: Array.isArray(raw.skills) && raw.skills.every((skill) => typeof skill === 'string') ? raw.skills : undefined,
+    hourlyRate: typeof raw.hourlyRate === 'string' ? raw.hourlyRate : undefined,
+    rating: typeof raw.rating === 'number' ? raw.rating : undefined,
+    completedProjects: typeof raw.completedProjects === 'number' ? raw.completedProjects : undefined,
+    hasFreelancerAccount: typeof raw.hasFreelancerAccount === 'boolean' ? raw.hasFreelancerAccount : undefined,
+    hasClientAccount: typeof raw.hasClientAccount === 'boolean' ? raw.hasClientAccount : undefined,
+    isVerified: typeof raw.isVerified === 'boolean' ? raw.isVerified : undefined,
+    isPremium: typeof raw.isPremium === 'boolean' ? raw.isPremium : undefined,
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem('meufreelas_user');
@@ -46,8 +80,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (hasApi()) {
         const res = await apiAuth('login', { email, password });
         if (res.ok && res.user) {
-          setUser(res.user as User);
-          localStorage.setItem('meufreelas_user', JSON.stringify(res.user));
+          const normalizedUser = normalizeUser(res.user);
+          if (!normalizedUser) return false;
+          setUser(normalizedUser);
+          localStorage.setItem('meufreelas_user', JSON.stringify(normalizedUser));
           return true;
         }
         return false;
@@ -77,8 +113,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (hasApi()) {
         const res = await apiAuth('register', { name, email, password, type });
         if (res.ok && res.user) {
-          setUser(res.user as User);
-          localStorage.setItem('meufreelas_user', JSON.stringify(res.user));
+          const normalizedUser = normalizeUser(res.user);
+          if (!normalizedUser) return false;
+          setUser(normalizedUser);
+          localStorage.setItem('meufreelas_user', JSON.stringify(normalizedUser));
           return true;
         }
         return false;
