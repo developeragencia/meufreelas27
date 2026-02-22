@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Briefcase, Clock, DollarSign, Eye, Search, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { apiDeleteProject, apiListProjects, hasApi, type ApiProject } from '../lib/api';
+import { apiDeleteProject, apiListProjects, apiListProposals, hasApi, type ApiProject } from '../lib/api';
 
 export default function MyProjects() {
   const { user } = useAuth();
   const [projects, setProjects] = useState<ApiProject[]>([]);
+  const [freelancerProjects, setFreelancerProjects] = useState<ApiProject[]>([]);
   const [filter, setFilter] = useState<'Todos' | 'Aberto' | 'Em andamento' | 'Concluído'>('Todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -18,23 +19,52 @@ export default function MyProjects() {
       return;
     }
     setIsLoading(true);
-    const res = await apiListProjects({ clientId: user.id, sortBy: 'recent' });
+    if (user.type === 'client') {
+      const res = await apiListProjects({ clientId: user.id, sortBy: 'recent' });
+      setIsLoading(false);
+      if (!res.ok) return;
+      setProjects(res.projects || []);
+      setFreelancerProjects([]);
+      return;
+    }
+
+    const res = await apiListProposals({ freelancerId: user.id, status: 'Aceita' });
     setIsLoading(false);
     if (!res.ok) return;
-    setProjects(res.projects || []);
+    const mapped: ApiProject[] = (res.proposals || []).map((proposal) => ({
+      id: proposal.projectId,
+      clientId: proposal.clientId,
+      clientName: proposal.clientName,
+      title: proposal.projectTitle,
+      description: proposal.message,
+      budget: proposal.value,
+      category: 'Projeto contratado',
+      skills: [],
+      experienceLevel: 'intermediate',
+      proposalDays: proposal.deliveryDays,
+      visibility: 'public',
+      status: proposal.projectStatus || 'Em andamento',
+      proposals: 1,
+      createdAt: proposal.createdAt,
+      updatedAt: proposal.createdAt,
+    }));
+    setFreelancerProjects(mapped);
+    setProjects([]);
   };
 
   useEffect(() => {
     loadProjects();
   }, [user?.id]);
 
+  const sourceProjects = user?.type === 'freelancer' ? freelancerProjects : projects;
+
   const filteredProjects = useMemo(() => {
-    return projects.filter((project) => {
+    return sourceProjects.filter((project) => {
       const matchesFilter = filter === 'Todos' || project.status === filter;
       const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesFilter && matchesSearch;
     });
-  }, [projects, filter, searchTerm]);
+  }, [sourceProjects, filter, searchTerm]);
 
   const getStatusColor = (status: string) => {
     if (status === 'Concluído') return 'bg-green-100 text-green-700';
@@ -44,6 +74,7 @@ export default function MyProjects() {
   };
 
   const handleDelete = async (projectId: string) => {
+    if (user?.type !== 'client') return;
     if (!user?.id) return;
     if (!confirm('Tem certeza que deseja excluir este projeto?')) return;
     const res = await apiDeleteProject(projectId, user.id);
@@ -70,12 +101,16 @@ export default function MyProjects() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <div>
             <h1 className="text-2xl font-semibold text-gray-800">Meus Projetos</h1>
-            <p className="text-gray-500">Gerencie todos os seus projetos</p>
+            <p className="text-gray-500">
+              {user?.type === 'client' ? 'Gerencie todos os seus projetos' : 'Acompanhe seus projetos contratados'}
+            </p>
           </div>
-          <Link to="/project/new" className="mt-4 md:mt-0 inline-flex items-center px-4 py-2 bg-99blue text-white rounded-lg hover:bg-sky-400 transition-colors">
-            <Plus className="w-4 h-4 mr-2" />
-            Novo Projeto
-          </Link>
+          {user?.type === 'client' && (
+            <Link to="/project/new" className="mt-4 md:mt-0 inline-flex items-center px-4 py-2 bg-99blue text-white rounded-lg hover:bg-sky-400 transition-colors">
+              <Plus className="w-4 h-4 mr-2" />
+              Novo Projeto
+            </Link>
+          )}
         </div>
 
         <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
@@ -141,14 +176,16 @@ export default function MyProjects() {
                       <Eye className="w-4 h-4 mr-1" />
                       Ver
                     </Link>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(project.id)}
-                      className="flex items-center px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4 mr-1" />
-                      Excluir
-                    </button>
+                    {user?.type === 'client' && (
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(project.id)}
+                        className="flex items-center px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Excluir
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -160,11 +197,22 @@ export default function MyProjects() {
           <div className="bg-white rounded-lg shadow-sm p-12 text-center">
             <Briefcase className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-800 mb-2">Nenhum projeto encontrado</h3>
-            <p className="text-gray-500 mb-4">Você ainda não tem projetos {filter !== 'Todos' && filter.toLowerCase()}.</p>
-            <Link to="/project/new" className="inline-flex items-center px-6 py-3 bg-99blue text-white rounded-lg hover:bg-sky-400 transition-colors">
-              <Plus className="w-4 h-4 mr-2" />
-              Publicar Primeiro Projeto
-            </Link>
+            <p className="text-gray-500 mb-4">
+              {user?.type === 'client'
+                ? `Você ainda não tem projetos ${filter !== 'Todos' ? filter.toLowerCase() : ''}.`
+                : 'Você ainda não tem projetos contratados.'}
+            </p>
+            {user?.type === 'client' ? (
+              <Link to="/project/new" className="inline-flex items-center px-6 py-3 bg-99blue text-white rounded-lg hover:bg-sky-400 transition-colors">
+                <Plus className="w-4 h-4 mr-2" />
+                Publicar Primeiro Projeto
+              </Link>
+            ) : (
+              <Link to="/projects" className="inline-flex items-center px-6 py-3 bg-99blue text-white rounded-lg hover:bg-sky-400 transition-colors">
+                <Search className="w-4 h-4 mr-2" />
+                Buscar Projetos
+              </Link>
+            )}
           </div>
         )}
       </div>

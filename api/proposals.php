@@ -72,6 +72,13 @@ function normalize_proposal_status_for_db(string $uiStatus): string {
     return 'pending';
 }
 
+function normalize_project_status_for_ui(string $dbStatus): string {
+    if ($dbStatus === 'in_progress') return 'Em andamento';
+    if ($dbStatus === 'completed') return 'Concluído';
+    if ($dbStatus === 'cancelled') return 'Cancelado';
+    return 'Aberto';
+}
+
 $input = json_decode(file_get_contents('php://input'), true) ?? [];
 $action = trim((string)($input['action'] ?? ''));
 
@@ -184,6 +191,7 @@ if ($action === 'list_proposals') {
         SELECT
             p.*,
             prj.title AS project_title,
+            prj.status AS project_status,
             prj.client_id AS client_id,
             c.name AS client_name,
             c.avatar AS client_avatar,
@@ -206,6 +214,7 @@ if ($action === 'list_proposals') {
             'id' => $r['id'],
             'projectId' => $r['project_id'],
             'projectTitle' => $r['project_title'],
+            'projectStatus' => normalize_project_status_for_ui((string)($r['project_status'] ?? 'open')),
             'clientId' => $r['client_id'],
             'clientName' => $r['client_name'],
             'clientAvatar' => $r['client_avatar'],

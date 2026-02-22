@@ -333,6 +333,7 @@ export type ApiProposal = {
   id: string;
   projectId: string;
   projectTitle: string;
+  projectStatus?: string;
   clientId: string;
   clientName: string;
   clientAvatar?: string;
