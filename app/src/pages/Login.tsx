@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { apiResendActivation, hasApi } from '../lib/api';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 
 export default function Login() {
@@ -10,11 +11,16 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isResendLoading, setIsResendLoading] = useState(false);
+  const [notVerifiedEmail, setNotVerifiedEmail] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage('');
+    setNotVerifiedEmail(null);
     const trimmedEmail = email.trim();
     if (!trimmedEmail || !password) {
       setError('Preencha email e senha.');
@@ -31,11 +37,36 @@ export default function Login() {
         navigate(dest, { replace: true });
       } else {
         setError(result.error || 'Email ou senha incorretos.');
+        if (result.code === 'NOT_VERIFIED') setNotVerifiedEmail(trimmedEmail);
       }
     } catch {
       setError('Erro ao fazer login. Tente novamente.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResendActivation = async () => {
+    const emailToUse = notVerifiedEmail ?? email.trim();
+    if (!emailToUse) return;
+    setError('');
+    setSuccessMessage('');
+    setIsResendLoading(true);
+    try {
+      if (hasApi()) {
+        const res = await apiResendActivation(emailToUse);
+        if (res.ok) {
+          setSuccessMessage(res.message || 'E-mail de ativação reenviado. Verifique sua caixa de entrada e o spam.');
+        } else {
+          setError(res.error || 'Não foi possível reenviar o e-mail.');
+        }
+      } else {
+        setError('Reenvio de e-mail não disponível neste modo.');
+      }
+    } catch {
+      setError('Erro ao reenviar. Tente novamente.');
+    } finally {
+      setIsResendLoading(false);
     }
   };
 
@@ -93,6 +124,23 @@ export default function Login() {
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6" role="alert">
               {error}
+              {notVerifiedEmail && hasApi() && (
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={handleResendActivation}
+                    disabled={isResendLoading}
+                    className="text-sm font-medium text-99blue hover:underline disabled:opacity-50"
+                  >
+                    {isResendLoading ? 'Enviando...' : 'Reenviar e-mail de ativação'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          {successMessage && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6" role="status">
+              {successMessage}
             </div>
           )}
 

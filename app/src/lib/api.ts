@@ -57,3 +57,21 @@ export async function apiActivate(token: string): Promise<{ ok: boolean; error?:
     return { ok: false, error: 'Falha de conexão' };
   }
 }
+
+export async function apiResendActivation(email: string): Promise<{ ok: boolean; error?: string; message?: string }> {
+  if (!API_URL) return { ok: false, error: 'API não configurada' };
+  try {
+    const url = `${API_URL.replace(/\/$/, '')}/auth.php`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'resend_activation', email: email.trim() }),
+      credentials: 'omit',
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: !!data.ok, error: data.error as string | undefined, message: data.message as string | undefined };
+  } catch (e) {
+    console.error('apiResendActivation', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}

@@ -162,4 +162,36 @@ if ($action === 'login') {
     exit;
 }
 
-echo json_encode(['ok' => false, 'error' => 'Ação inválida. Use action: register ou login.']);
+if ($action === 'resend_activation') {
+    $email = trim($input['email'] ?? '');
+    if (!$email) {
+        echo json_encode(['ok' => false, 'error' => 'E-mail obrigatório.']);
+        exit;
+    }
+    $stmt = $pdo->prepare('SELECT id, name, type, is_verified FROM users WHERE email = ?');
+    $stmt->execute([$email]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        echo json_encode(['ok' => false, 'error' => 'E-mail não encontrado.']);
+        exit;
+    }
+    $isVerified = isset($row['is_verified']) ? (int) $row['is_verified'] : 1;
+    if ($isVerified === 1) {
+        echo json_encode(['ok' => false, 'error' => 'Esta conta já está ativada. Faça login.']);
+        exit;
+    }
+    $siteUrl = 'https://meufreelas.com.br';
+    $token = bin2hex(random_bytes(32));
+    $expires = date('Y-m-d H:i:s', strtotime('+24 hours'));
+    $pdo->prepare('UPDATE users SET activation_token = ?, activation_token_expires_at = ? WHERE id = ?')
+        ->execute([$token, $expires, $row['id']]);
+    if (file_exists(__DIR__ . '/EmailService.php')) {
+        require_once __DIR__ . '/EmailService.php';
+        $emailService = new EmailService($_ENV);
+        $emailService->sendActivationEmail($email, $row['name'], $row['type'], $siteUrl . '/ativar?token=' . $token);
+    }
+    echo json_encode(['ok' => true, 'message' => 'E-mail de ativação reenviado. Verifique sua caixa de entrada e o spam.']);
+    exit;
+}
+
+echo json_encode(['ok' => false, 'error' => 'Ação inválida. Use action: register, login ou resend_activation.']);
