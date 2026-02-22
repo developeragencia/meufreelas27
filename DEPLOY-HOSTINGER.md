@@ -44,38 +44,30 @@ npm run build
 
 Se `VITE_API_URL` não estiver definido no momento do build, o app usa só localStorage e **nenhum usuário é salvo no banco**.
 
-### 2. O que enviar (OBRIGATÓRIO: app + api)
+### 2. O que enviar (só a pasta dist)
 
-Se você **só** enviar o conteúdo de `app/dist`, o endereço **https://meufreelas.com.br/api/setup.php** não existe no servidor e o 404 manda para a home. Por isso o setup “não funciona”.
+O build **já copia a pasta api/** para dentro de `dist/api/`. Você envia **só o conteúdo de `app/dist`** para a raiz do site (ex.: `public_html/`).
 
-**Envie duas coisas:**
-
-1. **Conteúdo de `app/dist`** → na **raiz** da pasta pública (ex.: `public_html/`).
-2. **Toda a pasta `api/`** do projeto → dentro da raiz como **`api/`** (ex.: `public_html/api/`).
-
-Estrutura correta no servidor (ex.: `public_html`):
+Estrutura no servidor após o upload:
 
 ```
 public_html/
   index.html
   assets/
-  favicon.svg
-  manifest.json
-  robots.txt
-  sitemap.xml
+  404.php
   .htaccess
   api/
-    .env          ← criar/colar no servidor (DB_*, SMTP_*)
+    .env          ← já vem do build (edite no servidor: DB_PASS e SMTP_PASS)
+    .env.example
     .htaccess
     setup.php
     auth.php
     health.php
     EmailService.php
-    config.php
     ...
 ```
 
-Assim **https://meufreelas.com.br/api/setup.php** passa a abrir o setup (e não a home).
+No servidor: abra `api/.env` e preencha **DB_PASS** (senha do MySQL) e **SMTP_PASS** (senha do e-mail noreply). Depois acesse **https://meufreelas.com.br/api/setup.php** uma vez.
 
 ### 3. Configurações no painel Hostinger
 
