@@ -72,7 +72,14 @@ function normalizeUser(raw: Record<string, unknown>): User | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem('meufreelas_user');
-    return savedUser ? JSON.parse(savedUser) : null;
+    if (!savedUser) return null;
+    try {
+      const parsed = JSON.parse(savedUser) as Record<string, unknown>;
+      return normalizeUser(parsed);
+    } catch {
+      localStorage.removeItem('meufreelas_user');
+      return null;
+    }
   });
 
   const login = async (email: string, password: string): Promise<boolean> => {

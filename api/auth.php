@@ -31,13 +31,14 @@ if (file_exists($envFile)) {
 }
 
 $dbHost = $_ENV['DB_HOST'] ?? 'localhost';
+$dbPort = $_ENV['DB_PORT'] ?? '3306';
 $dbName = $_ENV['DB_NAME'] ?? 'u892594395_meufreelas';
 $dbUser = $_ENV['DB_USER'] ?? 'u892594395_meufreelas27';
 $dbPass = $_ENV['DB_PASS'] ?? '';
 
 try {
     $pdo = new PDO(
-        "mysql:host=$dbHost;dbname=$dbName;charset=utf8mb4",
+        "mysql:host=$dbHost;port=$dbPort;dbname=$dbName;charset=utf8mb4",
         $dbUser,
         $dbPass,
         [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]

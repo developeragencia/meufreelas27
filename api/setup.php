@@ -19,6 +19,7 @@ if (file_exists($envFile)) {
 }
 
 $dbHost = $_ENV['DB_HOST'] ?? 'localhost';
+$dbPort = $_ENV['DB_PORT'] ?? '3306';
 $dbName = $_ENV['DB_NAME'] ?? 'u892594395_meufreelas';
 $dbUser = $_ENV['DB_USER'] ?? 'u892594395_meufreelas27';
 $dbPass = $_ENV['DB_PASS'] ?? '';
@@ -26,7 +27,7 @@ $dbPass = $_ENV['DB_PASS'] ?? '';
 header('Content-Type: application/json; charset=utf-8');
 
 try {
-    $dsn = 'mysql:host=' . $dbHost . ';dbname=' . $dbName . ';charset=utf8mb4';
+    $dsn = 'mysql:host=' . $dbHost . ';port=' . $dbPort . ';dbname=' . $dbName . ';charset=utf8mb4';
     $pdo = new PDO($dsn, $dbUser, $dbPass, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
