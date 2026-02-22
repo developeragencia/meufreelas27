@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { apiClearNotifications, apiDeleteNotification, apiListNotifications, apiMarkAllNotificationsRead, apiMarkNotificationRead, hasApi } from '../lib/api';
 import { 
   ArrowLeft, Bell, Check, CheckCheck, Trash2, Briefcase, 
   MessageSquare, DollarSign, Star, Info, X,
@@ -28,88 +29,50 @@ export default function Notifications() {
       navigate('/login');
       return;
     }
-    
-    // Load notifications from localStorage
-    const savedNotifications = JSON.parse(localStorage.getItem(`notifications_${user?.id}`) || '[]');
-    if (savedNotifications.length === 0) {
-      // Generate mock notifications
-      const mockNotifications: Notification[] = [
-        {
-          id: '1',
-          type: 'project',
-          title: 'Nova proposta recebida',
-          description: 'Você recebeu uma nova proposta para o projeto "Desenvolvimento de Website"',
-          date: '2024-01-15T10:30:00',
-          isRead: false,
-          link: '/freelancer/proposals'
-        },
-        {
-          id: '2',
-          type: 'message',
-          title: 'Nova mensagem',
-          description: 'Carlos Mendes enviou uma mensagem sobre o projeto',
-          date: '2024-01-15T09:15:00',
-          isRead: false,
-          link: '/messages'
-        },
-        {
-          id: '3',
-          type: 'payment',
-          title: 'Pagamento recebido',
-          description: 'Você recebeu um pagamento de R$ 2.500,00',
-          date: '2024-01-14T16:45:00',
-          isRead: true,
-          link: '/payments'
-        },
-        {
-          id: '4',
-          type: 'review',
-          title: 'Nova avaliação',
-          description: 'Ana Paula avaliou seu trabalho com 5 estrelas',
-          date: '2024-01-14T14:20:00',
-          isRead: true,
-          link: '/profile'
-        },
-        {
-          id: '5',
-          type: 'system',
-          title: 'Perfil verificado',
-          description: 'Seu perfil foi verificado com sucesso!',
-          date: '2024-01-13T11:00:00',
-          isRead: true
-        }
-      ];
-      setNotifications(mockNotifications);
-      localStorage.setItem(`notifications_${user?.id}`, JSON.stringify(mockNotifications));
-    } else {
-      setNotifications(savedNotifications);
-    }
+
+    const load = async () => {
+      if (!user?.id || !hasApi()) {
+        setNotifications([]);
+        return;
+      }
+      const res = await apiListNotifications(user.id);
+      if (!res.ok) {
+        setNotifications([]);
+        return;
+      }
+      setNotifications((res.notifications || []) as Notification[]);
+    };
+
+    load();
   }, [isAuthenticated, user, navigate]);
 
-  const markAsRead = (id: string) => {
-    const updated = notifications.map(n => 
-      n.id === id ? { ...n, isRead: true } : n
-    );
-    setNotifications(updated);
-    localStorage.setItem(`notifications_${user?.id}`, JSON.stringify(updated));
+  const markAsRead = async (id: string) => {
+    if (!user?.id) return;
+    const res = await apiMarkNotificationRead(user.id, id);
+    if (!res.ok) return;
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
   };
 
-  const markAllAsRead = () => {
-    const updated = notifications.map(n => ({ ...n, isRead: true }));
-    setNotifications(updated);
-    localStorage.setItem(`notifications_${user?.id}`, JSON.stringify(updated));
+  const markAllAsRead = async () => {
+    if (!user?.id) return;
+    const res = await apiMarkAllNotificationsRead(user.id);
+    if (!res.ok) return;
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
   };
 
-  const deleteNotification = (id: string) => {
-    const updated = notifications.filter(n => n.id !== id);
-    setNotifications(updated);
-    localStorage.setItem(`notifications_${user?.id}`, JSON.stringify(updated));
+  const deleteNotification = async (id: string) => {
+    if (!user?.id) return;
+    const res = await apiDeleteNotification(user.id, id);
+    if (!res.ok) return;
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
-  const clearAll = () => {
+  const clearAll = async () => {
     if (confirm('Tem certeza que deseja limpar todas as notificações?')) {
+      if (!user?.id) return;
+      const res = await apiClearNotifications(user.id);
+      if (!res.ok) return;
       setNotifications([]);
-      localStorage.setItem(`notifications_${user?.id}`, JSON.stringify([]));
     }
   };
 

@@ -165,8 +165,10 @@ $otherTables = [
     'notifications' => "CREATE TABLE IF NOT EXISTS notifications (
         id VARCHAR(36) PRIMARY KEY,
         user_id VARCHAR(36) NOT NULL,
+        type VARCHAR(50) DEFAULT 'system',
         title VARCHAR(255) NOT NULL,
         message TEXT DEFAULT NULL,
+        link VARCHAR(255) DEFAULT NULL,
         is_read TINYINT(1) DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_user_read (user_id, is_read)
@@ -187,6 +189,21 @@ foreach ($otherTables as $name => $sql) {
         $result['tables'][] = $name;
     } catch (PDOException $e) {
         $result['errors'][] = $name . ': ' . $e->getMessage();
+    }
+}
+
+$notificationColumnsToAdd = [
+    'type' => "ALTER TABLE notifications ADD COLUMN type VARCHAR(50) DEFAULT 'system'",
+    'link' => "ALTER TABLE notifications ADD COLUMN link VARCHAR(255) DEFAULT NULL",
+];
+foreach ($notificationColumnsToAdd as $col => $sql) {
+    try {
+        $pdo->exec($sql);
+        $result['steps'][] = "Coluna notifications.$col adicionada";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'Duplicate column') === false) {
+            $result['errors'][] = "notifications.$col: " . $e->getMessage();
+        }
     }
 }
 

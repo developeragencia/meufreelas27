@@ -42,6 +42,23 @@ try {
     exit;
 }
 
+function create_notification(PDO $pdo, string $userId, string $title, string $message, string $type = 'system', ?string $link = null): void {
+    $notificationId = bin2hex(random_bytes(18));
+    try {
+        $stmt = $pdo->prepare('INSERT INTO notifications (id, user_id, title, message, type, link) VALUES (?, ?, ?, ?, ?, ?)');
+        $stmt->execute([$notificationId, $userId, $title, $message, $type, $link]);
+        return;
+    } catch (Throwable $e) {
+        // fallback para bancos antigos sem colunas type/link
+    }
+    try {
+        $stmt = $pdo->prepare('INSERT INTO notifications (id, user_id, title, message) VALUES (?, ?, ?, ?)');
+        $stmt->execute([$notificationId, $userId, $title, $message]);
+    } catch (Throwable $e) {
+        // ignora para não quebrar fluxo principal
+    }
+}
+
 function normalize_proposal_status_for_ui(string $dbStatus): string {
     if ($dbStatus === 'accepted') return 'Aceita';
     if ($dbStatus === 'rejected') return 'Recusada';
@@ -110,6 +127,15 @@ if ($action === 'create_proposal') {
         'delivery_days' => $deliveryDays,
         'message' => $message,
     ]);
+
+    create_notification(
+        $pdo,
+        (string)$project['client_id'],
+        'Nova proposta recebida',
+        'Você recebeu uma nova proposta para seu projeto.',
+        'project',
+        '/project/' . $projectId
+    );
 
     echo json_encode([
         'ok' => true,
@@ -235,6 +261,31 @@ if ($action === 'update_proposal_status') {
         $closeOthers->execute([$proposal['project_id'], $proposalId]);
         $closeProject = $pdo->prepare('UPDATE projects SET status = "in_progress" WHERE id = ?');
         $closeProject->execute([$proposal['project_id']]);
+    }
+
+    $proposalDetail = $pdo->prepare('SELECT freelancer_id, project_id FROM proposals WHERE id = ? LIMIT 1');
+    $proposalDetail->execute([$proposalId]);
+    $proposalDetailRow = $proposalDetail->fetch();
+    if ($proposalDetailRow) {
+        if ($newStatus === 'accepted') {
+            create_notification(
+                $pdo,
+                (string)$proposalDetailRow['freelancer_id'],
+                'Proposta aceita',
+                'Sua proposta foi aceita pelo cliente.',
+                'project',
+                '/project/' . (string)$proposalDetailRow['project_id']
+            );
+        } elseif ($newStatus === 'rejected') {
+            create_notification(
+                $pdo,
+                (string)$proposalDetailRow['freelancer_id'],
+                'Proposta recusada',
+                'Sua proposta foi recusada pelo cliente.',
+                'project',
+                '/project/' . (string)$proposalDetailRow['project_id']
+            );
+        }
     }
 
     echo json_encode(['ok' => true, 'message' => 'Status da proposta atualizado.']);

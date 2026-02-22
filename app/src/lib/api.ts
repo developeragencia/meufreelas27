@@ -395,7 +395,7 @@ export async function apiListProposals(payload: {
 export async function apiUpdateProposalStatus(payload: {
   proposalId: string;
   clientId: string;
-  status: 'Aceita' | 'Recusada';
+  status: 'Aceita' | 'Recusada' | 'Pendente';
 }): Promise<{ ok: boolean; error?: string; message?: string }> {
   try {
     const data = await callProposalsApi({ action: 'update_proposal_status', ...payload });
@@ -410,20 +410,76 @@ export async function apiUpdateProposalStatus(payload: {
   }
 }
 
-export async function apiUpdateProposalStatus(payload: {
-  proposalId: string;
-  clientId: string;
-  status: 'Aceita' | 'Recusada' | 'Pendente';
-}): Promise<{ ok: boolean; error?: string; message?: string }> {
+export type ApiNotification = {
+  id: string;
+  type: 'project' | 'message' | 'payment' | 'review' | 'system';
+  title: string;
+  description: string;
+  date: string;
+  isRead: boolean;
+  link?: string;
+};
+
+async function callNotificationsApi(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+  if (!API_URL) return { ok: false, error: 'API não configurada' };
+  const url = `${API_URL.replace(/\/$/, '')}/notifications.php`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    credentials: 'omit',
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { ok: false, error: (data?.error as string) || `Erro ${res.status}` };
+  return data as Record<string, unknown>;
+}
+
+export async function apiListNotifications(userId: string): Promise<{ ok: boolean; notifications?: ApiNotification[]; error?: string }> {
   try {
-    const data = await callProposalsApi({ action: 'update_proposal_status', ...payload });
-    return {
-      ok: !!data.ok,
-      error: data.error as string | undefined,
-      message: data.message as string | undefined,
-    };
+    const data = await callNotificationsApi({ action: 'list_notifications', userId });
+    return { ok: !!data.ok, notifications: (data.notifications as ApiNotification[] | undefined) || [], error: data.error as string | undefined };
   } catch (e) {
-    console.error('apiUpdateProposalStatus', e);
+    console.error('apiListNotifications', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiMarkNotificationRead(userId: string, notificationId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const data = await callNotificationsApi({ action: 'mark_read', userId, notificationId });
+    return { ok: !!data.ok, error: data.error as string | undefined };
+  } catch (e) {
+    console.error('apiMarkNotificationRead', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiMarkAllNotificationsRead(userId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const data = await callNotificationsApi({ action: 'mark_all_read', userId });
+    return { ok: !!data.ok, error: data.error as string | undefined };
+  } catch (e) {
+    console.error('apiMarkAllNotificationsRead', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiDeleteNotification(userId: string, notificationId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const data = await callNotificationsApi({ action: 'delete_notification', userId, notificationId });
+    return { ok: !!data.ok, error: data.error as string | undefined };
+  } catch (e) {
+    console.error('apiDeleteNotification', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiClearNotifications(userId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const data = await callNotificationsApi({ action: 'clear_notifications', userId });
+    return { ok: !!data.ok, error: data.error as string | undefined };
+  } catch (e) {
+    console.error('apiClearNotifications', e);
     return { ok: false, error: 'Falha de conexão' };
   }
 }
