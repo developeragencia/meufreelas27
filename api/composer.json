@@ -1,0 +1,10 @@
+{
+    "name": "meufreelas/api",
+    "description": "API MeuFreelas - e-mail via PHPMailer (SMTP Hostinger)",
+    "require": {
+        "phpmailer/phpmailer": "^6.9"
+    },
+    "autoload": {
+        "classmap": []
+    }
+}
