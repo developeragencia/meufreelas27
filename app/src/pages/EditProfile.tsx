@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getSortedSkills } from '../constants/skills';
-import { BR_CITIES_BY_UF, BR_STATES } from '../constants/brLocations';
+import { BR_STATES, getCitiesByUf } from '../constants/brLocations';
 import { 
   User, Mail, Phone, MapPin, Briefcase, GraduationCap, 
   Globe, Linkedin, Github, Camera, Save, ArrowLeft,
@@ -39,6 +39,8 @@ export default function EditProfile() {
   const [location, setLocation] = useState('');
   const [stateUf, setStateUf] = useState('');
   const [city, setCity] = useState('');
+  const [citiesOptions, setCitiesOptions] = useState<string[]>([]);
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
   const [bio, setBio] = useState('');
   const [avatar, setAvatar] = useState(user?.avatar || '');
   
@@ -97,6 +99,27 @@ export default function EditProfile() {
       setPortfolioItems(profile.portfolioItems || []);
     }
   }, [user]);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadCities = async () => {
+      if (!stateUf) {
+        setCitiesOptions([]);
+        setIsLoadingCities(false);
+        return;
+      }
+      setIsLoadingCities(true);
+      const cities = await getCitiesByUf(stateUf);
+      if (mounted) {
+        setCitiesOptions(cities);
+        setIsLoadingCities(false);
+      }
+    };
+    loadCities();
+    return () => {
+      mounted = false;
+    };
+  }, [stateUf]);
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -225,11 +248,25 @@ export default function EditProfile() {
     if (avatar !== user?.avatar || name !== user?.name) {
       updateUser({ avatar, name });
     }
+
+    window.dispatchEvent(new CustomEvent('meufreelas:profile-updated', { detail: { userId: user?.id } }));
     
     setIsLoading(false);
     setSuccessMessage('Perfil atualizado com sucesso!');
     setTimeout(() => setSuccessMessage(''), 3000);
   };
+
+  const completionChecks = [
+    Boolean(avatar),
+    Boolean(name.trim()),
+    Boolean(phone.trim()),
+    Boolean(stateUf),
+    Boolean(city),
+    Boolean(bio.trim()),
+    skills.length > 0,
+    Boolean(title.trim()),
+  ];
+  const completionPercent = Math.round((completionChecks.filter(Boolean).length / completionChecks.length) * 100);
 
   const renderPersonalTab = () => (
     <div className="space-y-6">
@@ -349,11 +386,13 @@ export default function EditProfile() {
               setCity(nextCity);
               setLocation(nextCity && stateUf ? `${nextCity}, ${stateUf}` : '');
             }}
-            disabled={!stateUf}
+            disabled={!stateUf || isLoadingCities}
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
           >
-            <option value="">{stateUf ? 'Selecione a cidade' : 'Selecione primeiro o estado'}</option>
-            {(BR_CITIES_BY_UF[stateUf] || []).map((cityName) => (
+            <option value="">
+              {!stateUf ? 'Selecione primeiro o estado' : isLoadingCities ? 'Carregando cidades...' : 'Selecione a cidade'}
+            </option>
+            {citiesOptions.map((cityName) => (
               <option key={cityName} value={cityName}>
                 {cityName}
               </option>
@@ -683,7 +722,7 @@ export default function EditProfile() {
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
+      <div className="max-w-5xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
         {/* Success Message */}
         {successMessage && (
           <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center">
@@ -692,15 +731,31 @@ export default function EditProfile() {
           </div>
         )}
 
+        {/* Profile Completion */}
+        <div className="bg-white rounded-lg shadow-sm mb-6 p-4 sm:p-5">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="font-semibold text-gray-900">Progresso do perfil</h2>
+            <span className={`text-xs px-2 py-1 rounded-full ${
+              completionPercent >= 90 ? 'bg-green-100 text-green-700' : completionPercent >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+            }`}>
+              {completionPercent}%
+            </span>
+          </div>
+          <div className="h-2 bg-gray-200 rounded-full overflow-hidden mb-2">
+            <div className="h-full bg-99blue rounded-full transition-all" style={{ width: `${completionPercent}%` }} />
+          </div>
+          <p className="text-xs text-gray-500">Preencha os passos para concluir o perfil e ganhar mais destaque.</p>
+        </div>
+
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow-sm mb-6">
           <div className="border-b overflow-x-auto">
             <nav className="flex min-w-max">
               {[
-                { id: 'personal', label: 'Pessoal', icon: User },
-                { id: 'professional', label: 'Profissional', icon: Briefcase },
-                { id: 'skills', label: 'Habilidades', icon: Award },
-                { id: 'portfolio', label: 'Portfólio', icon: FileText },
+                { id: 'personal', label: '1. Pessoal', icon: User },
+                { id: 'professional', label: '2. Profissional', icon: Briefcase },
+                { id: 'skills', label: '3. Habilidades', icon: Award },
+                { id: 'portfolio', label: '4. Portfólio', icon: FileText },
               ].map((tab) => (
                 <button
                   key={tab.id}

@@ -21,7 +21,7 @@ import {
   AlertTriangle,
   Plus
 } from 'lucide-react';
-import { BR_CITIES_BY_UF, BR_STATES } from '../constants/brLocations';
+import { BR_STATES, getCitiesByUf } from '../constants/brLocations';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -32,6 +32,8 @@ export default function Settings() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [avatar, setAvatar] = useState(user?.avatar || '');
+  const [citiesOptions, setCitiesOptions] = useState<string[]>([]);
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
 
   // Profile data
   const [profileData, setProfileData] = useState({
@@ -114,6 +116,27 @@ export default function Settings() {
     }
   }, [user?.id]);
 
+  useEffect(() => {
+    let mounted = true;
+    const loadCities = async () => {
+      if (!profileData.stateUf) {
+        setCitiesOptions([]);
+        setIsLoadingCities(false);
+        return;
+      }
+      setIsLoadingCities(true);
+      const cities = await getCitiesByUf(profileData.stateUf);
+      if (mounted) {
+        setCitiesOptions(cities);
+        setIsLoadingCities(false);
+      }
+    };
+    loadCities();
+    return () => {
+      mounted = false;
+    };
+  }, [profileData.stateUf]);
+
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     const normalizedLocation =
@@ -142,6 +165,7 @@ export default function Settings() {
       name: profileData.name,
       avatar: avatar 
     });
+    window.dispatchEvent(new CustomEvent('meufreelas:profile-updated', { detail: { userId: user?.id } }));
     showSuccess('Perfil atualizado com sucesso!');
   };
 
@@ -183,6 +207,18 @@ export default function Settings() {
       }
     }
   };
+
+  const clientProfileChecks = [
+    Boolean(avatar),
+    Boolean(profileData.name.trim()),
+    Boolean(profileData.phone.trim()),
+    Boolean(profileData.stateUf),
+    Boolean(profileData.city),
+    Boolean(profileData.bio.trim()),
+  ];
+  const clientProfilePercent = Math.round(
+    (clientProfileChecks.filter(Boolean).length / clientProfileChecks.length) * 100
+  );
 
   return (
     <div className="min-h-screen bg-gray-100 overflow-x-hidden">
@@ -267,6 +303,15 @@ export default function Settings() {
             {activeTab === 'perfil' && (
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h2 className="text-lg font-semibold text-gray-800 mb-6">Informações do Perfil</h2>
+                <div className="mb-6 rounded-lg border border-gray-200 p-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Progresso do perfil</span>
+                    <span className="text-xs font-semibold text-99blue">{clientProfilePercent}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
+                    <div className="h-full rounded-full bg-99blue transition-all" style={{ width: `${clientProfilePercent}%` }} />
+                  </div>
+                </div>
                 
                 {/* Avatar */}
                 <div className="flex items-center mb-6">
@@ -394,7 +439,7 @@ export default function Settings() {
                       <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                       <select
                         value={profileData.city}
-                        disabled={!profileData.stateUf}
+                        disabled={!profileData.stateUf || isLoadingCities}
                         onChange={(e) =>
                           setProfileData((prev) => ({
                             ...prev,
@@ -405,9 +450,13 @@ export default function Settings() {
                         className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
                       >
                         <option value="">
-                          {profileData.stateUf ? 'Selecione a cidade' : 'Selecione primeiro o estado'}
+                          {!profileData.stateUf
+                            ? 'Selecione primeiro o estado'
+                            : isLoadingCities
+                              ? 'Carregando cidades...'
+                              : 'Selecione a cidade'}
                         </option>
-                        {(BR_CITIES_BY_UF[profileData.stateUf] || []).map((cityName) => (
+                        {citiesOptions.map((cityName) => (
                           <option key={cityName} value={cityName}>
                             {cityName}
                           </option>

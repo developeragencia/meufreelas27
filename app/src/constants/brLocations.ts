@@ -57,3 +57,34 @@ export const BR_CITIES_BY_UF: Record<string, string[]> = {
   SE: ['Aracaju', 'Nossa Senhora do Socorro', 'Lagarto'],
   TO: ['Palmas', 'Araguaína', 'Gurupi'],
 };
+
+const citiesCache = new Map<string, string[]>();
+
+export async function getCitiesByUf(uf: string): Promise<string[]> {
+  const normalizedUf = (uf || '').trim().toUpperCase();
+  if (!normalizedUf) return [];
+  if (citiesCache.has(normalizedUf)) return citiesCache.get(normalizedUf) || [];
+
+  // Tenta carregar lista completa de municípios da UF pela API do IBGE.
+  try {
+    const state = BR_STATES.find((s) => s.uf === normalizedUf);
+    if (!state) return [];
+    const endpoint = `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${normalizedUf}/municipios?orderBy=nome`;
+    const res = await fetch(endpoint);
+    if (res.ok) {
+      const data = (await res.json()) as Array<{ nome?: string }>;
+      const names = data.map((item) => (item.nome || '').trim()).filter(Boolean);
+      if (names.length > 0) {
+        citiesCache.set(normalizedUf, names);
+        return names;
+      }
+    }
+  } catch {
+    // fallback abaixo
+  }
+
+  // Fallback para lista local caso API externa não esteja disponível.
+  const fallback = BR_CITIES_BY_UF[normalizedUf] || [];
+  citiesCache.set(normalizedUf, fallback);
+  return fallback;
+}

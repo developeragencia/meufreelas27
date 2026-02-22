@@ -103,6 +103,17 @@ function safeParseObject<T = Record<string, unknown>>(raw: string | null): T | n
   }
 }
 
+function isProfileComplete(profile: Record<string, unknown> | null, hasAvatar: boolean): boolean {
+  if (!profile) return false;
+  const phone = String(profile.phone || '').trim();
+  const bio = String(profile.bio || '').trim();
+  const stateUf = String(profile.stateUf || '').trim();
+  const city = String(profile.city || '').trim();
+  const title = String(profile.title || '').trim();
+  const skills = Array.isArray(profile.skills) ? profile.skills : [];
+  return Boolean(hasAvatar && phone && bio && stateUf && city && (title || skills.length > 0));
+}
+
 export default function GoalsWidget() {
   const { user } = useAuth();
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -110,55 +121,61 @@ export default function GoalsWidget() {
 
   useEffect(() => {
     if (!user) return;
-
-    // Load or initialize goals
-    const savedGoals = localStorage.getItem(`goals_${user.id}`);
-    
-    if (savedGoals) {
-      const parsedGoals = safeParseArray<Partial<Goal>>(savedGoals);
+    const recomputeGoals = () => {
+      const savedGoals = safeParseArray<Partial<Goal>>(localStorage.getItem(`goals_${user.id}`));
       const completedById = new Map<string, boolean>();
-      parsedGoals.forEach((g) => {
-        if (typeof g?.id === 'string') {
-          completedById.set(g.id, Boolean(g.completed));
-        }
+      savedGoals.forEach((g) => {
+        if (typeof g?.id === 'string') completedById.set(g.id, Boolean(g.completed));
       });
-      const hydrated = cloneGoalsTemplate().map((g) => ({
-        ...g,
-        completed: completedById.get(g.id) ?? g.completed,
-      }));
-      setGoals(hydrated);
-    } else {
-      const initialGoals = cloneGoalsTemplate();
-      
-      // Check if profile is already complete
-      const profileData = localStorage.getItem(`profile_${user.id}`);
-      if (profileData) {
-        const profile = safeParseObject<{ title?: string; bio?: string; skills?: string[] }>(profileData);
-        if (profile?.title && profile?.bio && Array.isArray(profile.skills) && profile.skills.length > 0) {
-          initialGoals[0].completed = true;
-        }
-      }
-      
-      // Check if user has projects
-      const projects = safeParseArray<{ clientId?: string }>(localStorage.getItem('meufreelas_projects'));
-      const userProjects = projects.filter((p: any) => p.clientId === user.id);
-      if (userProjects.length > 0) {
-        initialGoals[1].completed = true;
-      }
-      
-      // Check if user has proposals
+
+      const profile = safeParseObject<Record<string, unknown>>(localStorage.getItem(`profile_${user.id}`));
+      const projects = safeParseArray<{ clientId?: string; freelancerId?: string; status?: string }>(
+        localStorage.getItem('meufreelas_projects')
+      );
       const proposals = safeParseArray<{ freelancerId?: string }>(localStorage.getItem('meufreelas_proposals'));
-      const userProposals = proposals.filter((p: any) => p.freelancerId === user.id);
-      if (userProposals.length > 0) {
-        initialGoals[2].completed = true;
-      }
-      
-      setGoals(initialGoals);
+
+      const hasProject = projects.some((p) => String(p.clientId) === String(user.id));
+      const hasProposal = proposals.some((p) => String(p.freelancerId) === String(user.id));
+      const hasCompletedProject =
+        Number(user.completedProjects || 0) > 0 ||
+        projects.some(
+          (p) =>
+            (String(p.clientId) === String(user.id) || String(p.freelancerId) === String(user.id)) &&
+            String(p.status || '').toLowerCase() === 'completed'
+        );
+
+      const autoCompletedById: Record<string, boolean> = {
+        complete_profile: isProfileComplete(profile, Boolean(user.avatar)),
+        publish_project: hasProject,
+        send_proposal: hasProposal,
+        receive_review: Number(user.rating || 0) > 0,
+        complete_project: hasCompletedProject,
+        premium_member: Boolean(user.isPremium),
+      };
+
+      const nextGoals = cloneGoalsTemplate().map((goal) => {
+        if (goal.id in autoCompletedById) {
+          return { ...goal, completed: autoCompletedById[goal.id] };
+        }
+        return { ...goal, completed: completedById.get(goal.id) ?? false };
+      });
+
+      setGoals(nextGoals);
       localStorage.setItem(
         `goals_${user.id}`,
-        JSON.stringify(initialGoals.map(({ icon: _icon, ...rest }) => rest))
+        JSON.stringify(nextGoals.map(({ icon: _icon, ...rest }) => rest))
       );
-    }
+    };
+
+    recomputeGoals();
+    const onStorage = () => recomputeGoals();
+    const onProfileUpdated = () => recomputeGoals();
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('meufreelas:profile-updated', onProfileUpdated as EventListener);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('meufreelas:profile-updated', onProfileUpdated as EventListener);
+    };
   }, [user]);
 
   useEffect(() => {
