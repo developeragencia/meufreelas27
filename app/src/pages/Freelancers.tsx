@@ -17,7 +17,11 @@ interface Freelancer {
   memberSince: string;
   ranking?: number;
   isPremium: boolean;
+  isPro: boolean;
+  planTier: 'free' | 'pro' | 'premium';
   hasPhoto: boolean;
+  profileCompletion: number;
+  rankingScore: number;
 }
 
 const areasOfInterest = [
@@ -68,22 +72,73 @@ function loadFreelancersFromStorage(): Freelancer[] {
     const users = JSON.parse(localStorage.getItem('meufreelas_users') || '[]');
     return users
       .filter((u: any) => u.type === 'freelancer' || u.hasFreelancerAccount)
-      .map((u: any, i: number) => ({
-        id: u.id,
-        name: u.name || '',
-        username: (u.name || u.id).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || u.id,
-        title: '',
-        bio: u.bio || '',
-        skills: Array.isArray(u.skills) ? u.skills : (u.skills ? [u.skills] : []),
-        rating: Number(u.rating) || 0,
-        totalReviews: 0,
-        completedProjects: Number(u.completedProjects) || 0,
-        recommendations: 0,
-        memberSince: '',
-        ranking: i + 1,
-        isPremium: !!u.isPremium,
-        hasPhoto: !!u.avatar,
-      }));
+      .map((u: any) => {
+        const profileRaw = localStorage.getItem(`profile_${u.id}`);
+        let profile: Record<string, any> = {};
+        try {
+          profile = profileRaw ? JSON.parse(profileRaw) : {};
+        } catch {
+          profile = {};
+        }
+
+        const skills = Array.isArray(u.skills)
+          ? u.skills
+          : Array.isArray(profile.skills)
+            ? profile.skills
+            : u.skills
+              ? [u.skills]
+              : [];
+
+        const profileCompletionChecks = [
+          Boolean(u.avatar),
+          Boolean((u.name || '').trim()),
+          Boolean((u.phone || profile.phone || '').trim()),
+          Boolean((profile.stateUf || '').trim()),
+          Boolean((profile.city || '').trim()),
+          Boolean((u.bio || profile.bio || '').trim()),
+          skills.length > 0,
+          Boolean((profile.title || '').trim()),
+        ];
+        const profileCompletion = Math.round(
+          (profileCompletionChecks.filter(Boolean).length / profileCompletionChecks.length) * 100
+        );
+
+        const hasPremium = Boolean(u.isPremium) || String(u.plan || '').toLowerCase() === 'premium';
+        const hasPro = Boolean(u.isPro) || String(u.plan || '').toLowerCase() === 'pro';
+        const planTier: 'free' | 'pro' | 'premium' = hasPremium ? 'premium' : hasPro ? 'pro' : 'free';
+        const planWeight = planTier === 'premium' ? 40 : planTier === 'pro' ? 25 : 10;
+        const ratingWeight = Math.min(100, ((Number(u.rating) || 0) / 5) * 100) * 0.2;
+        const projectsWeight = Math.min(100, (Number(u.completedProjects) || 0) * 5) * 0.15;
+        const completionWeight = profileCompletion * 0.1;
+        const responseWeight = 5; // placeholder até integrar tempo real de resposta
+        const categoryWeight = Math.min(10, skills.length) * 1;
+        const rankingScore = Math.round(
+          planWeight + ratingWeight + projectsWeight + completionWeight + responseWeight + categoryWeight
+        );
+
+        return {
+          id: u.id,
+          name: u.name || '',
+          username: (u.name || u.id).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || u.id,
+          title: profile.title || '',
+          bio: u.bio || profile.bio || '',
+          skills,
+          rating: Number(u.rating) || 0,
+          totalReviews: Number(u.totalReviews) || 0,
+          completedProjects: Number(u.completedProjects) || 0,
+          recommendations: Number(u.recommendations) || 0,
+          memberSince: u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : '',
+          ranking: 0,
+          isPremium: hasPremium,
+          isPro: hasPro,
+          planTier,
+          hasPhoto: !!u.avatar,
+          profileCompletion,
+          rankingScore,
+        };
+      })
+      .sort((a, b) => b.rankingScore - a.rankingScore)
+      .map((f, index) => ({ ...f, ranking: index + 1 }));
   } catch {
     return [];
   }
@@ -140,6 +195,18 @@ export default function Freelancers() {
     const matchesPhoto = !onlyWithPhoto || freelancer.hasPhoto;
     
     return matchesKeywords && matchesArea && matchesRanking && matchesRec && matchesPhoto;
+  });
+
+  const sortedFreelancers = [...filteredFreelancers].sort((a, b) => {
+    if (sortBy === 'rating_high') return b.rating - a.rating;
+    if (sortBy === 'rating_low') return a.rating - b.rating;
+    if (sortBy === 'alpha_asc') return a.name.localeCompare(b.name, 'pt-BR');
+    if (sortBy === 'alpha_desc') return b.name.localeCompare(a.name, 'pt-BR');
+    if (sortBy === 'projects_high') return b.completedProjects - a.completedProjects;
+    if (sortBy === 'projects_low') return a.completedProjects - b.completedProjects;
+    if (sortBy === 'rec_high') return b.recommendations - a.recommendations;
+    if (sortBy === 'rec_low') return a.recommendations - b.recommendations;
+    return b.rankingScore - a.rankingScore;
   });
 
   const renderStars = (rating: number) => {
@@ -328,7 +395,7 @@ export default function Freelancers() {
             <div>
               <p className="text-gray-600 text-sm">Resultado da pesquisa</p>
               <p className="text-xl md:text-2xl font-semibold text-gray-900">
-                {filteredFreelancers.length.toLocaleString()} freelancer{filteredFreelancers.length !== 1 && 's'} encontrados
+                {sortedFreelancers.length.toLocaleString()} freelancer{sortedFreelancers.length !== 1 && 's'} encontrados
               </p>
             </div>
             <Link 
@@ -385,13 +452,13 @@ export default function Freelancers() {
 
             {/* Freelancers List */}
             <div className="space-y-4">
-              {filteredFreelancers.length === 0 ? (
+              {sortedFreelancers.length === 0 ? (
                 <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-500">
                   <Briefcase className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                   <p className="font-medium">Nenhum freelancer encontrado</p>
                   <p className="text-sm mt-1">Os freelancers cadastrados aparecerão aqui.</p>
                 </div>
-              ) : filteredFreelancers.map((freelancer) => (
+              ) : sortedFreelancers.map((freelancer) => (
                 <div key={freelancer.id} className="bg-white rounded-lg shadow-sm p-4 md:p-6">
                   {/* Header Row - Name + Badge + Invite */}
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
@@ -454,6 +521,12 @@ export default function Freelancers() {
                       <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1" />
                       Desde: <strong className="ml-1 text-gray-700">{freelancer.memberSince}</strong>
                     </span>
+                    <span className="flex items-center">
+                      Plano: <strong className="ml-1 text-gray-700 uppercase">{freelancer.planTier}</strong>
+                    </span>
+                    <span className="flex items-center">
+                      Completude: <strong className="ml-1 text-gray-700">{freelancer.profileCompletion}%</strong>
+                    </span>
                   </div>
 
                   {/* Title */}
@@ -501,7 +574,7 @@ export default function Freelancers() {
             </div>
 
             {/* Empty State */}
-            {filteredFreelancers.length === 0 && (
+            {sortedFreelancers.length === 0 && (
               <div className="bg-white rounded-lg shadow-sm p-8 md:p-12 text-center">
                 <Briefcase className="w-12 h-12 md:w-16 md:h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-base md:text-lg font-medium text-gray-800 mb-2">
@@ -514,7 +587,7 @@ export default function Freelancers() {
             )}
 
             {/* Pagination */}
-            {filteredFreelancers.length > 0 && (
+            {sortedFreelancers.length > 0 && (
               <div className="flex items-center justify-center gap-2 mt-6 md:mt-8">
                 <button className="px-2 md:px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 bg-99blue text-white text-sm">1</button>
                 <button className="px-2 md:px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-sm">2</button>
