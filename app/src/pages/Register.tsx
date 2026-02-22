@@ -3,11 +3,13 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, Mail, Lock, User, Briefcase, ArrowRight } from 'lucide-react';
 
+type UserTypeOption = 'freelancer' | 'client';
+
 export default function Register() {
   const navigate = useNavigate();
   const { register } = useAuth();
   const [step, setStep] = useState<1 | 2>(1);
-  const [userType, setUserType] = useState<'freelancer' | 'client' | null>(null);
+  const [userType, setUserType] = useState<UserTypeOption | null>(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -16,8 +18,9 @@ export default function Register() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleTypeSelection = (type: 'freelancer' | 'client') => {
+  const handleTypeSelection = (type: UserTypeOption) => {
     setUserType(type);
+    setError('');
   };
 
   const handleContinue = () => {
@@ -29,6 +32,11 @@ export default function Register() {
     setStep(2);
   };
 
+  const handleBack = () => {
+    setError('');
+    setStep(1);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -38,8 +46,15 @@ export default function Register() {
       return;
     }
 
-    if (password !== confirmPassword) {
-      setError('As senhas não coincidem');
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedName) {
+      setError('Informe seu nome');
+      return;
+    }
+    if (!trimmedEmail) {
+      setError('Informe seu email');
       return;
     }
 
@@ -48,15 +63,20 @@ export default function Register() {
       return;
     }
 
+    if (password !== confirmPassword) {
+      setError('As senhas não coincidem');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const success = await register(name, email, password, userType);
+      const success = await register(trimmedName, trimmedEmail, password, userType);
       if (success) {
         const dest = userType === 'freelancer' ? '/freelancer/dashboard' : '/dashboard';
         navigate(dest, { replace: true });
       } else {
-        setError('Este email já está cadastrado');
+        setError('Este email já está cadastrado com este tipo de conta. Tente fazer login ou use outro email.');
       }
     } catch {
       setError('Erro ao criar conta. Tente novamente.');
@@ -89,7 +109,7 @@ export default function Register() {
               </p>
 
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded mb-6">
+                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6" role="alert">
                   {error}
                 </div>
               )}
@@ -98,16 +118,16 @@ export default function Register() {
                 <button
                   type="button"
                   onClick={() => handleTypeSelection('client')}
-                  className={`w-full flex items-center p-4 border-2 rounded-lg transition-all ${
+                  className={`w-full flex items-center p-4 border-2 rounded-lg transition-all text-left ${
                     userType === 'client'
                       ? 'border-99blue bg-sky-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <div className={`p-3 rounded-lg mr-4 ${userType === 'client' ? 'bg-99blue' : 'bg-gray-100'}`}>
+                  <div className={`p-3 rounded-lg mr-4 shrink-0 ${userType === 'client' ? 'bg-99blue' : 'bg-gray-100'}`}>
                     <Briefcase className={`w-6 h-6 ${userType === 'client' ? 'text-white' : 'text-gray-400'}`} />
                   </div>
-                  <div className="text-left flex-1">
+                  <div className="flex-1 min-w-0">
                     <p className={`font-medium ${userType === 'client' ? 'text-99blue' : 'text-gray-800'}`}>
                       Eu quero Contratar
                     </p>
@@ -120,23 +140,23 @@ export default function Register() {
                     name="userType"
                     checked={userType === 'client'}
                     onChange={() => handleTypeSelection('client')}
-                    className="w-5 h-5 text-99blue"
+                    className="w-5 h-5 text-99blue shrink-0"
                   />
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleTypeSelection('freelancer')}
-                  className={`w-full flex items-center p-4 border-2 rounded-lg transition-all ${
+                  className={`w-full flex items-center p-4 border-2 rounded-lg transition-all text-left ${
                     userType === 'freelancer'
                       ? 'border-99blue bg-sky-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <div className={`p-3 rounded-lg mr-4 ${userType === 'freelancer' ? 'bg-99blue' : 'bg-gray-100'}`}>
+                  <div className={`p-3 rounded-lg mr-4 shrink-0 ${userType === 'freelancer' ? 'bg-99blue' : 'bg-gray-100'}`}>
                     <User className={`w-6 h-6 ${userType === 'freelancer' ? 'text-white' : 'text-gray-400'}`} />
                   </div>
-                  <div className="text-left flex-1">
+                  <div className="flex-1 min-w-0">
                     <p className={`font-medium ${userType === 'freelancer' ? 'text-99blue' : 'text-gray-800'}`}>
                       Eu quero Trabalhar
                     </p>
@@ -149,17 +169,18 @@ export default function Register() {
                     name="userType"
                     checked={userType === 'freelancer'}
                     onChange={() => handleTypeSelection('freelancer')}
-                    className="w-5 h-5 text-99blue"
+                    className="w-5 h-5 text-99blue shrink-0"
                   />
                 </button>
               </div>
 
               <button
+                type="button"
                 onClick={handleContinue}
                 className="w-full mt-6 py-3 bg-99blue text-white font-semibold rounded-lg hover:bg-99blue-light transition-colors flex items-center justify-center"
               >
                 Continuar
-                <ArrowRight className="w-5 h-5 ml-2" />
+                <ArrowRight className="w-5 h-5 ml-2 shrink-0" />
               </button>
 
               <div className="mt-6 text-center">
@@ -174,7 +195,8 @@ export default function Register() {
           ) : (
             <>
               <button
-                onClick={() => setStep(1)}
+                type="button"
+                onClick={handleBack}
                 className="text-sm text-gray-500 hover:text-gray-700 mb-4"
               >
                 ← Voltar
@@ -188,65 +210,75 @@ export default function Register() {
               </p>
 
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded mb-6">
+                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6" role="alert">
                   {error}
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form onSubmit={handleSubmit} className="space-y-5" noValidate>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="register-name" className="block text-sm font-medium text-gray-700 mb-2">
                     Nome completo
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                     <input
+                      id="register-name"
                       type="text"
+                      autoComplete="name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent outline-none"
                       placeholder="Seu nome completo"
                       required
+                      disabled={isLoading}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="register-email" className="block text-sm font-medium text-gray-700 mb-2">
                     Email
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                     <input
+                      id="register-email"
                       type="email"
+                      autoComplete="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent outline-none"
                       placeholder="seu@email.com"
                       required
+                      disabled={isLoading}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="register-password" className="block text-sm font-medium text-gray-700 mb-2">
                     Senha
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                     <input
+                      id="register-password"
                       type={showPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
+                      className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent outline-none"
                       placeholder="Mínimo 6 caracteres"
                       required
                       minLength={6}
+                      disabled={isLoading}
                     />
                     <button
                       type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                      aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                     >
                       {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
@@ -254,30 +286,38 @@ export default function Register() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="register-confirm" className="block text-sm font-medium text-gray-700 mb-2">
                     Confirmar senha
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                     <input
+                      id="register-confirm"
                       type={showPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent outline-none"
                       placeholder="Confirme sua senha"
                       required
+                      disabled={isLoading}
                     />
                   </div>
                 </div>
 
-                <div className="flex items-center">
-                  <input type="checkbox" className="w-4 h-4 text-99blue border-gray-300 rounded" required />
-                  <span className="ml-2 text-sm text-gray-600">
+                <div className="flex items-start">
+                  <input
+                    id="register-terms"
+                    type="checkbox"
+                    className="w-4 h-4 text-99blue border-gray-300 rounded mt-0.5"
+                    required
+                  />
+                  <label htmlFor="register-terms" className="ml-2 text-sm text-gray-600 cursor-pointer">
                     Aceito os{' '}
                     <Link to="/termos" className="text-99blue hover:underline">Termos de uso</Link>
                     {' '}e{' '}
                     <Link to="/privacidade" className="text-99blue hover:underline">Política de privacidade</Link>
-                  </span>
+                  </label>
                 </div>
 
                 <button
