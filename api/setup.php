@@ -221,9 +221,21 @@ try {
     // ignore
 }
 $result['usersCount'] = $count;
+
+// Verificar se SMTP está configurado (e-mails de ativação, etc.)
+$result['smtp_configured'] = false;
+if (file_exists(__DIR__ . '/EmailService.php')) {
+    require_once __DIR__ . '/EmailService.php';
+    $emailService = new EmailService($_ENV);
+    $result['smtp_configured'] = $emailService->isConfigured();
+}
+if (!$result['smtp_configured']) {
+    $result['steps'][] = 'SMTP não configurado: defina SMTP_USER e SMTP_PASS no api/.env (senha da caixa noreply@meufreelas.com.br no hPanel) para enviar e-mails de ativação.';
+}
+
 $result['ok'] = empty($result['errors']);
 $result['message'] = $result['ok']
-    ? 'Banco configurado. Tabelas: ' . implode(', ', $result['tables']) . '. Usuários na tabela: ' . $count . '.'
+    ? 'Banco configurado. Tabelas: ' . implode(', ', $result['tables']) . '. Usuários: ' . $count . '. SMTP: ' . ($result['smtp_configured'] ? 'configurado' : 'não configurado') . '.'
     : 'Alguns erros ocorreram. Corrija e rode setup de novo.';
 
 echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);

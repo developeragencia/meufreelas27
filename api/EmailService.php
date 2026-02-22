@@ -30,12 +30,13 @@ class EmailService
     }
 
     /**
-     * Envia e-mail via SMTP (SSL).
+     * Envia e-mail via SMTP.
+     * Porta 465: SSL direto. Porta 587: STARTTLS (recomendado Hostinger).
      */
     public function send(string $to, string $subject, string $bodyHtml, string $bodyText = ''): bool
     {
         if (!$this->isConfigured()) {
-            error_log('EmailService: SMTP não configurado (SMTP_USER/SMTP_PASS no .env)');
+            error_log('EmailService: SMTP não configurado. Defina SMTP_USER e SMTP_PASS no api/.env (senha da caixa noreply@meufreelas.com.br no hPanel).');
             return false;
         }
 
@@ -45,48 +46,61 @@ class EmailService
             return false;
         }
 
-        $socket = @stream_socket_client(
-            'ssl://' . $this->host . ':' . $this->port,
-            $errno,
-            $errstr,
-            15
-        );
-
+        $socket = $this->connect();
         if (!$socket) {
-            error_log("EmailService: falha conexão SMTP: $errstr ($errno)");
             return false;
         }
-
-        $read = [$socket];
-        $write = [$socket];
-        $except = [];
 
         $getLine = function () use ($socket) {
             $line = fgets($socket);
             return $line === false ? '' : trim($line);
         };
 
-        $send = function ($cmd) use ($socket, &$getLine) {
+        $send = function ($cmd) use ($socket, $getLine) {
             fwrite($socket, $cmd . "\r\n");
             return $getLine();
         };
 
+        // Ler resposta SMTP (pode ser multi-line: 250-xxx depois 250 OK)
+        $readReply = function () use ($socket, $getLine) {
+            $line = $getLine();
+            while ($line !== '' && strlen($line) >= 4 && $line[3] === '-') {
+                $line = $getLine();
+            }
+            return $line;
+        };
+
         $getLine(); // banner
 
-        $send('EHLO ' . $this->host);
+        $reply = $send('EHLO ' . $this->host);
+        if ($this->port === 587 && strpos($reply, '250') === 0) {
+            $send('STARTTLS');
+            if (!@stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+                error_log('EmailService: STARTTLS falhou');
+                fclose($socket);
+                return false;
+            }
+            $send('EHLO ' . $this->host);
+        }
+
         $send('AUTH LOGIN');
         $send(base64_encode($this->user));
         $reply = $send(base64_encode($this->pass));
 
         if (strpos($reply, '235') === false) {
-            error_log('EmailService: autenticação SMTP falhou');
+            error_log('EmailService: autenticação SMTP falhou. Verifique SMTP_USER e SMTP_PASS no .env (use a senha da caixa de e-mail no hPanel).');
             fclose($socket);
             return false;
         }
 
         $send('MAIL FROM:<' . $this->fromEmail . '>');
         $send('RCPT TO:<' . $to . '>');
-        $send('DATA');
+        $reply = $send('DATA');
+        if (strpos($reply, '354') === false) {
+            error_log('EmailService: servidor não aceitou DATA: ' . $reply);
+            fclose($socket);
+            return false;
+        }
 
         $boundary = '----=_Part_' . bin2hex(random_bytes(8));
         $headers = "From: {$this->fromName} <{$this->fromEmail}>\r\n";
@@ -102,11 +116,47 @@ class EmailService
         $body .= $bodyHtml;
         $body .= "\r\n--$boundary--\r\n";
 
-        $send($headers . $body);
-        $send('.');
+        $message = $headers . $body;
+        // RFC: linhas que começam com . devem ser enviadas como ..
+        $message = str_replace("\r\n.", "\r\n..", $message);
+        fwrite($socket, $message . "\r\n.\r\n");
 
+        $reply = $readReply();
         fclose($socket);
+
+        if (strpos($reply, '250') === false) {
+            error_log('EmailService: envio rejeitado: ' . $reply);
+            return false;
+        }
         return true;
+    }
+
+    /** Conexão: 465 = SSL, 587 = TCP (depois STARTTLS no send). */
+    private function connect()
+    {
+        if ($this->port === 465) {
+            $ctx = stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false]]);
+            $socket = @stream_socket_client(
+                'ssl://' . $this->host . ':' . $this->port,
+                $errno,
+                $errstr,
+                20,
+                STREAM_CLIENT_CONNECT,
+                $ctx
+            );
+        } else {
+            $socket = @stream_socket_client(
+                'tcp://' . $this->host . ':' . $this->port,
+                $errno,
+                $errstr,
+                20
+            );
+        }
+        if (!$socket) {
+            error_log("EmailService: falha conexão SMTP $this->host:$this->port - $errstr ($errno)");
+            return null;
+        }
+        return $socket;
     }
 
     // ---------- Templates ----------
