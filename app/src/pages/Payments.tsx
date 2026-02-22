@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { apiListPayments, hasApi } from '../lib/api';
+import { apiListPayments, apiReleasePayment, hasApi } from '../lib/api';
 import { 
   DollarSign, 
   CreditCard, 
@@ -18,6 +18,7 @@ interface Transaction {
   description: string;
   amount: string;
   type: 'entrada' | 'saida';
+  rawStatus?: string;
   status: 'Concluído' | 'Pendente' | 'Em processamento';
   date: string;
   project?: string;
@@ -30,29 +31,41 @@ export default function Payments() {
   const [balance, setBalance] = useState('R$ 0,00');
   const [pending, setPending] = useState('R$ 0,00');
   const [monthReceived, setMonthReceived] = useState('R$ 0,00');
+  const [releasingId, setReleasingId] = useState<string | null>(null);
+
+  const loadPayments = async () => {
+    if (!user?.id || !hasApi()) {
+      setTransactions([]);
+      setBalance('R$ 0,00');
+      setPending('R$ 0,00');
+      setMonthReceived('R$ 0,00');
+      return;
+    }
+    const userType = user.type === 'freelancer' ? 'freelancer' : 'client';
+    const res = await apiListPayments({ userId: user.id, userType });
+    if (!res.ok) {
+      setTransactions([]);
+      return;
+    }
+    setTransactions((res.transactions || []) as Transaction[]);
+    setBalance(res.summary?.balance || 'R$ 0,00');
+    setPending(res.summary?.pending || 'R$ 0,00');
+    setMonthReceived(res.summary?.monthReceived || 'R$ 0,00');
+  };
 
   useEffect(() => {
-    const load = async () => {
-      if (!user?.id || !hasApi()) {
-        setTransactions([]);
-        setBalance('R$ 0,00');
-        setPending('R$ 0,00');
-        setMonthReceived('R$ 0,00');
-        return;
-      }
-      const userType = user.type === 'freelancer' ? 'freelancer' : 'client';
-      const res = await apiListPayments({ userId: user.id, userType });
-      if (!res.ok) {
-        setTransactions([]);
-        return;
-      }
-      setTransactions((res.transactions || []) as Transaction[]);
-      setBalance(res.summary?.balance || 'R$ 0,00');
-      setPending(res.summary?.pending || 'R$ 0,00');
-      setMonthReceived(res.summary?.monthReceived || 'R$ 0,00');
-    };
-    load();
+    loadPayments();
   }, [user]);
+
+  const handleReleasePayment = async (paymentId: string) => {
+    if (!user?.id || user.type !== 'client') return;
+    setReleasingId(paymentId);
+    const res = await apiReleasePayment({ paymentId, clientId: user.id });
+    setReleasingId(null);
+    if (res.ok) {
+      await loadPayments();
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -222,6 +235,16 @@ export default function Payments() {
                           {getStatusIcon(transaction.status)}
                           <span className="ml-1">{transaction.status}</span>
                         </span>
+                        {user?.type === 'client' && transaction.rawStatus === 'held' && (
+                          <button
+                            type="button"
+                            onClick={() => handleReleasePayment(transaction.id)}
+                            disabled={releasingId === transaction.id}
+                            className="block mt-2 ml-auto px-3 py-1.5 bg-green-500 text-white text-xs rounded-lg hover:bg-green-600 disabled:opacity-50"
+                          >
+                            {releasingId === transaction.id ? 'Liberando...' : 'Liberar pagamento'}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

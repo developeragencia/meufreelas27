@@ -156,6 +156,7 @@ if ($action === 'list_payments') {
             'description' => $userType === 'client' ? 'Pagamento em garantia' : 'Recebimento de projeto',
             'amount' => fmt_money($amount),
             'type' => $userType === 'client' ? 'saida' : 'entrada',
+            'rawStatus' => $status,
             'status' => payment_status_to_label($status),
             'date' => $r['created_at'],
             'project' => $projectTitle,

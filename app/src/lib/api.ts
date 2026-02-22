@@ -489,6 +489,7 @@ export type ApiPaymentTransaction = {
   description: string;
   amount: string;
   type: 'entrada' | 'saida';
+  rawStatus?: 'pending' | 'processing' | 'held' | 'released' | 'refunded' | string;
   status: 'Concluído' | 'Pendente' | 'Em processamento';
   date: string;
   project?: string;
