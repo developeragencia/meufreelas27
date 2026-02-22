@@ -252,3 +252,139 @@ export async function apiCreateProject(
     return { ok: false, error: 'Falha de conexão' };
   }
 }
+
+export type ApiProject = {
+  id: string;
+  clientId: string;
+  clientName?: string;
+  title: string;
+  description: string;
+  budget: string;
+  category: string;
+  skills?: string[];
+  experienceLevel?: string;
+  proposalDays?: string;
+  visibility?: 'public' | 'private';
+  status: 'Aberto' | 'Em andamento' | 'Concluído' | 'Cancelado';
+  proposals: number;
+  createdAt: string;
+  updatedAt?: string;
+};
+
+async function callProjectsApi(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+  if (!API_URL) return { ok: false, error: 'API não configurada' };
+  const url = `${API_URL.replace(/\/$/, '')}/projects.php`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    credentials: 'omit',
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { ok: false, error: (data?.error as string) || `Erro ${res.status}` };
+  return data as Record<string, unknown>;
+}
+
+export async function apiListProjects(payload: {
+  clientId?: string;
+  status?: string;
+  search?: string;
+  category?: string;
+  sortBy?: 'recent' | 'relevance';
+}): Promise<{ ok: boolean; projects?: ApiProject[]; error?: string }> {
+  try {
+    const data = await callProjectsApi({ action: 'list_projects', ...payload });
+    return {
+      ok: !!data.ok,
+      projects: (data.projects as ApiProject[] | undefined) || [],
+      error: data.error as string | undefined,
+    };
+  } catch (e) {
+    console.error('apiListProjects', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiDeleteProject(projectId: string, userId: string): Promise<{ ok: boolean; error?: string; message?: string }> {
+  try {
+    const data = await callProjectsApi({ action: 'delete_project', projectId, userId });
+    return { ok: !!data.ok, error: data.error as string | undefined, message: data.message as string | undefined };
+  } catch (e) {
+    console.error('apiDeleteProject', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiGetProject(projectId: string): Promise<{ ok: boolean; project?: ApiProject; error?: string }> {
+  try {
+    const data = await callProjectsApi({ action: 'get_project', projectId });
+    return {
+      ok: !!data.ok,
+      project: data.project as ApiProject | undefined,
+      error: data.error as string | undefined,
+    };
+  } catch (e) {
+    console.error('apiGetProject', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export type ApiProposal = {
+  id: string;
+  projectId: string;
+  projectTitle: string;
+  clientId: string;
+  clientName: string;
+  freelancerId: string;
+  freelancerName: string;
+  value: string;
+  deliveryDays: string;
+  message: string;
+  status: 'Pendente' | 'Aceita' | 'Recusada';
+  createdAt: string;
+};
+
+async function callProposalsApi(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+  if (!API_URL) return { ok: false, error: 'API não configurada' };
+  const url = `${API_URL.replace(/\/$/, '')}/proposals.php`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    credentials: 'omit',
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { ok: false, error: (data?.error as string) || `Erro ${res.status}` };
+  return data as Record<string, unknown>;
+}
+
+export async function apiCreateProposal(payload: {
+  projectId: string;
+  freelancerId: string;
+  amount: string;
+  deliveryDays: string;
+  message: string;
+}): Promise<{ ok: boolean; proposal?: ApiProposal; error?: string }> {
+  try {
+    const data = await callProposalsApi({ action: 'create_proposal', ...payload });
+    return { ok: !!data.ok, proposal: data.proposal as ApiProposal | undefined, error: data.error as string | undefined };
+  } catch (e) {
+    console.error('apiCreateProposal', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiListProposals(payload: {
+  projectId?: string;
+  freelancerId?: string;
+  clientId?: string;
+  status?: string;
+}): Promise<{ ok: boolean; proposals?: ApiProposal[]; error?: string }> {
+  try {
+    const data = await callProposalsApi({ action: 'list_proposals', ...payload });
+    return { ok: !!data.ok, proposals: (data.proposals as ApiProposal[] | undefined) || [], error: data.error as string | undefined };
+  } catch (e) {
+    console.error('apiListProposals', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { apiCreateProposal, apiGetProject, hasApi } from '../lib/api';
 import { 
   ArrowLeft, DollarSign, Clock,
   Calculator, AlertCircle
@@ -34,13 +35,20 @@ export default function SendProposal() {
       navigate('/login');
       return;
     }
-
-    // Load project
-    const projects = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]');
-    const foundProject = projects.find((p: any) => p.id === projectId);
-    if (foundProject) {
-      setProject(foundProject);
+    async function loadProject() {
+      if (!projectId || !hasApi()) return;
+      const res = await apiGetProject(projectId);
+      if (!res.ok || !res.project) return;
+      setProject({
+        id: res.project.id,
+        title: res.project.title,
+        description: res.project.description,
+        budget: res.project.budget,
+        clientName: res.project.clientName || 'Cliente',
+        category: res.project.category,
+      });
     }
+    loadProject();
   }, [projectId, isAuthenticated, navigate]);
 
   const calculateFinalOffer = () => {
@@ -74,29 +82,22 @@ export default function SendProposal() {
 
     setIsSubmitting(true);
 
-    // Save proposal
-    const proposals = JSON.parse(localStorage.getItem('meufreelas_proposals') || '[]');
-    const newProposal = {
-      id: Date.now().toString(),
+    if (!projectId || !user?.id) {
+      setIsSubmitting(false);
+      alert('Projeto inválido.');
+      return;
+    }
+    const res = await apiCreateProposal({
       projectId,
-      freelancerId: user?.id,
-      freelancerName: user?.name,
-      freelancerAvatar: user?.avatar,
-      offer: parseFloat(offer),
-      duration,
-      details,
-      status: 'pending',
-      createdAt: new Date().toISOString()
-    };
-    proposals.push(newProposal);
-    localStorage.setItem('meufreelas_proposals', JSON.stringify(proposals));
-
-    // Update project proposals count
-    const projects = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]');
-    const projectIndex = projects.findIndex((p: any) => p.id === projectId);
-    if (projectIndex !== -1) {
-      projects[projectIndex].proposals = (projects[projectIndex].proposals || 0) + 1;
-      localStorage.setItem('meufreelas_projects', JSON.stringify(projects));
+      freelancerId: user.id,
+      amount: `R$ ${parseFloat(offer).toFixed(2)}`,
+      deliveryDays: duration,
+      message: details,
+    });
+    if (!res.ok) {
+      setIsSubmitting(false);
+      alert(res.error || 'Não foi possível enviar proposta.');
+      return;
     }
 
     // Update goals
@@ -124,7 +125,7 @@ export default function SendProposal() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 overflow-x-hidden">
       {/* Header */}
       <header className="bg-99blue text-white">
         <div className="max-w-7xl mx-auto px-4">
