@@ -9,6 +9,7 @@ import {
   BarChart3, Menu, X, Home, Folder
 } from 'lucide-react';
 import GoalsWidget from '../components/GoalsWidget';
+import { apiListNotifications, apiListPayments, apiListProposals, hasApi } from '../lib/api';
 
 interface Proposal {
   id: string;
@@ -38,23 +39,54 @@ export default function FreelancerDashboard() {
   const [showSwitchModal, setShowSwitchModal] = useState(false);
   const [switchLoading, setSwitchLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [notifications] = useState(0);
+  const [notifications, setNotifications] = useState(0);
+  const [earnings, setEarnings] = useState('R$ 0,00');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let savedProposals: Array<Proposal & { freelancerId?: string }> = [];
-    try {
-      const parsed = JSON.parse(localStorage.getItem('meufreelas_proposals') || '[]') as unknown;
-      if (Array.isArray(parsed)) savedProposals = parsed as Array<Proposal & { freelancerId?: string }>;
-    } catch {
-      // localStorage corrompido não deve quebrar o painel
-      savedProposals = [];
-    }
-    if (user) {
-      const userProposals = savedProposals.filter((p) => p.freelancerId === user.id);
-      setProposals(userProposals);
-    }
-    setLoading(false);
+    const load = async () => {
+      if (!user?.id || !hasApi()) {
+        setProposals([]);
+        setNotifications(0);
+        setEarnings('R$ 0,00');
+        setLoading(false);
+        return;
+      }
+
+      const [proposalsRes, paymentsRes, notificationsRes] = await Promise.all([
+        apiListProposals({ freelancerId: user.id }),
+        apiListPayments({ userId: user.id, userType: 'freelancer' }),
+        apiListNotifications(user.id),
+      ]);
+
+      if (proposalsRes.ok) {
+        const mapped = (proposalsRes.proposals || []).map((p) => ({
+          id: p.id,
+          projectTitle: p.projectTitle,
+          value: p.value,
+          status: p.status,
+          sentAt: p.createdAt,
+        }));
+        setProposals(mapped);
+      } else {
+        setProposals([]);
+      }
+
+      if (paymentsRes.ok) {
+        setEarnings(paymentsRes.summary?.monthReceived || 'R$ 0,00');
+      }
+
+      if (notificationsRes.ok) {
+        const unread = (notificationsRes.notifications || []).filter((n) => !n.isRead).length;
+        setNotifications(unread);
+      } else {
+        setNotifications(0);
+      }
+
+      setLoading(false);
+    };
+
+    load();
   }, [user]);
 
   const toggleSection = (section: string) => {
@@ -97,7 +129,7 @@ export default function FreelancerDashboard() {
   const stats = [
     { label: 'Projetos', value: '0', icon: Briefcase, color: 'bg-blue-500' },
     { label: 'Propostas', value: proposals.length.toString(), icon: TrendingUp, color: 'bg-green-500' },
-    { label: 'Ganhos', value: 'R$ 0', icon: DollarSign, color: 'bg-purple-500' },
+    { label: 'Ganhos', value: earnings, icon: DollarSign, color: 'bg-purple-500' },
     { label: 'Avaliação', value: (user.rating != null ? user.rating : 0).toFixed(1), icon: Star, color: 'bg-yellow-500' },
   ];
 

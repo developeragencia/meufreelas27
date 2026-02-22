@@ -9,6 +9,7 @@ import {
   Menu, X, Home, Folder
 } from 'lucide-react';
 import GoalsWidget from '../components/GoalsWidget';
+import { apiListNotifications, apiListPayments, apiListProjects, hasApi } from '../lib/api';
 
 interface Project {
   id: string;
@@ -39,23 +40,55 @@ export default function ClientDashboard() {
   const [showSwitchModal, setShowSwitchModal] = useState(false);
   const [switchLoading, setSwitchLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [notifications] = useState(0);
+  const [notifications, setNotifications] = useState(0);
+  const [totalSpent, setTotalSpent] = useState('R$ 0,00');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let savedProjects: Array<Project & { clientId?: string }> = [];
-    try {
-      const parsed = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]') as unknown;
-      if (Array.isArray(parsed)) savedProjects = parsed as Array<Project & { clientId?: string }>;
-    } catch {
-      // localStorage corrompido não deve quebrar o painel
-      savedProjects = [];
-    }
-    if (user) {
-      const userProjects = savedProjects.filter((p) => p.clientId === user.id);
-      setProjects(userProjects);
-    }
-    setLoading(false);
+    const load = async () => {
+      if (!user?.id || !hasApi()) {
+        setProjects([]);
+        setNotifications(0);
+        setTotalSpent('R$ 0,00');
+        setLoading(false);
+        return;
+      }
+
+      const [projectsRes, paymentsRes, notificationsRes] = await Promise.all([
+        apiListProjects({ clientId: user.id }),
+        apiListPayments({ userId: user.id, userType: 'client' }),
+        apiListNotifications(user.id),
+      ]);
+
+      if (projectsRes.ok) {
+        const mapped = (projectsRes.projects || []).map((p) => ({
+          id: p.id,
+          title: p.title,
+          proposals: p.proposals || 0,
+          budget: p.budget || 'A combinar',
+          status: p.status,
+          createdAt: p.createdAt,
+        }));
+        setProjects(mapped);
+      } else {
+        setProjects([]);
+      }
+
+      if (paymentsRes.ok) {
+        setTotalSpent(paymentsRes.summary?.monthReceived || 'R$ 0,00');
+      }
+
+      if (notificationsRes.ok) {
+        const unread = (notificationsRes.notifications || []).filter((n) => !n.isRead).length;
+        setNotifications(unread);
+      } else {
+        setNotifications(0);
+      }
+
+      setLoading(false);
+    };
+
+    load();
   }, [user]);
 
   const toggleSection = (section: string) => {
@@ -100,7 +133,7 @@ export default function ClientDashboard() {
   const stats = [
     { label: 'Projetos', value: projects.length.toString(), icon: Briefcase, color: 'bg-blue-500' },
     { label: 'Propostas', value: totalProposals.toString(), icon: TrendingUp, color: 'bg-green-500' },
-    { label: 'Gasto', value: 'R$ 0', icon: DollarSign, color: 'bg-purple-500' },
+    { label: 'Gasto', value: totalSpent, icon: DollarSign, color: 'bg-purple-500' },
     { label: 'Contratados', value: '0', icon: Users, color: 'bg-orange-500' },
   ];
 
