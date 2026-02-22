@@ -64,7 +64,7 @@ export default function Proposals() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 overflow-x-hidden">
       {/* Header */}
       <header className="bg-99dark text-white">
         <div className="max-w-7xl mx-auto px-4">
@@ -94,7 +94,7 @@ export default function Proposals() {
         </div>
 
         {/* Filter Tabs */}
-        <div className="flex space-x-2 mb-6">
+        <div className="flex overflow-x-auto whitespace-nowrap space-x-2 mb-6 pb-1">
           {(['Todas', 'Pendente', 'Aceita', 'Recusada'] as const).map((status) => (
             <button
               key={status}

@@ -282,7 +282,7 @@ Estamos em busca de um(a) desenvolvedor(a) apaixonado(a) por tecnologia descentr
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Success Toast */}
       {showSuccessToast && (
         <div className="fixed top-20 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center animate-fade-in">
@@ -368,7 +368,7 @@ Estamos em busca de um(a) desenvolvedor(a) apaixonado(a) por tecnologia descentr
           <ChevronRight className="w-4 h-4 mx-2" />
           <Link to="/projects" className="hover:text-99blue">Projetos</Link>
           <ChevronRight className="w-4 h-4 mx-2" />
-          <span className="text-gray-700 truncate max-w-[200px]">{project.title}</span>
+          <span className="text-gray-700 truncate max-w-[140px] sm:max-w-[280px]">{project.title}</span>
         </nav>
 
         {/* Back Button */}
@@ -476,11 +476,11 @@ Estamos em busca de um(a) desenvolvedor(a) apaixonado(a) por tecnologia descentr
               </div>
 
               {/* Tabs */}
-              <div className="border-t border-gray-200">
-                <div className="flex">
+              <div className="border-t border-gray-200 overflow-x-auto">
+                <div className="flex min-w-max">
                   <button
                     onClick={() => setActiveTab('details')}
-                    className={`flex-1 py-3 text-sm font-medium transition-colors ${
+                    className={`px-4 sm:px-6 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
                       activeTab === 'details' 
                         ? 'text-99blue border-b-2 border-99blue' 
                         : 'text-gray-500 hover:text-gray-700'
@@ -490,7 +490,7 @@ Estamos em busca de um(a) desenvolvedor(a) apaixonado(a) por tecnologia descentr
                   </button>
                   <button
                     onClick={() => setActiveTab('proposals')}
-                    className={`flex-1 py-3 text-sm font-medium transition-colors ${
+                    className={`px-4 sm:px-6 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
                       activeTab === 'proposals' 
                         ? 'text-99blue border-b-2 border-99blue' 
                         : 'text-gray-500 hover:text-gray-700'
