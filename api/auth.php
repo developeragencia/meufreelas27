@@ -74,8 +74,9 @@ if ($action === 'register') {
         }
         $hasFreelancer = ($existing['type'] === 'freelancer' || $type === 'freelancer') ? 1 : 0;
         $hasClient = ($existing['type'] === 'client' || $type === 'client') ? 1 : 0;
-        $pdo->prepare('UPDATE users SET has_freelancer_account = ?, has_client_account = ?, type = ? WHERE id = ?')
-            ->execute([$hasFreelancer, $hasClient, $type, $existing['id']]);
+        $newHash = password_hash($password, PASSWORD_DEFAULT);
+        $pdo->prepare('UPDATE users SET password_hash = ?, has_freelancer_account = ?, has_client_account = ?, type = ? WHERE id = ?')
+            ->execute([$newHash, $hasFreelancer, $hasClient, $type, $existing['id']]);
         $stmt = $pdo->prepare('SELECT id, email, name, type, avatar, rating, completed_projects, has_freelancer_account, has_client_account FROM users WHERE id = ?');
         $stmt->execute([$existing['id']]);
         $row = $stmt->fetch();
