@@ -69,6 +69,22 @@ function normalizeUser(raw: Record<string, unknown>): User | null {
   };
 }
 
+function upsertStoredUser(user: User): void {
+  try {
+    const users = JSON.parse(localStorage.getItem('meufreelas_users') || '[]');
+    const safeUsers = Array.isArray(users) ? users : [];
+    const idx = safeUsers.findIndex((u: any) => u?.id === user.id);
+    if (idx >= 0) {
+      safeUsers[idx] = { ...safeUsers[idx], ...user };
+    } else {
+      safeUsers.push(user);
+    }
+    localStorage.setItem('meufreelas_users', JSON.stringify(safeUsers));
+  } catch {
+    localStorage.setItem('meufreelas_users', JSON.stringify([user]));
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem('meufreelas_user');
@@ -90,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const normalizedUser = normalizeUser(res.user);
           if (!normalizedUser) return false;
           setUser(normalizedUser);
+          upsertStoredUser(normalizedUser);
           localStorage.setItem('meufreelas_user', JSON.stringify(normalizedUser));
           return true;
         }
@@ -123,6 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const normalizedUser = normalizeUser(res.user);
           if (!normalizedUser) return false;
           setUser(normalizedUser);
+          upsertStoredUser(normalizedUser);
           localStorage.setItem('meufreelas_user', JSON.stringify(normalizedUser));
           return true;
         }

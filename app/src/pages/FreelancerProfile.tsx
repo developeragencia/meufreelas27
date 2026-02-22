@@ -83,15 +83,7 @@ export default function FreelancerProfile() {
       }
     }
     
-    // 3. Check demo freelancers
-    if (!foundFreelancer) {
-      foundFreelancer = getDemoFreelancer(id || '1');
-    }
-    
-    // 4. Generate a generic freelancer if none found
-    if (!foundFreelancer) {
-      foundFreelancer = generateGenericFreelancer(id || '1');
-    }
+    // 3. Sem fallback mock: só exibe perfil real
     
     setFreelancer(foundFreelancer);
     
@@ -107,129 +99,29 @@ export default function FreelancerProfile() {
     name: userData.name,
     title: profile.title || 'Freelancer Profissional',
     description: profile.bio || 'Profissional dedicado e experiente, pronto para ajudar no seu projeto.',
-    skills: profile.skills?.map((s: any) => s.name) || ['React', 'Node.js', 'TypeScript'],
-    rating: userData.rating || 4.5,
-    jobs: Math.floor(Math.random() * 50) + 5,
-    hourlyRate: profile.hourlyRate ? `R$ ${profile.hourlyRate}` : 'R$ 80',
-    location: profile.location || 'Brasil',
+    skills: Array.isArray(profile.skills)
+      ? profile.skills.map((s: any) => (typeof s === 'string' ? s : s.name)).filter(Boolean)
+      : Array.isArray(userData.skills)
+        ? userData.skills
+        : [],
+    rating: Number(userData.rating) || 0,
+    jobs: Number(userData.totalReviews) || 0,
+    hourlyRate: profile.hourlyRate ? `R$ ${profile.hourlyRate}` : (userData.hourlyRate ? `R$ ${userData.hourlyRate}` : 'R$ 0'),
+    location: profile.location || userData.location || 'Brasil',
     avatar: userData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name)}&background=003366&color=fff`,
     memberSince: new Date(userData.createdAt || Date.now()).getFullYear().toString(),
-    completedProjects: Math.floor(Math.random() * 100) + 10,
+    completedProjects: Number(userData.completedProjects) || 0,
     languages: ['Português'],
     portfolio: profile.portfolioItems || [],
     certifications: [],
-    isPremium: false,
-    isVerified: true,
+    isPremium: !!userData.isPremium,
+    isVerified: !!userData.isVerified,
     availability: profile.availability || 'full-time',
     lastActive: 'Há poucos minutos',
     education: [],
     experiences: [],
-    reviews: generateMockReviews()
+    reviews: []
   });
-
-  const generateGenericFreelancer = (freelancerId: string): Freelancer => {
-    const names = ['Ana Carolina', 'Bruno Mendes', 'Carla Souza', 'Daniel Lima', 'Elena Costa'];
-    const titles = ['Desenvolvedor Web', 'Designer UI/UX', 'Redator', 'Marketing Digital', 'Tradutor'];
-    const name = names[Math.floor(Math.random() * names.length)];
-    
-    return {
-      id: freelancerId,
-      name: name,
-      title: titles[Math.floor(Math.random() * titles.length)],
-      description: 'Profissional experiente com vasto conhecimento na área. Sempre comprometido com a qualidade e prazos dos projetos.',
-      skills: ['JavaScript', 'React', 'Node.js', 'HTML', 'CSS'],
-      rating: 4.5 + Math.random() * 0.5,
-      jobs: Math.floor(Math.random() * 50) + 5,
-      hourlyRate: `R$ ${Math.floor(Math.random() * 100) + 50}`,
-      location: 'São Paulo, SP',
-      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=003366&color=fff`,
-      memberSince: (2019 + Math.floor(Math.random() * 5)).toString(),
-      completedProjects: Math.floor(Math.random() * 100) + 10,
-      languages: ['Português', 'Inglês'],
-      portfolio: [],
-      certifications: [],
-      isPremium: false,
-      isVerified: true,
-      availability: 'full-time',
-      lastActive: 'Há algumas horas',
-      education: [],
-      experiences: [],
-      reviews: generateMockReviews()
-    };
-  };
-
-  const getDemoFreelancer = (freelancerId: string): Freelancer | null => {
-    const freelancers: Record<string, Freelancer> = {
-      '1': {
-        id: '1',
-        name: 'Maria Silva',
-        title: 'Designer UI/UX Senior',
-        description: 'Designer com 8 anos de experiência em criação de interfaces digitais e experiência do usuário. Especialista em design systems, prototipagem e pesquisa com usuários. Já trabalhei com empresas de diversos tamanhos, desde startups até grandes corporações.',
-        skills: ['Figma', 'Adobe XD', 'Photoshop', 'Illustrator', 'Sketch', 'Prototipagem', 'Design Systems'],
-        rating: 4.9,
-        jobs: 45,
-        hourlyRate: 'R$ 80',
-        location: 'São Paulo, SP',
-        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face',
-        memberSince: '2019',
-        completedProjects: 127,
-        languages: ['Português', 'Inglês'],
-        portfolio: [
-          { title: 'App de Delivery', image: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=300&h=200&fit=crop' },
-          { title: 'E-commerce', image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=300&h=200&fit=crop' },
-          { title: 'Dashboard', image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=300&h=200&fit=crop' },
-        ],
-        certifications: ['Google UX Design Certificate', 'Adobe Certified Expert'],
-        isPremium: true,
-        isVerified: true,
-        availability: 'full-time',
-        lastActive: 'Online agora',
-        education: [
-          { degree: 'Bacharel em Design', institution: 'USP', year: '2016' }
-        ],
-        experiences: [
-          { company: 'Agência Digital XYZ', role: 'Designer Senior', period: '2020 - Presente', description: 'Liderança de projetos de design' }
-        ],
-        reviews: generateMockReviews()
-      },
-      '2': {
-        id: '2',
-        name: 'Pedro Santos',
-        title: 'Desenvolvedor Full Stack',
-        description: 'Desenvolvedor apaixonado por criar soluções escaláveis e de alta performance. Especialista em React, Node.js e arquitetura de software.',
-        skills: ['React', 'Node.js', 'Python', 'PostgreSQL', 'MongoDB', 'AWS', 'Docker'],
-        rating: 4.8,
-        jobs: 32,
-        hourlyRate: 'R$ 120',
-        location: 'Rio de Janeiro, RJ',
-        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
-        memberSince: '2018',
-        completedProjects: 89,
-        languages: ['Português', 'Inglês', 'Espanhol'],
-        portfolio: [
-          { title: 'SaaS Platform', image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=300&h=200&fit=crop' },
-          { title: 'E-commerce API', image: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=300&h=200&fit=crop' },
-        ],
-        certifications: ['AWS Certified Developer', 'MongoDB Certified'],
-        isPremium: false,
-        isVerified: true,
-        availability: 'part-time',
-        lastActive: 'Há 2 horas',
-        education: [],
-        experiences: [],
-        reviews: generateMockReviews()
-      },
-    };
-    return freelancers[freelancerId] || null;
-  };
-
-  function generateMockReviews() {
-    return [
-      { author: 'João Empresa', rating: 5, comment: 'Excelente trabalho! Entregou antes do prazo.', date: '2024-01-15', project: 'Site Institucional' },
-      { author: 'Maria Startup', rating: 5, comment: 'Muito profissional e atencioso.', date: '2024-01-10', project: 'App Mobile' },
-      { author: 'Carlos Loja', rating: 4, comment: 'Bom trabalho, recomendo.', date: '2023-12-20', project: 'E-commerce' },
-    ];
-  }
 
   const toggleFavorite = () => {
     if (!isAuthenticated) {

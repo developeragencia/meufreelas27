@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   Briefcase, 
   Clock, 
@@ -20,45 +21,32 @@ interface Proposal {
 }
 
 export default function Proposals() {
+  const { user } = useAuth();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [filter, setFilter] = useState<'Todas' | 'Pendente' | 'Aceita' | 'Recusada'>('Todas');
 
   useEffect(() => {
-    // Demo proposals
-    const demoProposals: Proposal[] = [
-      {
-        id: '1',
-        projectId: '1',
-        projectTitle: 'Desenvolvimento de E-commerce',
-        clientName: 'Loja Virtual Ltda',
-        value: 'R$ 4.500',
-        status: 'Pendente',
-        sentAt: '2 dias atrás',
-        message: 'Tenho experiência em desenvolvimento de e-commerce e posso entregar em 30 dias.',
-      },
-      {
-        id: '2',
-        projectId: '2',
-        projectTitle: 'Design de Landing Page',
-        clientName: 'Startup Tech',
-        value: 'R$ 1.800',
-        status: 'Aceita',
-        sentAt: '5 dias atrás',
-        message: 'Posso criar uma landing page moderna e responsiva.',
-      },
-      {
-        id: '3',
-        projectId: '3',
-        projectTitle: 'Redação de Artigos SEO',
-        clientName: 'Marketing Pro',
-        value: 'R$ 900',
-        status: 'Recusada',
-        sentAt: '1 semana atrás',
-        message: 'Especialista em conteúdo SEO com 5 anos de experiência.',
-      },
-    ];
-    setProposals(demoProposals);
-  }, []);
+    if (!user) return;
+    try {
+      const stored = JSON.parse(localStorage.getItem('meufreelas_proposals') || '[]');
+      const safe = Array.isArray(stored) ? stored : [];
+      const normalized: Proposal[] = safe
+        .filter((p: any) => p?.freelancerId === user.id)
+        .map((p: any) => ({
+          id: String(p.id),
+          projectId: String(p.projectId || ''),
+          projectTitle: p.projectTitle || 'Projeto',
+          clientName: p.clientName || 'Cliente',
+          value: p.value || 'R$ 0',
+          status: (p.status === 'Aceita' || p.status === 'Recusada') ? p.status : 'Pendente',
+          sentAt: p.sentAt || '',
+          message: p.message || '',
+        }));
+      setProposals(normalized);
+    } catch {
+      setProposals([]);
+    }
+  }, [user]);
 
   const filteredProposals = proposals.filter(p => 
     filter === 'Todas' || p.status === filter
