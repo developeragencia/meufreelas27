@@ -42,6 +42,23 @@ try {
     exit;
 }
 
+function create_notification(PDO $pdo, string $userId, string $title, string $message, string $type = 'payment', ?string $link = null): void {
+    $notificationId = bin2hex(random_bytes(18));
+    try {
+        $stmt = $pdo->prepare('INSERT INTO notifications (id, user_id, title, message, type, link) VALUES (?, ?, ?, ?, ?, ?)');
+        $stmt->execute([$notificationId, $userId, $title, $message, $type, $link]);
+        return;
+    } catch (Throwable $e) {
+        // fallback para esquema antigo sem type/link
+    }
+    try {
+        $stmt = $pdo->prepare('INSERT INTO notifications (id, user_id, title, message) VALUES (?, ?, ?, ?)');
+        $stmt->execute([$notificationId, $userId, $title, $message]);
+    } catch (Throwable $e) {
+        // ignora para não quebrar o fluxo financeiro
+    }
+}
+
 function fmt_money(float $value): string {
     return 'R$ ' . number_format($value, 2, ',', '.');
 }
@@ -306,7 +323,7 @@ if ($action === 'release_payment') {
         echo json_encode(['ok' => false, 'error' => 'paymentId e clientId são obrigatórios.']);
         exit;
     }
-    $check = $pdo->prepare('SELECT id, client_id, status FROM payments WHERE id = ? LIMIT 1');
+    $check = $pdo->prepare('SELECT id, client_id, freelancer_id, status FROM payments WHERE id = ? LIMIT 1');
     $check->execute([$paymentId]);
     $payment = $check->fetch();
     if (!$payment) {
@@ -323,6 +340,18 @@ if ($action === 'release_payment') {
     }
     $upd = $pdo->prepare('UPDATE payments SET status = "released", released_at = NOW() WHERE id = ?');
     $upd->execute([$paymentId]);
+
+    if (!empty($payment['freelancer_id'])) {
+        create_notification(
+            $pdo,
+            (string)$payment['freelancer_id'],
+            'Pagamento liberado',
+            'Seu pagamento foi liberado pelo cliente.',
+            'payment',
+            '/payments'
+        );
+    }
+
     echo json_encode(['ok' => true, 'message' => 'Pagamento liberado com sucesso.']);
     exit;
 }

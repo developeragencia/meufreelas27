@@ -42,6 +42,23 @@ try {
     exit;
 }
 
+function create_notification(PDO $pdo, string $userId, string $title, string $message, string $type = 'message', ?string $link = null): void {
+    $notificationId = bin2hex(random_bytes(18));
+    try {
+        $stmt = $pdo->prepare('INSERT INTO notifications (id, user_id, title, message, type, link) VALUES (?, ?, ?, ?, ?, ?)');
+        $stmt->execute([$notificationId, $userId, $title, $message, $type, $link]);
+        return;
+    } catch (Throwable $e) {
+        // fallback para estrutura legada
+    }
+    try {
+        $stmt = $pdo->prepare('INSERT INTO notifications (id, user_id, title, message) VALUES (?, ?, ?, ?)');
+        $stmt->execute([$notificationId, $userId, $title, $message]);
+    } catch (Throwable $e) {
+        // não interrompe o fluxo principal de mensagem
+    }
+}
+
 $input = json_decode(file_get_contents('php://input'), true) ?? [];
 $action = trim((string)($input['action'] ?? ''));
 $userId = trim((string)($input['userId'] ?? ''));
@@ -169,6 +186,20 @@ if ($action === 'send_message') {
     $messageId = bin2hex(random_bytes(18));
     $insert = $pdo->prepare('INSERT INTO messages (id, conversation_id, sender_id, content) VALUES (?, ?, ?, ?)');
     $insert->execute([$messageId, $conversationId, $userId, $content]);
+
+    $recipientStmt = $pdo->prepare('SELECT user_id FROM conversation_participants WHERE conversation_id = ? AND user_id <> ? LIMIT 1');
+    $recipientStmt->execute([$conversationId, $userId]);
+    $recipient = $recipientStmt->fetch();
+    if ($recipient && !empty($recipient['user_id'])) {
+        create_notification(
+            $pdo,
+            (string)$recipient['user_id'],
+            'Nova mensagem recebida',
+            'Você recebeu uma nova mensagem no chat.',
+            'message',
+            '/messages?conversation=' . $conversationId
+        );
+    }
 
     $sender = $pdo->prepare('SELECT name, avatar FROM users WHERE id = ? LIMIT 1');
     $sender->execute([$userId]);
