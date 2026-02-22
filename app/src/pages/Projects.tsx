@@ -119,6 +119,12 @@ export default function Projects() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
+  const publishProjectHref = !isAuthenticated
+    ? '/login'
+    : user?.type === 'client'
+      ? '/project/new'
+      : '/freelancer/dashboard';
+
   const toggleExpand = (projectId: string) => {
     setExpandedProjects(prev => 
       prev.includes(projectId) 
@@ -253,7 +259,7 @@ export default function Projects() {
                   <Link to="/register" className="text-gray-300 hover:text-white hidden sm:block text-sm">Cadastre-se</Link>
                 </>
               )}
-              <Link to="/project/new" className="px-3 md:px-4 py-2 bg-99blue rounded-lg hover:bg-sky-400 text-sm">Publicar</Link>
+              <Link to={publishProjectHref} className="px-3 md:px-4 py-2 bg-99blue rounded-lg hover:bg-sky-400 text-sm">Publicar</Link>
             </div>
           </div>
         </div>
@@ -287,7 +293,7 @@ export default function Projects() {
               <p className="text-gray-600 text-sm">Resultado da pesquisa</p>
               <p className="text-xl md:text-2xl font-semibold text-gray-900">{filteredProjects.length.toLocaleString()} projeto{filteredProjects.length !== 1 && 's'} encontrados</p>
             </div>
-            <Link to="/project/new" className="px-4 md:px-6 py-2 md:py-3 bg-99blue text-white rounded-lg hover:bg-99blue-light transition-colors font-medium text-sm text-center">Publique um projeto</Link>
+            <Link to={publishProjectHref} className="px-4 md:px-6 py-2 md:py-3 bg-99blue text-white rounded-lg hover:bg-99blue-light transition-colors font-medium text-sm text-center">Publique um projeto</Link>
           </div>
         </div>
       </div>
