@@ -261,6 +261,28 @@ if ($action === 'update_proposal_status') {
         $closeOthers->execute([$proposal['project_id'], $proposalId]);
         $closeProject = $pdo->prepare('UPDATE projects SET status = "in_progress" WHERE id = ?');
         $closeProject->execute([$proposal['project_id']]);
+
+        $paymentCheck = $pdo->prepare('SELECT id FROM payments WHERE proposal_id = ? LIMIT 1');
+        $paymentCheck->execute([$proposalId]);
+        if (!$paymentCheck->fetch()) {
+            $rawAmount = (string)($proposal['amount'] ?? '0');
+            $normalized = str_replace(',', '.', preg_replace('/[^0-9,\.]/', '', $rawAmount) ?: '0');
+            $amountValue = (float)$normalized;
+            $platformFee = round($amountValue * 0.10, 2);
+            $paymentId = bin2hex(random_bytes(18));
+            $createPayment = $pdo->prepare('
+                INSERT INTO payments (id, proposal_id, client_id, freelancer_id, amount, platform_fee, status)
+                VALUES (?, ?, ?, ?, ?, ?, "pending")
+            ');
+            $createPayment->execute([
+                $paymentId,
+                $proposalId,
+                $proposal['client_id'],
+                $proposal['freelancer_id'],
+                $amountValue,
+                $platformFee
+            ]);
+        }
     }
 
     $proposalDetail = $pdo->prepare('SELECT freelancer_id, project_id FROM proposals WHERE id = ? LIMIT 1');

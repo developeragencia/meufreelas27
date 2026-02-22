@@ -158,9 +158,18 @@ $otherTables = [
     'payments' => "CREATE TABLE IF NOT EXISTS payments (
         id VARCHAR(36) PRIMARY KEY,
         proposal_id VARCHAR(36) NOT NULL,
+        client_id VARCHAR(36) DEFAULT NULL,
+        freelancer_id VARCHAR(36) DEFAULT NULL,
         amount DECIMAL(12,2) NOT NULL,
+        platform_fee DECIMAL(12,2) DEFAULT 0,
+        provider VARCHAR(50) DEFAULT NULL,
+        external_id VARCHAR(255) DEFAULT NULL,
+        checkout_url TEXT DEFAULT NULL,
         status VARCHAR(50) DEFAULT 'pending',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        released_at TIMESTAMP NULL DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_client (client_id),
+        INDEX idx_freelancer (freelancer_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
     'notifications' => "CREATE TABLE IF NOT EXISTS notifications (
         id VARCHAR(36) PRIMARY KEY,
@@ -203,6 +212,26 @@ foreach ($notificationColumnsToAdd as $col => $sql) {
     } catch (PDOException $e) {
         if (strpos($e->getMessage(), 'Duplicate column') === false) {
             $result['errors'][] = "notifications.$col: " . $e->getMessage();
+        }
+    }
+}
+
+$paymentColumnsToAdd = [
+    'client_id' => "ALTER TABLE payments ADD COLUMN client_id VARCHAR(36) DEFAULT NULL",
+    'freelancer_id' => "ALTER TABLE payments ADD COLUMN freelancer_id VARCHAR(36) DEFAULT NULL",
+    'platform_fee' => "ALTER TABLE payments ADD COLUMN platform_fee DECIMAL(12,2) DEFAULT 0",
+    'provider' => "ALTER TABLE payments ADD COLUMN provider VARCHAR(50) DEFAULT NULL",
+    'external_id' => "ALTER TABLE payments ADD COLUMN external_id VARCHAR(255) DEFAULT NULL",
+    'checkout_url' => "ALTER TABLE payments ADD COLUMN checkout_url TEXT DEFAULT NULL",
+    'released_at' => "ALTER TABLE payments ADD COLUMN released_at TIMESTAMP NULL DEFAULT NULL",
+];
+foreach ($paymentColumnsToAdd as $col => $sql) {
+    try {
+        $pdo->exec($sql);
+        $result['steps'][] = "Coluna payments.$col adicionada";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'Duplicate column') === false) {
+            $result['errors'][] = "payments.$col: " . $e->getMessage();
         }
     }
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { apiListPayments, hasApi } from '../lib/api';
 import { 
   DollarSign, 
   CreditCard, 
@@ -27,23 +28,30 @@ export default function Payments() {
   const [activeTab, setActiveTab] = useState<'resumo' | 'historico' | 'saque'>('resumo');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [balance, setBalance] = useState('R$ 0,00');
-  const pending = 'R$ 0,00';
+  const [pending, setPending] = useState('R$ 0,00');
+  const [monthReceived, setMonthReceived] = useState('R$ 0,00');
 
   useEffect(() => {
-    // Load transactions from localStorage
-    const savedTransactions = JSON.parse(localStorage.getItem('meufreelas_transactions') || '[]');
-    const userTransactions = savedTransactions.filter((t: any) => t.userId === user?.id);
-    setTransactions(userTransactions);
-
-    // Calculate balance
-    const totalBalance = userTransactions
-      .filter((t: any) => t.status === 'Concluído')
-      .reduce((acc: number, t: any) => {
-        const amount = parseFloat(t.amount.replace(/[^0-9.,]/g, '').replace(',', '.'));
-        return t.type === 'entrada' ? acc + amount : acc - amount;
-      }, 0);
-    
-    setBalance(`R$ ${totalBalance.toFixed(2).replace('.', ',')}`);
+    const load = async () => {
+      if (!user?.id || !hasApi()) {
+        setTransactions([]);
+        setBalance('R$ 0,00');
+        setPending('R$ 0,00');
+        setMonthReceived('R$ 0,00');
+        return;
+      }
+      const userType = user.type === 'freelancer' ? 'freelancer' : 'client';
+      const res = await apiListPayments({ userId: user.id, userType });
+      if (!res.ok) {
+        setTransactions([]);
+        return;
+      }
+      setTransactions((res.transactions || []) as Transaction[]);
+      setBalance(res.summary?.balance || 'R$ 0,00');
+      setPending(res.summary?.pending || 'R$ 0,00');
+      setMonthReceived(res.summary?.monthReceived || 'R$ 0,00');
+    };
+    load();
   }, [user]);
 
   const getStatusColor = (status: string) => {
@@ -135,7 +143,7 @@ export default function Payments() {
                   </div>
                 </div>
                 <p className="text-gray-500 text-sm">Total recebido (mês)</p>
-                <p className="text-3xl font-semibold text-gray-800">R$ 0,00</p>
+                <p className="text-3xl font-semibold text-gray-800">{monthReceived}</p>
               </div>
             </div>
 

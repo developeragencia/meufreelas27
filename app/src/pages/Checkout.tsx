@@ -1,97 +1,122 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  ArrowLeft, Lock, Check, CreditCard, Shield, Info,
-  QrCode
-} from 'lucide-react';
-
-interface Proposal {
-  id: string;
-  projectId: string;
-  freelancerId: string;
-  freelancerName: string;
-  freelancerAvatar: string;
-  offer: number;
-  duration: string;
-  details: string;
-  status: string;
-}
-
-interface Project {
-  id: string;
-  title: string;
-  description: string;
-  clientId: string;
-}
+import { ArrowLeft, Lock, Check, CreditCard, Shield, Info } from 'lucide-react';
+import { apiCreateCheckout, apiListProposals, hasApi } from '../lib/api';
 
 export default function Checkout() {
   const { proposalId } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
-  
-  const [proposal, setProposal] = useState<Proposal | null>(null);
-  const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [proposal, setProposal] = useState<{
+    id: string;
+    value: string;
+    deliveryDays: string;
+    message: string;
+    freelancerName: string;
+    freelancerAvatar?: string;
+    projectTitle: string;
+  } | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card'>('pix');
   const [isProcessing, setIsProcessing] = useState(false);
   const [step, setStep] = useState<'review' | 'payment' | 'success'>('review');
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    const paymentStatus = new URLSearchParams(window.location.search).get('payment');
+    if (paymentStatus === 'success') {
+      setStep('success');
+    }
+    if (paymentStatus === 'cancel') {
+      setErrorMessage('Pagamento cancelado. Você pode tentar novamente.');
+      setStep('payment');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) {
       navigate('/login');
       return;
     }
-
-    const proposals = JSON.parse(localStorage.getItem('meufreelas_proposals') || '[]');
-    const foundProposal = proposals.find((p: any) => p.id === proposalId);
-    if (foundProposal) {
-      setProposal(foundProposal);
-      
-      const projects = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]');
-      const foundProject = projects.find((p: any) => p.id === foundProposal.projectId);
-      if (foundProject) {
-        setProject(foundProject);
+    const load = async () => {
+      setLoading(true);
+      setErrorMessage('');
+      if (!proposalId || !hasApi()) {
+        setErrorMessage('API não configurada.');
+        setLoading(false);
+        return;
       }
-    }
-  }, [proposalId, isAuthenticated, navigate]);
+      const res = await apiListProposals({ clientId: user.id });
+      if (!res.ok) {
+        setErrorMessage(res.error || 'Falha ao carregar proposta.');
+        setLoading(false);
+        return;
+      }
+      const found = (res.proposals || []).find((p) => p.id === proposalId);
+      if (!found) {
+        setErrorMessage('Proposta não encontrada para este cliente.');
+        setLoading(false);
+        return;
+      }
+      setProposal({
+        id: found.id,
+        value: found.value,
+        deliveryDays: found.deliveryDays,
+        message: found.message,
+        freelancerName: found.freelancerName,
+        freelancerAvatar: found.freelancerAvatar,
+        projectTitle: found.projectTitle,
+      });
+      setLoading(false);
+    };
+    load();
+  }, [proposalId, isAuthenticated, navigate, user?.id]);
 
-  const handlePayment = async () => {
-    setIsProcessing(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const proposals = JSON.parse(localStorage.getItem('meufreelas_proposals') || '[]');
-    const proposalIndex = proposals.findIndex((p: any) => p.id === proposalId);
-    if (proposalIndex !== -1) {
-      proposals[proposalIndex].status = 'accepted';
-      proposals[proposalIndex].paymentStatus = 'guaranteed';
-      proposals[proposalIndex].paymentDate = new Date().toISOString();
-      localStorage.setItem('meufreelas_proposals', JSON.stringify(proposals));
-    }
-    
-    const transactions = JSON.parse(localStorage.getItem('meufreelas_transactions') || '[]');
-    transactions.push({
-      id: Date.now().toString(),
-      proposalId,
-      projectId: project?.id,
-      clientId: user?.id,
-      freelancerId: proposal?.freelancerId,
-      amount: proposal?.offer,
-      status: 'held',
-      createdAt: new Date().toISOString()
-    });
-    localStorage.setItem('meufreelas_transactions', JSON.stringify(transactions));
-    
-    setIsProcessing(false);
-    setStep('success');
+  const parseCurrency = (raw: string): number => {
+    const normalized = raw.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.');
+    const parsed = Number.parseFloat(normalized);
+    return Number.isNaN(parsed) ? 0 : parsed;
   };
 
-  const platformFee = proposal ? proposal.offer * 0.10 : 0;
-  const total = proposal ? proposal.offer + platformFee : 0;
+  const handlePayment = async () => {
+    if (!proposal || !proposalId || !user?.id) return;
+    setIsProcessing(true);
+    setErrorMessage('');
+    const provider = paymentMethod === 'pix' ? 'mercadopago' : 'stripe';
+    const successUrl = `${window.location.origin}/checkout/${proposalId}?payment=success`;
+    const cancelUrl = `${window.location.origin}/checkout/${proposalId}?payment=cancel`;
+    const res = await apiCreateCheckout({
+      proposalId,
+      clientId: user.id,
+      provider,
+      successUrl,
+      cancelUrl,
+    });
+    setIsProcessing(false);
+    if (!res.ok || !res.checkoutUrl) {
+      setErrorMessage(res.error || 'Não foi possível iniciar pagamento.');
+      return;
+    }
+    window.location.href = res.checkoutUrl;
+  };
 
-  if (!proposal || !project) {
+  const proposalAmount = proposal ? parseCurrency(proposal.value) : 0;
+  const platformFee = proposalAmount * 0.1;
+  const total = proposalAmount + platformFee;
+
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <p className="text-gray-500">Proposta não encontrada</p>
+        <div className="w-10 h-10 border-2 border-99blue/30 border-t-99blue rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!proposal) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <p className="text-gray-500">{errorMessage || 'Proposta não encontrada'}</p>
       </div>
     );
   }
@@ -105,7 +130,7 @@ export default function Checkout() {
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Pagamento Garantido!</h2>
           <p className="text-gray-600 mb-6">
-            O valor de R$ {proposal.offer.toFixed(2)} esta protegido pela plataforma. 
+            O valor de R$ {proposalAmount.toFixed(2)} esta protegido pela plataforma.
             O freelancer sera notificado para iniciar o trabalho.
           </p>
           <Link
@@ -165,11 +190,13 @@ export default function Checkout() {
                 <h2 className="text-xl font-bold text-gray-900 mb-6">Revisar e Confirmar</h2>
                 
                 <div className="flex items-center p-4 bg-gray-50 rounded-lg mb-6">
-                  <img
-                    src={proposal.freelancerAvatar}
-                    alt={proposal.freelancerName}
-                    className="w-12 h-12 rounded-full mr-4"
-                  />
+                  <div className="w-12 h-12 rounded-full mr-4 bg-99blue text-white flex items-center justify-center overflow-hidden">
+                    {proposal.freelancerAvatar ? (
+                      <img src={proposal.freelancerAvatar} alt={proposal.freelancerName} className="w-full h-full object-cover" />
+                    ) : (
+                      proposal.freelancerName.charAt(0)
+                    )}
+                  </div>
                   <div>
                     <p className="font-medium text-gray-900">{proposal.freelancerName}</p>
                     <p className="text-sm text-gray-500">Freelancer selecionado</p>
@@ -177,14 +204,14 @@ export default function Checkout() {
                 </div>
 
                 <div className="mb-6">
-                  <h3 className="font-medium text-gray-900 mb-2">{project.title}</h3>
-                  <p className="text-sm text-gray-600">{proposal.details}</p>
+                  <h3 className="font-medium text-gray-900 mb-2">{proposal.projectTitle}</h3>
+                  <p className="text-sm text-gray-600">{proposal.message}</p>
                 </div>
 
                 <div className="border-t pt-6">
                   <div className="flex justify-between mb-2">
                     <span className="text-gray-600">Valor da proposta</span>
-                    <span className="font-medium">R$ {proposal.offer.toFixed(2)}</span>
+                    <span className="font-medium">R$ {proposalAmount.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between mb-2">
                     <span className="text-gray-600">Taxa da plataforma (10%)</span>
@@ -264,53 +291,21 @@ export default function Checkout() {
 
                 {paymentMethod === 'pix' && (
                   <div className="p-6 bg-gray-50 rounded-lg text-center">
-                    <div className="w-48 h-48 bg-white rounded-lg mx-auto mb-4 flex items-center justify-center border-2 border-dashed border-gray-300">
-                      <QrCode className="w-32 h-32 text-gray-400" />
-                    </div>
-                    <p className="text-gray-600 mb-2">Escaneie o QR Code com seu app bancario</p>
-                    <p className="text-sm text-gray-500">ou copie o codigo PIX abaixo</p>
-                    <button className="mt-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm">
-                      Copiar codigo PIX
-                    </button>
+                    <p className="text-gray-700 font-medium mb-1">Pagamento via Mercado Pago (PIX)</p>
+                    <p className="text-sm text-gray-500">Ao clicar em pagar, você será redirecionado para concluir no checkout seguro.</p>
                   </div>
                 )}
 
                 {paymentMethod === 'card' && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Numero do cartao</label>
-                      <input
-                        type="text"
-                        placeholder="0000 0000 0000 0000"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Validade</label>
-                        <input
-                          type="text"
-                          placeholder="MM/AA"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">CVV</label>
-                        <input
-                          type="text"
-                          placeholder="123"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Nome no cartao</label>
-                      <input
-                        type="text"
-                        placeholder="NOME COMO ESTA NO CARTAO"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
-                      />
-                    </div>
+                  <div className="p-6 bg-gray-50 rounded-lg text-center">
+                    <p className="text-gray-700 font-medium mb-1">Pagamento via Stripe (Cartão)</p>
+                    <p className="text-sm text-gray-500">Ao clicar em pagar, você será redirecionado para concluir no checkout seguro.</p>
+                  </div>
+                )}
+
+                {errorMessage && (
+                  <div className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+                    {errorMessage}
                   </div>
                 )}
 
@@ -349,7 +344,7 @@ export default function Checkout() {
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Projeto</span>
-                  <span className="text-gray-900 text-right max-w-[150px] truncate">{project.title}</span>
+                  <span className="text-gray-900 text-right max-w-[150px] truncate">{proposal.projectTitle}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Freelancer</span>
@@ -357,12 +352,12 @@ export default function Checkout() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Prazo</span>
-                  <span className="text-gray-900">{proposal.duration}</span>
+                  <span className="text-gray-900">{proposal.deliveryDays}</span>
                 </div>
                 <div className="border-t pt-3 mt-3">
                   <div className="flex justify-between mb-2">
                     <span className="text-gray-500">Valor</span>
-                    <span>R$ {proposal.offer.toFixed(2)}</span>
+                    <span>R$ {proposalAmount.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between mb-2">
                     <span className="text-gray-500">Taxa</span>

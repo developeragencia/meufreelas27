@@ -227,7 +227,12 @@ export default function ProjectDetail() {
     }
     await loadProposals();
     await loadProject();
-    showToast(decision === 'accepted' ? 'Proposta aceita com sucesso!' : 'Proposta recusada.');
+    if (decision === 'accepted') {
+      showToast('Proposta aceita. Redirecionando para pagamento...');
+      setTimeout(() => navigate(`/checkout/${proposalId}`), 500);
+      return;
+    }
+    showToast('Proposta recusada.');
   };
 
   const handleSaveProject = () => {

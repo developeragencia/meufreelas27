@@ -100,9 +100,18 @@ CREATE TABLE IF NOT EXISTS favorites (
 CREATE TABLE IF NOT EXISTS payments (
     id VARCHAR(36) PRIMARY KEY,
     proposal_id VARCHAR(36) NOT NULL,
+    client_id VARCHAR(36) DEFAULT NULL,
+    freelancer_id VARCHAR(36) DEFAULT NULL,
     amount DECIMAL(12,2) NOT NULL,
+    platform_fee DECIMAL(12,2) DEFAULT 0,
+    provider VARCHAR(50) DEFAULT NULL,
+    external_id VARCHAR(255) DEFAULT NULL,
+    checkout_url TEXT DEFAULT NULL,
     status VARCHAR(50) DEFAULT 'pending',
+    released_at TIMESTAMP NULL DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_client (client_id),
+    INDEX idx_freelancer (freelancer_id),
     FOREIGN KEY (proposal_id) REFERENCES proposals(id) ON DELETE CASCADE
 );
 

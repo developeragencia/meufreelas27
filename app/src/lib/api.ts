@@ -483,3 +483,85 @@ export async function apiClearNotifications(userId: string): Promise<{ ok: boole
     return { ok: false, error: 'Falha de conexão' };
   }
 }
+
+export type ApiPaymentTransaction = {
+  id: string;
+  description: string;
+  amount: string;
+  type: 'entrada' | 'saida';
+  status: 'Concluído' | 'Pendente' | 'Em processamento';
+  date: string;
+  project?: string;
+};
+
+export type ApiPaymentSummary = {
+  balance: string;
+  pending: string;
+  monthReceived: string;
+};
+
+async function callPaymentsApi(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+  if (!API_URL) return { ok: false, error: 'API não configurada' };
+  const url = `${API_URL.replace(/\/$/, '')}/payments.php`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    credentials: 'omit',
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { ok: false, error: (data?.error as string) || `Erro ${res.status}` };
+  return data as Record<string, unknown>;
+}
+
+export async function apiListPayments(payload: {
+  userId: string;
+  userType: 'client' | 'freelancer';
+}): Promise<{ ok: boolean; summary?: ApiPaymentSummary; transactions?: ApiPaymentTransaction[]; error?: string }> {
+  try {
+    const data = await callPaymentsApi({ action: 'list_payments', ...payload });
+    return {
+      ok: !!data.ok,
+      summary: data.summary as ApiPaymentSummary | undefined,
+      transactions: (data.transactions as ApiPaymentTransaction[] | undefined) || [],
+      error: data.error as string | undefined,
+    };
+  } catch (e) {
+    console.error('apiListPayments', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiReleasePayment(payload: {
+  paymentId: string;
+  clientId: string;
+}): Promise<{ ok: boolean; message?: string; error?: string }> {
+  try {
+    const data = await callPaymentsApi({ action: 'release_payment', ...payload });
+    return { ok: !!data.ok, message: data.message as string | undefined, error: data.error as string | undefined };
+  } catch (e) {
+    console.error('apiReleasePayment', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiCreateCheckout(payload: {
+  proposalId: string;
+  clientId: string;
+  provider: 'stripe' | 'mercadopago';
+  successUrl?: string;
+  cancelUrl?: string;
+}): Promise<{ ok: boolean; checkoutUrl?: string; paymentId?: string; error?: string }> {
+  try {
+    const data = await callPaymentsApi({ action: 'create_checkout', ...payload });
+    return {
+      ok: !!data.ok,
+      checkoutUrl: data.checkoutUrl as string | undefined,
+      paymentId: data.paymentId as string | undefined,
+      error: data.error as string | undefined,
+    };
+  } catch (e) {
+    console.error('apiCreateCheckout', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
