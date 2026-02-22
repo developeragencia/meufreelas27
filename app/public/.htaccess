@@ -20,8 +20,8 @@
   RewriteRule ^ index.html [QSA,L]
 </IfModule>
 
-# Página de erro 404 = index.html (o React trata a rota)
-ErrorDocument 404 /index.html
+# 404: se for /api/* retorna JSON (avisa para enviar pasta api/); senão = SPA
+ErrorDocument 404 /404.php
 
 # Cache para assets estáticos (melhora performance)
 <IfModule mod_expires.c>

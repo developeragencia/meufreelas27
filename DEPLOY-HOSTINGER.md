@@ -44,22 +44,38 @@ npm run build
 
 Se `VITE_API_URL` não estiver definido no momento do build, o app usa só localStorage e **nenhum usuário é salvo no banco**.
 
-### 2. O que enviar
+### 2. O que enviar (OBRIGATÓRIO: app + api)
 
-Envie **todo o conteúdo** da pasta **`app/dist`** para a pasta pública do seu domínio na Hostinger (geralmente `public_html` ou a pasta do domínio `meufreelas.com.br`).
+Se você **só** enviar o conteúdo de `app/dist`, o endereço **https://meufreelas.com.br/api/setup.php** não existe no servidor e o 404 manda para a home. Por isso o setup “não funciona”.
 
-Estrutura esperada na raiz do site:
+**Envie duas coisas:**
+
+1. **Conteúdo de `app/dist`** → na **raiz** da pasta pública (ex.: `public_html/`).
+2. **Toda a pasta `api/`** do projeto → dentro da raiz como **`api/`** (ex.: `public_html/api/`).
+
+Estrutura correta no servidor (ex.: `public_html`):
 
 ```
-index.html
-assets/
-favicon.svg
-manifest.json
-robots.txt
-sitemap.xml
-.htaccess
-og-image.jpg   (opcional; criar se quiser preview em redes sociais)
+public_html/
+  index.html
+  assets/
+  favicon.svg
+  manifest.json
+  robots.txt
+  sitemap.xml
+  .htaccess
+  api/
+    .env          ← criar/colar no servidor (DB_*, SMTP_*)
+    .htaccess
+    setup.php
+    auth.php
+    health.php
+    EmailService.php
+    config.php
+    ...
 ```
+
+Assim **https://meufreelas.com.br/api/setup.php** passa a abrir o setup (e não a home).
 
 ### 3. Configurações no painel Hostinger
 
