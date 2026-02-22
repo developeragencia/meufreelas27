@@ -134,6 +134,12 @@ export default function FreelancerDashboard() {
     { label: 'Avaliação', value: (user.rating != null ? user.rating : 0).toFixed(1), icon: Star, color: 'bg-yellow-500' },
   ];
   const profileCompletion = calculateFreelancerProfileCompletion(user);
+  const badges = [
+    user.isVerified ? 'Perfil Verificado' : null,
+    user.isPremium ? 'Premium' : null,
+    (user.rating || 0) >= 4.5 && (user.completedProjects || 0) >= 3 ? 'Alta Performance' : null,
+    (user.completedProjects || 0) === 0 ? 'Freelancer Novo' : null,
+  ].filter(Boolean) as string[];
 
   const quickLinks: MenuItem[] = [
     { icon: MessageSquare, label: 'Mensagens', href: '/messages' },
@@ -396,6 +402,21 @@ export default function FreelancerDashboard() {
               <p className="text-sm text-gray-500">
                 Próximos passos: {profileCompletion.nextSteps.join(', ')}.
               </p>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+            <h2 className="font-semibold text-gray-800 mb-3">Selos e Reputação</h2>
+            {badges.length === 0 ? (
+              <p className="text-sm text-gray-500">Complete seu perfil e conclua projetos para conquistar selos.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {badges.map((badge) => (
+                  <span key={badge} className="px-3 py-1 rounded-full text-xs font-medium bg-99blue/10 text-99blue">
+                    {badge}
+                  </span>
+                ))}
+              </div>
             )}
           </div>
 
