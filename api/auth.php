@@ -69,7 +69,30 @@ if ($action === 'register') {
 
     if ($existing) {
         if ($existing['type'] === $type) {
-            echo json_encode(['ok' => false, 'error' => 'Este e-mail já está cadastrado com este tipo de conta.']);
+            // Mesmo e-mail e mesmo tipo: atualiza senha e nome (redefinir conta) e retorna sucesso
+            $newHash = password_hash($password, PASSWORD_DEFAULT);
+            $pdo->prepare('UPDATE users SET password_hash = ?, name = ? WHERE id = ?')
+                ->execute([$newHash, $name, $existing['id']]);
+            $stmt = $pdo->prepare('SELECT id, email, name, type, avatar, rating, completed_projects, has_freelancer_account, has_client_account FROM users WHERE id = ?');
+            $stmt->execute([$existing['id']]);
+            $row = $stmt->fetch();
+            $user = [
+                'id' => $row['id'],
+                'email' => $row['email'],
+                'name' => $row['name'],
+                'type' => $row['type'],
+                'avatar' => $row['avatar'],
+                'rating' => (float) $row['rating'],
+                'completedProjects' => (int) $row['completed_projects'],
+                'hasFreelancerAccount' => (bool) $row['has_freelancer_account'],
+                'hasClientAccount' => (bool) $row['has_client_account'],
+            ];
+            if (file_exists(__DIR__ . '/EmailService.php')) {
+                require_once __DIR__ . '/EmailService.php';
+                $emailService = new EmailService($_ENV);
+                $emailService->sendWelcomeActivation($row['email'], $row['name'], $row['type']);
+            }
+            echo json_encode(['ok' => true, 'user' => $user]);
             exit;
         }
         $hasFreelancer = ($existing['type'] === 'freelancer' || $type === 'freelancer') ? 1 : 0;
