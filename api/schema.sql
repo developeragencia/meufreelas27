@@ -115,6 +115,26 @@ CREATE TABLE IF NOT EXISTS payments (
     FOREIGN KEY (proposal_id) REFERENCES proposals(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS project_deliveries (
+    id VARCHAR(36) PRIMARY KEY,
+    project_id VARCHAR(36) NOT NULL,
+    proposal_id VARCHAR(36) DEFAULT NULL,
+    freelancer_id VARCHAR(36) NOT NULL,
+    client_id VARCHAR(36) NOT NULL,
+    message TEXT NOT NULL,
+    delivery_url TEXT DEFAULT NULL,
+    status VARCHAR(50) DEFAULT 'submitted',
+    client_feedback TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at TIMESTAMP NULL DEFAULT NULL,
+    INDEX idx_project (project_id),
+    INDEX idx_freelancer (freelancer_id),
+    INDEX idx_client (client_id),
+    INDEX idx_status (status),
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (proposal_id) REFERENCES proposals(id) ON DELETE SET NULL
+);
+
 CREATE TABLE IF NOT EXISTS notifications (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,

@@ -1,7 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { apiCreateProposal, apiEnsureConversation, apiGetProject, apiListProposals, apiSendMessage, apiUpdateProposalStatus, hasApi, type ApiProposal } from '../lib/api';
+import {
+  apiApproveDelivery,
+  apiCreateDelivery,
+  apiCreateProposal,
+  apiEnsureConversation,
+  apiGetProject,
+  apiListDeliveries,
+  apiListProposals,
+  apiRequestDeliveryRevision,
+  apiSendMessage,
+  apiUpdateProposalStatus,
+  hasApi,
+  type ApiDelivery,
+  type ApiProposal,
+} from '../lib/api';
 import { 
   ArrowLeft, 
   Clock, 
@@ -69,6 +83,20 @@ interface Proposal {
   createdAt: string;
 }
 
+interface Delivery {
+  id: string;
+  projectId: string;
+  proposalId?: string;
+  freelancerId: string;
+  freelancerName: string;
+  message: string;
+  deliveryUrl?: string;
+  status: 'Enviada' | 'Revisão solicitada' | 'Aprovada';
+  clientFeedback?: string;
+  createdAt: string;
+  reviewedAt?: string;
+}
+
 function toLocalProposalStatus(status: ApiProposal['status']): 'pending' | 'accepted' | 'rejected' {
   if (status === 'Aceita') return 'accepted';
   if (status === 'Recusada') return 'rejected';
@@ -91,6 +119,22 @@ function mapApiProposal(p: ApiProposal): Proposal {
   };
 }
 
+function mapApiDelivery(d: ApiDelivery): Delivery {
+  return {
+    id: d.id,
+    projectId: d.projectId,
+    proposalId: d.proposalId,
+    freelancerId: d.freelancerId,
+    freelancerName: d.freelancerName,
+    message: d.message,
+    deliveryUrl: d.deliveryUrl,
+    status: d.status,
+    clientFeedback: d.clientFeedback,
+    createdAt: d.createdAt,
+    reviewedAt: d.reviewedAt,
+  };
+}
+
 export default function ProjectDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -107,6 +151,7 @@ export default function ProjectDetail() {
   const [reportReason, setReportReason] = useState('');
   const [activeTab, setActiveTab] = useState<'details' | 'proposals'>('details');
   const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [negotiatingProposalId, setNegotiatingProposalId] = useState<string | null>(null);
@@ -114,6 +159,10 @@ export default function ProjectDetail() {
   const [maxDeliveryDays, setMaxDeliveryDays] = useState('');
   const [minFreelancerRating, setMinFreelancerRating] = useState('');
   const [proposalSort, setProposalSort] = useState<'recent' | 'value_asc' | 'value_desc' | 'days_asc' | 'rating_desc'>('recent');
+  const [deliveryMessage, setDeliveryMessage] = useState('');
+  const [deliveryUrl, setDeliveryUrl] = useState('');
+  const [deliveryActionLoadingId, setDeliveryActionLoadingId] = useState<string | null>(null);
+  const [deliveryFeedbackById, setDeliveryFeedbackById] = useState<Record<string, string>>({});
 
   const menuItems = [
     { icon: Home, label: 'Início', href: '/' },
@@ -177,12 +226,26 @@ export default function ProjectDetail() {
     setProposals((res.proposals || []).map(mapApiProposal));
   };
 
+  const loadDeliveries = async () => {
+    if (!id || !user?.id || !hasApi()) {
+      setDeliveries([]);
+      return;
+    }
+    const res = await apiListDeliveries({ projectId: id, userId: user.id });
+    if (!res.ok) {
+      setDeliveries([]);
+      return;
+    }
+    setDeliveries((res.deliveries || []).map(mapApiDelivery));
+  };
+
   useEffect(() => {
     loadProject();
     loadProposals();
+    loadDeliveries();
     const savedProjects = JSON.parse(localStorage.getItem('meufreelas_saved_projects') || '[]');
     setIsSaved(savedProjects.includes(id));
-  }, [id]);
+  }, [id, user?.id]);
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -286,6 +349,81 @@ export default function ProjectDetail() {
     if (proposalSort === 'rating_desc') return (b.freelancerRating || 0) - (a.freelancerRating || 0);
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
+
+  const acceptedProposal = proposals.find((p) => p.status === 'accepted');
+  const isProjectInProgress = project?.status === 'Em andamento';
+  const canFreelancerDeliver = !!(
+    user?.id &&
+    user.type === 'freelancer' &&
+    acceptedProposal &&
+    acceptedProposal.freelancerId === user.id &&
+    isProjectInProgress
+  );
+  const canClientReview = !!(
+    user?.id &&
+    user.type === 'client' &&
+    project &&
+    project.clientId === user.id &&
+    isProjectInProgress
+  );
+
+  const handleSubmitDelivery = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !user?.id || !canFreelancerDeliver) return;
+    if (!deliveryMessage.trim()) {
+      showToast('Descreva a entrega antes de enviar.');
+      return;
+    }
+    setDeliveryActionLoadingId('create');
+    const res = await apiCreateDelivery({
+      projectId: id,
+      freelancerId: user.id,
+      message: deliveryMessage.trim(),
+      deliveryUrl: deliveryUrl.trim() || undefined,
+    });
+    setDeliveryActionLoadingId(null);
+    if (!res.ok) {
+      showToast(res.error || 'Não foi possível enviar entrega.');
+      return;
+    }
+    setDeliveryMessage('');
+    setDeliveryUrl('');
+    await loadDeliveries();
+    showToast('Entrega enviada para revisão do cliente.');
+  };
+
+  const handleRequestRevision = async (deliveryId: string) => {
+    if (!user?.id || !canClientReview) return;
+    const feedback = (deliveryFeedbackById[deliveryId] || '').trim();
+    if (!feedback) {
+      showToast('Informe o feedback para solicitar revisão.');
+      return;
+    }
+    setDeliveryActionLoadingId(deliveryId);
+    const res = await apiRequestDeliveryRevision({ deliveryId, clientId: user.id, feedback });
+    setDeliveryActionLoadingId(null);
+    if (!res.ok) {
+      showToast(res.error || 'Não foi possível solicitar revisão.');
+      return;
+    }
+    await loadDeliveries();
+    showToast('Revisão solicitada ao freelancer.');
+  };
+
+  const handleApproveDelivery = async (deliveryId: string) => {
+    if (!user?.id || !canClientReview) return;
+    const feedback = (deliveryFeedbackById[deliveryId] || '').trim();
+    setDeliveryActionLoadingId(deliveryId);
+    const res = await apiApproveDelivery({ deliveryId, clientId: user.id, feedback: feedback || undefined });
+    setDeliveryActionLoadingId(null);
+    if (!res.ok) {
+      showToast(res.error || 'Não foi possível aprovar entrega.');
+      return;
+    }
+    await loadDeliveries();
+    await loadProject();
+    showToast('Entrega aprovada e projeto concluído!');
+  };
 
   const handleSaveProject = () => {
     if (!isAuthenticated) {
@@ -755,6 +893,114 @@ export default function ProjectDetail() {
                             >
                               {negotiatingProposalId === proposal.id ? 'Abrindo chat...' : 'Negociar'}
                             </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Project Deliveries Workflow */}
+            {(isProjectInProgress || deliveries.length > 0) && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">Entregas do Projeto</h2>
+
+                {canFreelancerDeliver && (
+                  <form onSubmit={handleSubmitDelivery} className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <p className="text-sm font-medium text-gray-700 mb-3">Enviar nova entrega</p>
+                    <textarea
+                      value={deliveryMessage}
+                      onChange={(e) => setDeliveryMessage(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-3"
+                      rows={4}
+                      placeholder="Descreva o que foi entregue, instruções de uso e observações."
+                      required
+                    />
+                    <input
+                      type="url"
+                      value={deliveryUrl}
+                      onChange={(e) => setDeliveryUrl(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-3"
+                      placeholder="Link da entrega (Drive, GitHub, Figma, etc.) - opcional"
+                    />
+                    <button
+                      type="submit"
+                      disabled={deliveryActionLoadingId === 'create'}
+                      className="px-4 py-2 bg-99blue text-white rounded-lg hover:bg-sky-500 transition-colors text-sm disabled:opacity-50"
+                    >
+                      {deliveryActionLoadingId === 'create' ? 'Enviando...' : 'Enviar Entrega'}
+                    </button>
+                  </form>
+                )}
+
+                {deliveries.length === 0 ? (
+                  <p className="text-sm text-gray-500">Nenhuma entrega enviada ainda.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {deliveries.map((delivery) => (
+                      <div key={delivery.id} className="p-4 border border-gray-200 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="font-medium text-gray-800">{delivery.freelancerName}</p>
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              delivery.status === 'Aprovada'
+                                ? 'bg-green-100 text-green-700'
+                                : delivery.status === 'Revisão solicitada'
+                                ? 'bg-orange-100 text-orange-700'
+                                : 'bg-blue-100 text-blue-700'
+                            }`}
+                          >
+                            {delivery.status}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-2">{delivery.message}</p>
+                        {delivery.deliveryUrl && (
+                          <a
+                            href={delivery.deliveryUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm text-99blue hover:underline"
+                          >
+                            Abrir link da entrega
+                          </a>
+                        )}
+                        {delivery.clientFeedback && (
+                          <p className="text-sm text-gray-700 mt-2">
+                            <strong>Feedback do cliente:</strong> {delivery.clientFeedback}
+                          </p>
+                        )}
+
+                        {canClientReview && delivery.status !== 'Aprovada' && (
+                          <div className="mt-3">
+                            <textarea
+                              value={deliveryFeedbackById[delivery.id] || ''}
+                              onChange={(e) =>
+                                setDeliveryFeedbackById((prev) => ({ ...prev, [delivery.id]: e.target.value }))
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2"
+                              rows={3}
+                              placeholder="Feedback para o freelancer (obrigatório para revisão)"
+                            />
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleRequestRevision(delivery.id)}
+                                disabled={deliveryActionLoadingId === delivery.id}
+                                className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm disabled:opacity-50"
+                              >
+                                Solicitar Revisão
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleApproveDelivery(delivery.id)}
+                                disabled={deliveryActionLoadingId === delivery.id}
+                                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm disabled:opacity-50"
+                              >
+                                Aprovar e Concluir
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>

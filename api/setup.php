@@ -171,6 +171,23 @@ $otherTables = [
         INDEX idx_client (client_id),
         INDEX idx_freelancer (freelancer_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+    'project_deliveries' => "CREATE TABLE IF NOT EXISTS project_deliveries (
+        id VARCHAR(36) PRIMARY KEY,
+        project_id VARCHAR(36) NOT NULL,
+        proposal_id VARCHAR(36) DEFAULT NULL,
+        freelancer_id VARCHAR(36) NOT NULL,
+        client_id VARCHAR(36) NOT NULL,
+        message TEXT NOT NULL,
+        delivery_url TEXT DEFAULT NULL,
+        status VARCHAR(50) DEFAULT 'submitted',
+        client_feedback TEXT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        reviewed_at TIMESTAMP NULL DEFAULT NULL,
+        INDEX idx_project (project_id),
+        INDEX idx_freelancer (freelancer_id),
+        INDEX idx_client (client_id),
+        INDEX idx_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
     'notifications' => "CREATE TABLE IF NOT EXISTS notifications (
         id VARCHAR(36) PRIMARY KEY,
         user_id VARCHAR(36) NOT NULL,
@@ -232,6 +249,24 @@ foreach ($paymentColumnsToAdd as $col => $sql) {
     } catch (PDOException $e) {
         if (strpos($e->getMessage(), 'Duplicate column') === false) {
             $result['errors'][] = "payments.$col: " . $e->getMessage();
+        }
+    }
+}
+
+$deliveryColumnsToAdd = [
+    'proposal_id' => "ALTER TABLE project_deliveries ADD COLUMN proposal_id VARCHAR(36) DEFAULT NULL",
+    'delivery_url' => "ALTER TABLE project_deliveries ADD COLUMN delivery_url TEXT DEFAULT NULL",
+    'status' => "ALTER TABLE project_deliveries ADD COLUMN status VARCHAR(50) DEFAULT 'submitted'",
+    'client_feedback' => "ALTER TABLE project_deliveries ADD COLUMN client_feedback TEXT DEFAULT NULL",
+    'reviewed_at' => "ALTER TABLE project_deliveries ADD COLUMN reviewed_at TIMESTAMP NULL DEFAULT NULL",
+];
+foreach ($deliveryColumnsToAdd as $col => $sql) {
+    try {
+        $pdo->exec($sql);
+        $result['steps'][] = "Coluna project_deliveries.$col adicionada";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'Duplicate column') === false) {
+            $result['errors'][] = "project_deliveries.$col: " . $e->getMessage();
         }
     }
 }

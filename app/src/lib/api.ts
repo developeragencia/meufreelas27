@@ -566,3 +566,91 @@ export async function apiCreateCheckout(payload: {
     return { ok: false, error: 'Falha de conexão' };
   }
 }
+
+export type ApiDelivery = {
+  id: string;
+  projectId: string;
+  proposalId?: string;
+  freelancerId: string;
+  freelancerName: string;
+  message: string;
+  deliveryUrl?: string;
+  status: 'Enviada' | 'Revisão solicitada' | 'Aprovada';
+  clientFeedback?: string;
+  createdAt: string;
+  reviewedAt?: string;
+};
+
+async function callDeliveriesApi(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+  if (!API_URL) return { ok: false, error: 'API não configurada' };
+  const url = `${API_URL.replace(/\/$/, '')}/deliveries.php`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    credentials: 'omit',
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { ok: false, error: (data?.error as string) || `Erro ${res.status}` };
+  return data as Record<string, unknown>;
+}
+
+export async function apiListDeliveries(payload: {
+  projectId: string;
+  userId: string;
+}): Promise<{ ok: boolean; deliveries?: ApiDelivery[]; error?: string }> {
+  try {
+    const data = await callDeliveriesApi({ action: 'list_deliveries', ...payload });
+    return {
+      ok: !!data.ok,
+      deliveries: (data.deliveries as ApiDelivery[] | undefined) || [],
+      error: data.error as string | undefined,
+    };
+  } catch (e) {
+    console.error('apiListDeliveries', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiCreateDelivery(payload: {
+  projectId: string;
+  freelancerId: string;
+  message: string;
+  deliveryUrl?: string;
+}): Promise<{ ok: boolean; message?: string; error?: string }> {
+  try {
+    const data = await callDeliveriesApi({ action: 'create_delivery', ...payload });
+    return { ok: !!data.ok, message: data.message as string | undefined, error: data.error as string | undefined };
+  } catch (e) {
+    console.error('apiCreateDelivery', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiRequestDeliveryRevision(payload: {
+  deliveryId: string;
+  clientId: string;
+  feedback: string;
+}): Promise<{ ok: boolean; message?: string; error?: string }> {
+  try {
+    const data = await callDeliveriesApi({ action: 'request_revision', ...payload });
+    return { ok: !!data.ok, message: data.message as string | undefined, error: data.error as string | undefined };
+  } catch (e) {
+    console.error('apiRequestDeliveryRevision', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiApproveDelivery(payload: {
+  deliveryId: string;
+  clientId: string;
+  feedback?: string;
+}): Promise<{ ok: boolean; message?: string; error?: string }> {
+  try {
+    const data = await callDeliveriesApi({ action: 'approve_delivery', ...payload });
+    return { ok: !!data.ok, message: data.message as string | undefined, error: data.error as string | undefined };
+  } catch (e) {
+    console.error('apiApproveDelivery', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
