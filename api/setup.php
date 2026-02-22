@@ -28,7 +28,7 @@ try {
     $result['steps'][] = 'Conexão MySQL (sem database) OK';
 } catch (PDOException $e) {
     $result['errors'][] = 'Conexão falhou: ' . $e->getMessage();
-    $result['steps'][] = 'Verifique api/.env (DB_HOST, DB_PORT, DB_USER, DB_PASS)';
+    $result['steps'][] = 'Configure o banco: crie api/.env com DB_HOST, DB_PORT, DB_NAME, DB_USER e DB_PASS (ou use variáveis de ambiente: MYSQLPASSWORD, etc.). Na Hostinger, defina DB_PASS nas variáveis da implantação.';
     echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     exit;
 }

@@ -1,6 +1,11 @@
--- MeuFreelas - Criar tabelas manualmente no phpMyAdmin se setup.php falhar
--- Banco: u892594395_meufreelas
+-- MeuFreelas - Schema completo do banco de dados
+-- Banco: u892594395_meufreelas (ou o definido em DB_NAME)
+-- Uso: executar no phpMyAdmin se setup.php falhar, ou como referência.
+-- Na Hostinger: configure DB_HOST, DB_PORT, DB_NAME, DB_USER e DB_PASS nas variáveis de ambiente ou em api/.env
 
+-- =============================================================================
+-- USUÁRIOS
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(36) PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
@@ -20,6 +25,8 @@ CREATE TABLE IF NOT EXISTS users (
     is_verified TINYINT(1) DEFAULT 0,
     activation_token VARCHAR(64) DEFAULT NULL,
     activation_token_expires_at TIMESTAMP NULL DEFAULT NULL,
+    password_reset_token VARCHAR(64) DEFAULT NULL,
+    password_reset_expires_at TIMESTAMP NULL DEFAULT NULL,
     is_premium TINYINT(1) DEFAULT 0,
     plan_type VARCHAR(20) DEFAULT 'free',
     plan_expires_at TIMESTAMP NULL DEFAULT NULL,
@@ -27,8 +34,11 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_email (email),
     INDEX idx_type (type)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- =============================================================================
+-- PROJETOS
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS projects (
     id VARCHAR(36) PRIMARY KEY,
     client_id VARCHAR(36) NOT NULL,
@@ -47,8 +57,11 @@ CREATE TABLE IF NOT EXISTS projects (
     INDEX idx_status (status),
     INDEX idx_category (category),
     FOREIGN KEY (client_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- =============================================================================
+-- PROPOSTAS
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS proposals (
     id VARCHAR(36) PRIMARY KEY,
     project_id VARCHAR(36) NOT NULL,
@@ -62,14 +75,17 @@ CREATE TABLE IF NOT EXISTS proposals (
     INDEX idx_freelancer (freelancer_id),
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
     FOREIGN KEY (freelancer_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- =============================================================================
+-- CONVERSAS E MENSAGENS
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS conversations (
     id VARCHAR(36) PRIMARY KEY,
     project_id VARCHAR(36) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_project (project_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS conversation_participants (
     conversation_id VARCHAR(36) NOT NULL,
@@ -77,7 +93,7 @@ CREATE TABLE IF NOT EXISTS conversation_participants (
     PRIMARY KEY (conversation_id, user_id),
     FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS messages (
     id VARCHAR(36) PRIMARY KEY,
@@ -88,8 +104,11 @@ CREATE TABLE IF NOT EXISTS messages (
     INDEX idx_conversation (conversation_id),
     FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
     FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- =============================================================================
+-- FAVORITOS
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS favorites (
     user_id VARCHAR(36) NOT NULL,
     freelancer_id VARCHAR(36) NOT NULL,
@@ -97,8 +116,11 @@ CREATE TABLE IF NOT EXISTS favorites (
     PRIMARY KEY (user_id, freelancer_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (freelancer_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- =============================================================================
+-- PAGAMENTOS (projetos / escrow)
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS payments (
     id VARCHAR(36) PRIMARY KEY,
     proposal_id VARCHAR(36) NOT NULL,
@@ -115,8 +137,11 @@ CREATE TABLE IF NOT EXISTS payments (
     INDEX idx_client (client_id),
     INDEX idx_freelancer (freelancer_id),
     FOREIGN KEY (proposal_id) REFERENCES proposals(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- =============================================================================
+-- ENTREGAS DE PROJETO
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS project_deliveries (
     id VARCHAR(36) PRIMARY KEY,
     project_id VARCHAR(36) NOT NULL,
@@ -135,8 +160,11 @@ CREATE TABLE IF NOT EXISTS project_deliveries (
     INDEX idx_status (status),
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
     FOREIGN KEY (proposal_id) REFERENCES proposals(id) ON DELETE SET NULL
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- =============================================================================
+-- ASSINATURAS (planos Pro / Premium)
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS user_subscriptions (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
@@ -154,8 +182,11 @@ CREATE TABLE IF NOT EXISTS user_subscriptions (
     INDEX idx_user_status (user_id, status),
     INDEX idx_external_id (external_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- =============================================================================
+-- NOTIFICAÇÕES
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS notifications (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
@@ -167,8 +198,11 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_user_read (user_id, is_read),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- =============================================================================
+-- SANÇÕES / MODERAÇÃO
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS sanctions (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
@@ -177,4 +211,4 @@ CREATE TABLE IF NOT EXISTS sanctions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_user (user_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

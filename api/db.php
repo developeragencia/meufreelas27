@@ -32,7 +32,7 @@ function mf_db_config(): array
     $port = mf_first_env(['DB_PORT', 'MYSQLPORT'], '3306');
     $name = mf_first_env(['DB_NAME', 'MYSQLDATABASE'], '');
     $user = mf_first_env(['DB_USER', 'MYSQLUSER'], '');
-    $pass = mf_first_env(['DB_PASS', 'MYSQLPASSWORD'], '');
+    $pass = mf_first_env(['DB_PASS', 'MYSQLPASSWORD', 'MYSQL_PASSWORD', 'DB_PASSWORD'], '');
 
     $databaseUrl = mf_first_env(['DATABASE_URL', 'MYSQL_URL'], '');
     if ($databaseUrl) {
