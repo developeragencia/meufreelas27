@@ -37,20 +37,28 @@ import AdminUsers from './pages/AdminUsers';
 import AdminSanctions from './pages/AdminSanctions';
 import PremiumPlans from './pages/PremiumPlans';
 
-// Protected Route Component
+// Protected Route Component - reconhece login; sair só ao clicar em Sair
 function ProtectedRoute({ children, allowedType }: { children: React.ReactNode; allowedType?: 'freelancer' | 'client' | 'admin' }) {
   const { isAuthenticated, user } = useAuth();
-  
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  
-  if (allowedType && user?.type !== allowedType) {
-    if (user?.type === 'admin') return <Navigate to="/admin/dashboard" replace />;
-    if (user?.type === 'freelancer') return <Navigate to="/freelancer/dashboard" replace />;
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-99blue" />
+      </div>
+    );
+  }
+
+  if (allowedType && user.type !== allowedType) {
+    if (user.type === 'admin') return <Navigate to="/admin/dashboard" replace />;
+    if (user.type === 'freelancer') return <Navigate to="/freelancer/dashboard" replace />;
     return <Navigate to="/dashboard" replace />;
   }
-  
+
   return <>{children}</>;
 }
 

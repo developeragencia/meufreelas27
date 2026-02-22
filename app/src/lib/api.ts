@@ -22,7 +22,7 @@ export async function apiAuth(action: 'register' | 'login', body: Record<string,
       return { ok: false, error: res.ok ? 'Resposta inválida do servidor' : `Erro ${res.status}` };
     }
     if (!res.ok) return { ok: false, error: data?.error || 'Erro na requisição' };
-    return data;
+    return { ok: !!data.ok, user: data.user, error: data.error };
   } catch (e) {
     console.error('apiAuth', e);
     return { ok: false, error: 'Falha de conexão com o servidor' };

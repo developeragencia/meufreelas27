@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { 
+import {
   LayoutDashboard, Briefcase, MessageSquare, DollarSign, Users,
   Settings, Bell, Plus, TrendingUp, LogOut, User, Search,
   CreditCard, Building2, Wallet, Crown,
@@ -40,17 +40,20 @@ export default function ClientDashboard() {
   const [switchLoading, setSwitchLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
     const savedProjects = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]');
-    const userProjects = savedProjects.filter((p: any) => p.clientId === user.id);
-    setProjects(userProjects);
+    if (user) {
+      const userProjects = savedProjects.filter((p: Project & { clientId?: string }) => p.clientId === user.id);
+      setProjects(userProjects);
+    }
+    setLoading(false);
   }, [user]);
 
   const toggleSection = (section: string) => {
-    setExpandedSections(prev => 
-      prev.includes(section) 
+    setExpandedSections(prev =>
+      prev.includes(section)
         ? prev.filter(s => s !== section)
         : [...prev, section]
     );
@@ -72,7 +75,12 @@ export default function ClientDashboard() {
     if (success) navigate('/freelancer/dashboard');
   };
 
-  if (!user) {
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
+
+  if (loading || !user) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-99blue" />
@@ -161,7 +169,7 @@ export default function ClientDashboard() {
           >
             <item.icon className="w-5 h-5 mr-3" />
             <span className="flex-1">{item.label}</span>
-            {item.badge && item.badge > 0 && (
+            {item.badge != null && item.badge > 0 && (
               <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{item.badge}</span>
             )}
           </Link>
@@ -171,6 +179,7 @@ export default function ClientDashboard() {
       {menuSections.map((section) => (
         <div key={section.title} className="mb-2">
           <button
+            type="button"
             onClick={() => toggleSection(section.title.toLowerCase())}
             className="flex items-center w-full px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600"
           >
@@ -201,7 +210,8 @@ export default function ClientDashboard() {
 
       <div className="pt-4 border-t border-gray-200 mt-4">
         <button
-          onClick={logout}
+          type="button"
+          onClick={handleLogout}
           className="flex items-center px-4 py-3 w-full text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
         >
           <LogOut className="w-5 h-5 mr-3" />
@@ -223,6 +233,7 @@ export default function ClientDashboard() {
             </div>
             <div className="flex items-center space-x-4">
               <button
+                type="button"
                 onClick={() => setShowSwitchModal(true)}
                 className="flex items-center px-3 py-1.5 bg-white/10 rounded-lg hover:bg-white/20 transition-colors text-sm"
               >
@@ -248,7 +259,8 @@ export default function ClientDashboard() {
 
       <header className="bg-99dark text-white md:hidden sticky top-0 z-40">
         <div className="flex items-center justify-between h-14 px-4">
-          <button 
+          <button
+            type="button"
             className="p-2 -ml-2 hover:bg-white/10 rounded-lg transition-colors"
             onClick={() => setMobileMenuOpen(true)}
           >
@@ -273,15 +285,17 @@ export default function ClientDashboard() {
 
         {mobileMenuOpen && (
           <>
-            <div 
+            <div
               className="fixed inset-0 bg-black/50 z-50 md:hidden"
               onClick={() => setMobileMenuOpen(false)}
+              aria-hidden
             />
             <aside className="fixed left-0 top-0 w-72 h-full bg-white shadow-xl z-50 md:hidden overflow-y-auto">
               <div className="p-4 border-b bg-99dark flex items-center justify-between">
                 <span className="text-xl font-bold text-white">Menu</span>
-                <button 
-                  onClick={() => setMobileMenuOpen(false)} 
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(false)}
                   className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
                 >
                   <X className="w-6 h-6" />
@@ -378,13 +392,11 @@ export default function ClientDashboard() {
             <Link
               key={item.label}
               to={item.href}
-              className={`flex flex-col items-center justify-center flex-1 h-full ${
-                item.active ? 'text-99blue' : 'text-gray-400'
-              }`}
+              className={`flex flex-col items-center justify-center flex-1 h-full ${item.active ? 'text-99blue' : 'text-gray-400'}`}
             >
               <div className="relative">
                 <item.icon className="w-5 h-5" />
-                {item.badge && item.badge > 0 && (
+                {item.badge != null && item.badge > 0 && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
                     {item.badge}
                   </span>
@@ -403,7 +415,7 @@ export default function ClientDashboard() {
               <h3 className="text-xl font-semibold text-gray-900">
                 {user.hasFreelancerAccount ? 'Alternar Conta' : 'Criar Conta Freelancer'}
               </h3>
-              <button onClick={() => setShowSwitchModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+              <button type="button" onClick={() => setShowSwitchModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -415,8 +427,8 @@ export default function ClientDashboard() {
                 </div>
                 <p className="text-gray-600 mb-6">Deseja alternar para o painel de freelancer?</p>
                 <div className="flex space-x-3">
-                  <button onClick={() => setShowSwitchModal(false)} className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">Cancelar</button>
-                  <button onClick={handleSwitchAccount} disabled={switchLoading} className="flex-1 py-3 bg-99blue text-white rounded-lg hover:bg-99blue-light disabled:opacity-50">
+                  <button type="button" onClick={() => setShowSwitchModal(false)} className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">Cancelar</button>
+                  <button type="button" onClick={handleSwitchAccount} disabled={switchLoading} className="flex-1 py-3 bg-99blue text-white rounded-lg hover:bg-99blue-light disabled:opacity-50">
                     {switchLoading ? 'Alternando...' : 'Alternar'}
                   </button>
                 </div>
@@ -428,8 +440,8 @@ export default function ClientDashboard() {
                 </div>
                 <p className="text-gray-600 mb-4">Crie uma conta freelancer para começar a trabalhar!</p>
                 <div className="flex space-x-3">
-                  <button onClick={() => setShowSwitchModal(false)} className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">Agora não</button>
-                  <button onClick={handleCreateFreelancerAccount} disabled={switchLoading} className="flex-1 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50">
+                  <button type="button" onClick={() => setShowSwitchModal(false)} className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">Agora não</button>
+                  <button type="button" onClick={handleCreateFreelancerAccount} disabled={switchLoading} className="flex-1 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50">
                     {switchLoading ? 'Criando...' : 'Criar Conta'}
                   </button>
                 </div>
