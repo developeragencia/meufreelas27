@@ -30,15 +30,19 @@ Este projeto está configurado **somente para Hostinger**. Não há configuraç�
 
 ## Passo a passo na Hostinger
 
-### 1. Build local
+### 1. Build local (com URL da API para salvar usuários no banco)
 
-Na raiz do repositório:
+Para o **cadastro e login salvarem no banco**, o build precisa da URL da API. Na raiz do repositório:
 
 ```bash
 cd app
+cp .env.example .env
+# Edite app/.env e deixe: VITE_API_URL=https://meufreelas.com.br/api
 npm install
 npm run build
 ```
+
+Se `VITE_API_URL` não estiver definido no momento do build, o app usa só localStorage e **nenhum usuário é salvo no banco**.
 
 ### 2. O que enviar
 
@@ -79,10 +83,14 @@ Não é necessário criar outro `.htaccess` na Hostinger.
 
 ---
 
-## Quando tiver o banco de dados
+## Banco de dados e API (cadastro/login salvando usuários)
 
-1. Copie `app/.env.example` para `app/.env` e preencha com os dados que a Hostinger fornecer.
-2. Se houver backend/API, configure a URL da API (ex.: `VITE_API_URL`) no `.env` e faça um novo build antes de subir de novo.
+1. **Envie a pasta `api/`** para o servidor (ex.: `public_html/api/` ou a pasta do domínio).
+2. **Crie `api/.env`** no servidor com os dados do MySQL da Hostinger:
+   - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`
+3. **Rode o setup uma vez:** abra no navegador `https://meufreelas.com.br/api/setup.php`. Deve retornar `"ok": true` e "Teste de escrita em users: sucesso". Se aparecer erro, corrija o `.env` e rode de novo.
+4. **Verifique:** abra `https://meufreelas.com.br/api/health.php`. Deve mostrar `"database": "on"` e `"usersCount": 0` (ou o número de usuários).
+5. **Build do app com API:** no passo 1 acima, use `app/.env` com `VITE_API_URL=https://meufreelas.com.br/api` antes de `npm run build`. Assim o frontend chama a API e os usuários passam a ser salvos na tabela `users`.
 
 ---
 
