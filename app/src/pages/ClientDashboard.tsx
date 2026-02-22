@@ -43,9 +43,16 @@ export default function ClientDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedProjects = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]');
+    let savedProjects: Array<Project & { clientId?: string }> = [];
+    try {
+      const parsed = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]') as unknown;
+      if (Array.isArray(parsed)) savedProjects = parsed as Array<Project & { clientId?: string }>;
+    } catch {
+      // localStorage corrompido não deve quebrar o painel
+      savedProjects = [];
+    }
     if (user) {
-      const userProjects = savedProjects.filter((p: Project & { clientId?: string }) => p.clientId === user.id);
+      const userProjects = savedProjects.filter((p) => p.clientId === user.id);
       setProjects(userProjects);
     }
     setLoading(false);

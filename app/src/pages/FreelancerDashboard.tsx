@@ -42,9 +42,16 @@ export default function FreelancerDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedProposals = JSON.parse(localStorage.getItem('meufreelas_proposals') || '[]');
+    let savedProposals: Array<Proposal & { freelancerId?: string }> = [];
+    try {
+      const parsed = JSON.parse(localStorage.getItem('meufreelas_proposals') || '[]') as unknown;
+      if (Array.isArray(parsed)) savedProposals = parsed as Array<Proposal & { freelancerId?: string }>;
+    } catch {
+      // localStorage corrompido não deve quebrar o painel
+      savedProposals = [];
+    }
     if (user) {
-      const userProposals = savedProposals.filter((p: Proposal & { freelancerId?: string }) => p.freelancerId === user.id);
+      const userProposals = savedProposals.filter((p) => p.freelancerId === user.id);
       setProposals(userProposals);
     }
     setLoading(false);

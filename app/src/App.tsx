@@ -57,6 +57,10 @@ function ProtectedRoute({ children, allowedType }: { children: React.ReactNode; 
   }
 
   if (allowedType && user.type !== allowedType) {
+    // Evita loop de redirecionamento quando storage antigo traz type inválido
+    if (user.type !== 'admin' && user.type !== 'freelancer' && user.type !== 'client') {
+      return <Navigate to="/login" replace />;
+    }
     if (user.type === 'admin') return <Navigate to="/admin/dashboard" replace />;
     if (user.type === 'freelancer') return <Navigate to="/freelancer/dashboard" replace />;
     return <Navigate to="/dashboard" replace />;
