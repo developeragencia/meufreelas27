@@ -63,36 +63,31 @@ if ($action === 'register') {
         exit;
     }
 
-    $stmt = $pdo->prepare('SELECT id, type FROM users WHERE email = ?');
+    $stmt = $pdo->prepare('SELECT id, type, is_verified FROM users WHERE email = ?');
     $stmt->execute([$email]);
     $existing = $stmt->fetch();
 
+    $siteUrl = 'https://meufreelas.com.br';
+    $genToken = function () { return bin2hex(random_bytes(32)); };
+    $sendActivationAndReturn = function ($userId, $userEmail, $userName, $userType) use ($pdo, $genToken, $siteUrl) {
+        $token = $genToken();
+        $expires = date('Y-m-d H:i:s', strtotime('+24 hours'));
+        $pdo->prepare('UPDATE users SET is_verified = 0, activation_token = ?, activation_token_expires_at = ? WHERE id = ?')
+            ->execute([$token, $expires, $userId]);
+        if (file_exists(__DIR__ . '/EmailService.php')) {
+            require_once __DIR__ . '/EmailService.php';
+            $emailService = new EmailService($_ENV);
+            $emailService->sendActivationEmail($userEmail, $userName, $userType, $siteUrl . '/ativar?token=' . $token);
+        }
+        echo json_encode(['ok' => true, 'requiresActivation' => true, 'message' => 'Enviamos um e-mail de ativação. Clique no link para ativar sua conta e depois faça login.']);
+    };
+
     if ($existing) {
         if ($existing['type'] === $type) {
-            // Mesmo e-mail e mesmo tipo: atualiza senha e nome (redefinir conta) e retorna sucesso
             $newHash = password_hash($password, PASSWORD_DEFAULT);
             $pdo->prepare('UPDATE users SET password_hash = ?, name = ? WHERE id = ?')
                 ->execute([$newHash, $name, $existing['id']]);
-            $stmt = $pdo->prepare('SELECT id, email, name, type, avatar, rating, completed_projects, has_freelancer_account, has_client_account FROM users WHERE id = ?');
-            $stmt->execute([$existing['id']]);
-            $row = $stmt->fetch();
-            $user = [
-                'id' => $row['id'],
-                'email' => $row['email'],
-                'name' => $row['name'],
-                'type' => $row['type'],
-                'avatar' => $row['avatar'],
-                'rating' => (float) $row['rating'],
-                'completedProjects' => (int) $row['completed_projects'],
-                'hasFreelancerAccount' => (bool) $row['has_freelancer_account'],
-                'hasClientAccount' => (bool) $row['has_client_account'],
-            ];
-            if (file_exists(__DIR__ . '/EmailService.php')) {
-                require_once __DIR__ . '/EmailService.php';
-                $emailService = new EmailService($_ENV);
-                $emailService->sendWelcomeActivation($row['email'], $row['name'], $row['type']);
-            }
-            echo json_encode(['ok' => true, 'user' => $user]);
+            $sendActivationAndReturn($existing['id'], $email, $name, $type);
             exit;
         }
         $hasFreelancer = ($existing['type'] === 'freelancer' || $type === 'freelancer') ? 1 : 0;
@@ -114,11 +109,6 @@ if ($action === 'register') {
             'hasFreelancerAccount' => (bool) $row['has_freelancer_account'],
             'hasClientAccount' => (bool) $row['has_client_account'],
         ];
-        if (file_exists(__DIR__ . '/EmailService.php')) {
-            require_once __DIR__ . '/EmailService.php';
-            $emailService = new EmailService($_ENV);
-            $emailService->sendWelcomeActivation($row['email'], $row['name'], $row['type']);
-        }
         echo json_encode(['ok' => true, 'user' => $user]);
         exit;
     }
@@ -126,29 +116,20 @@ if ($action === 'register') {
     $id = bin2hex(random_bytes(18));
     $hash = password_hash($password, PASSWORD_DEFAULT);
     $avatar = 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=003366&color=fff';
-
-    $sql = 'INSERT INTO users (id, email, password_hash, name, type, avatar, rating, completed_projects, has_freelancer_account, has_client_account) VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, ?)';
+    $token = $genToken();
+    $expires = date('Y-m-d H:i:s', strtotime('+24 hours'));
     $hasF = $type === 'freelancer' ? 1 : 0;
     $hasC = $type === 'client' ? 1 : 0;
-    $pdo->prepare($sql)->execute([$id, $email, $hash, $name, $type, $avatar, $hasF, $hasC]);
 
-    $user = [
-        'id' => $id,
-        'email' => $email,
-        'name' => $name,
-        'type' => $type,
-        'avatar' => $avatar,
-        'rating' => 0,
-        'completedProjects' => 0,
-        'hasFreelancerAccount' => $type === 'freelancer',
-        'hasClientAccount' => $type === 'client',
-    ];
+    $sql = 'INSERT INTO users (id, email, password_hash, name, type, avatar, rating, completed_projects, has_freelancer_account, has_client_account, is_verified, activation_token, activation_token_expires_at) VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, ?, 0, ?, ?)';
+    $pdo->prepare($sql)->execute([$id, $email, $hash, $name, $type, $avatar, $hasF, $hasC, $token, $expires]);
+
     if (file_exists(__DIR__ . '/EmailService.php')) {
         require_once __DIR__ . '/EmailService.php';
         $emailService = new EmailService($_ENV);
-        $emailService->sendWelcomeActivation($email, $name, $type);
+        $emailService->sendActivationEmail($email, $name, $type, $siteUrl . '/ativar?token=' . $token);
     }
-    echo json_encode(['ok' => true, 'user' => $user]);
+    echo json_encode(['ok' => true, 'requiresActivation' => true, 'message' => 'Enviamos um e-mail de ativação. Clique no link para ativar sua conta e depois faça login.']);
     exit;
 }
 
@@ -161,12 +142,18 @@ if ($action === 'login') {
         exit;
     }
 
-    $stmt = $pdo->prepare('SELECT id, email, password_hash, name, type, avatar, rating, completed_projects, has_freelancer_account, has_client_account FROM users WHERE email = ?');
+    $stmt = $pdo->prepare('SELECT id, email, password_hash, name, type, avatar, rating, completed_projects, has_freelancer_account, has_client_account, is_verified FROM users WHERE email = ?');
     $stmt->execute([$email]);
     $row = $stmt->fetch();
 
     if (!$row || !password_verify($password, $row['password_hash'])) {
         echo json_encode(['ok' => false, 'error' => 'E-mail ou senha incorretos.']);
+        exit;
+    }
+
+    $isVerified = isset($row['is_verified']) ? (int) $row['is_verified'] : 1;
+    if ($isVerified === 0) {
+        echo json_encode(['ok' => false, 'error' => 'Ative sua conta pelo link enviado ao seu e-mail. Depois faça login.', 'code' => 'NOT_VERIFIED']);
         exit;
     }
 

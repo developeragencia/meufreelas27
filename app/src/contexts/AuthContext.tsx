@@ -22,11 +22,14 @@ export interface User {
   isPremium?: boolean;
 }
 
+export type LoginResult = { success: boolean; error?: string; code?: string };
+export type RegisterResult = { success: boolean; requiresActivation?: boolean; message?: string };
+
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string, type: Exclude<UserType, 'admin' | null>) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<LoginResult>;
+  register: (name: string, email: string, password: string, type: Exclude<UserType, 'admin' | null>) => Promise<RegisterResult>;
   logout: () => void;
   updateUser: (data: Partial<User>) => void;
   switchAccountType: () => Promise<boolean>;
@@ -98,19 +101,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   });
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<LoginResult> => {
     try {
       if (hasApi()) {
         const res = await apiAuth('login', { email, password });
         if (res.ok && res.user) {
           const normalizedUser = normalizeUser(res.user);
-          if (!normalizedUser) return false;
+          if (!normalizedUser) return { success: false, error: 'Resposta inválida' };
           setUser(normalizedUser);
           upsertStoredUser(normalizedUser);
           localStorage.setItem('meufreelas_user', JSON.stringify(normalizedUser));
-          return true;
+          return { success: true };
         }
-        return false;
+        return { success: false, error: res.error || 'E-mail ou senha incorretos.', code: res.code };
       }
       const users = JSON.parse(localStorage.getItem('meufreelas_users') || '[]');
       const foundUser = users.find((u: any) => u.email === email && u.password === password);
@@ -118,12 +121,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { password: _, ...userWithoutPassword } = foundUser;
         setUser(userWithoutPassword);
         localStorage.setItem('meufreelas_user', JSON.stringify(userWithoutPassword));
-        return true;
+        return { success: true };
       }
-      return false;
+      return { success: false, error: 'E-mail ou senha incorretos.' };
     } catch (error) {
       console.error('Login error:', error);
-      return false;
+      return { success: false, error: 'Erro ao fazer login.' };
     }
   };
 
@@ -132,19 +135,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string,
     password: string,
     type: Exclude<UserType, 'admin' | null>
-  ): Promise<boolean> => {
+  ): Promise<RegisterResult> => {
     try {
       if (hasApi()) {
         const res = await apiAuth('register', { name, email, password, type });
+        if (res.ok && res.requiresActivation) {
+          return { success: true, requiresActivation: true, message: res.message };
+        }
         if (res.ok && res.user) {
           const normalizedUser = normalizeUser(res.user);
-          if (!normalizedUser) return false;
+          if (!normalizedUser) return { success: false };
           setUser(normalizedUser);
           upsertStoredUser(normalizedUser);
           localStorage.setItem('meufreelas_user', JSON.stringify(normalizedUser));
-          return true;
+          return { success: true };
         }
-        return false;
+        return { success: false, message: res.error };
       }
       const users = JSON.parse(localStorage.getItem('meufreelas_users') || '[]');
       const existingUser = users.find((u: any) => u.email === email);
@@ -161,9 +167,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { password: _, ...userWithoutPassword } = updatedUser;
           setUser(userWithoutPassword);
           localStorage.setItem('meufreelas_user', JSON.stringify(userWithoutPassword));
-          return true;
+          return { success: true };
         }
-        return false;
+        return { success: false };
       }
       const newUser: User = {
         id: Date.now().toString(),
@@ -180,10 +186,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('meufreelas_users', JSON.stringify(users));
       setUser(newUser);
       localStorage.setItem('meufreelas_user', JSON.stringify(newUser));
-      return true;
+      return { success: true };
     } catch (error) {
       console.error('Register error:', error);
-      return false;
+      return { success: false };
     }
   };
 

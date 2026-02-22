@@ -4,7 +4,16 @@ export function hasApi(): boolean {
   return !!API_URL;
 }
 
-export async function apiAuth(action: 'register' | 'login', body: Record<string, string>): Promise<{ ok: boolean; user?: Record<string, unknown>; error?: string }> {
+export type ApiAuthResponse = {
+  ok: boolean;
+  user?: Record<string, unknown>;
+  error?: string;
+  code?: string;
+  requiresActivation?: boolean;
+  message?: string;
+};
+
+export async function apiAuth(action: 'register' | 'login', body: Record<string, string>): Promise<ApiAuthResponse> {
   if (!API_URL) return { ok: false, error: 'API não configurada' };
   try {
     const url = `${API_URL.replace(/\/$/, '')}/auth.php`;
@@ -15,16 +24,29 @@ export async function apiAuth(action: 'register' | 'login', body: Record<string,
       credentials: 'omit',
     });
     const text = await res.text();
-    let data: { ok?: boolean; user?: Record<string, unknown>; error?: string } = {};
+    let data: ApiAuthResponse = {};
     try {
       data = text ? JSON.parse(text) : {};
     } catch {
       return { ok: false, error: res.ok ? 'Resposta inválida do servidor' : `Erro ${res.status}` };
     }
-    if (!res.ok) return { ok: false, error: data?.error || 'Erro na requisição' };
-    return { ok: !!data.ok, user: data.user, error: data.error };
+    if (!res.ok) return { ok: false, error: data?.error || 'Erro na requisição', code: data?.code };
+    return { ok: !!data.ok, user: data.user, error: data.error, code: data.code, requiresActivation: data.requiresActivation, message: data.message };
   } catch (e) {
     console.error('apiAuth', e);
     return { ok: false, error: 'Falha de conexão com o servidor' };
+  }
+}
+
+export async function apiActivate(token: string): Promise<{ ok: boolean; error?: string; message?: string }> {
+  if (!API_URL) return { ok: false, error: 'API não configurada' };
+  try {
+    const url = `${API_URL.replace(/\/$/, '')}/activate.php?token=${encodeURIComponent(token)}`;
+    const res = await fetch(url, { credentials: 'omit' });
+    const data = await res.json().catch(() => ({}));
+    return { ok: !!data.ok, error: data.error, message: data.message };
+  } catch (e) {
+    console.error('apiActivate', e);
+    return { ok: false, error: 'Falha de conexão' };
   }
 }

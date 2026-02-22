@@ -94,6 +94,8 @@ try {
 $columnsToAdd = [
     'has_freelancer_account' => "ALTER TABLE users ADD COLUMN has_freelancer_account TINYINT(1) DEFAULT 0",
     'has_client_account'     => "ALTER TABLE users ADD COLUMN has_client_account TINYINT(1) DEFAULT 0",
+    'activation_token'       => "ALTER TABLE users ADD COLUMN activation_token VARCHAR(64) DEFAULT NULL",
+    'activation_token_expires_at' => "ALTER TABLE users ADD COLUMN activation_token_expires_at TIMESTAMP NULL DEFAULT NULL",
 ];
 foreach ($columnsToAdd as $col => $sql) {
     try {

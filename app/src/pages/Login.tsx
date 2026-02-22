@@ -23,14 +23,14 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const success = await login(trimmedEmail, password);
-      if (success) {
+      const result = await login(trimmedEmail, password);
+      if (result.success) {
         const stored = localStorage.getItem('meufreelas_user');
         const u = stored ? (JSON.parse(stored) as { type?: string }) : null;
         const dest = u?.type === 'freelancer' ? '/freelancer/dashboard' : '/dashboard';
         navigate(dest, { replace: true });
       } else {
-        setError('Email ou senha incorretos.');
+        setError(result.error || 'Email ou senha incorretos.');
       }
     } catch {
       setError('Erro ao fazer login. Tente novamente.');

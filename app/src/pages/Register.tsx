@@ -16,6 +16,7 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleTypeSelection = (type: UserTypeOption) => {
@@ -71,12 +72,17 @@ export default function Register() {
     setIsLoading(true);
 
     try {
-      const success = await register(trimmedName, trimmedEmail, password, userType);
-      if (success) {
+      setSuccessMessage('');
+      const result = await register(trimmedName, trimmedEmail, password, userType);
+      if (result.success && result.requiresActivation) {
+        setSuccessMessage(result.message || 'Enviamos um e-mail de ativação. Clique no link para ativar sua conta e depois faça login.');
+        return;
+      }
+      if (result.success) {
         const dest = userType === 'freelancer' ? '/freelancer/dashboard' : '/dashboard';
         navigate(dest, { replace: true });
       } else {
-        setError('Este email já está cadastrado com este tipo de conta. Tente fazer login ou use outro email.');
+        setError(result.message || 'Este email já está cadastrado com este tipo de conta. Tente fazer login ou use outro email.');
       }
     } catch {
       setError('Erro ao criar conta. Tente novamente.');
@@ -209,12 +215,23 @@ export default function Register() {
                 Complete seus dados para finalizar o cadastro
               </p>
 
+              {successMessage && (
+                <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-6" role="alert">
+                  <p className="font-medium">Conta criada!</p>
+                  <p className="mt-1 text-sm">{successMessage}</p>
+                  <Link to="/login" className="inline-block mt-3 text-99blue font-medium hover:underline">
+                    Ir para o login →
+                  </Link>
+                </div>
+              )}
+
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6" role="alert">
                   {error}
                 </div>
               )}
 
+              {!successMessage && (
               <form onSubmit={handleSubmit} className="space-y-5" noValidate>
                 <div>
                   <label htmlFor="register-name" className="block text-sm font-medium text-gray-700 mb-2">
@@ -328,6 +345,7 @@ export default function Register() {
                   {isLoading ? 'Criando conta...' : 'Criar conta'}
                 </button>
               </form>
+              )}
 
               <div className="mt-6 text-center">
                 <p className="text-gray-600">

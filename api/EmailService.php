@@ -126,17 +126,27 @@ class EmailService
             . '</body></html>';
     }
 
-    /** E-mail de boas-vindas / ativação de cadastro */
+    /** E-mail de ativação de cadastro – usuário deve clicar no link para ativar e acessar o painel */
+    public function sendActivationEmail(string $to, string $name, string $type, string $activationLink): bool
+    {
+        $tipo = $type === 'freelancer' ? 'freelancer' : 'contratante';
+        $subject = 'Ative sua conta MeuFreelas';
+        $content = '<p>Olá, <strong>' . htmlspecialchars($name) . '</strong>!</p>'
+            . '<p>Sua conta foi criada. Você está cadastrado como <strong>' . $tipo . '</strong>.</p>'
+            . '<p><strong>Ative sua conta</strong> clicando no botão abaixo. Só depois disso você poderá acessar o painel.</p>';
+        return $this->send($to, $subject, $this->layout('Ative sua conta', $content, 'Ativar minha conta', $activationLink), "Olá, $name! Ative sua conta em: $activationLink");
+    }
+
+    /** E-mail de boas-vindas (conta já ativada – uso interno) */
     public function sendWelcomeActivation(string $to, string $name, string $type): bool
     {
         $tipo = $type === 'freelancer' ? 'freelancer' : 'contratante';
-        $subject = 'Bem-vindo ao MeuFreelas – Ative sua conta';
+        $subject = 'Bem-vindo ao MeuFreelas';
         $content = '<p>Olá, <strong>' . htmlspecialchars($name) . '</strong>!</p>'
-            . '<p>Sua conta foi criada com sucesso. Você está cadastrado como <strong>' . $tipo . '</strong>.</p>'
+            . '<p>Sua conta está ativa. Você está cadastrado como <strong>' . $tipo . '</strong>.</p>'
             . '<p>Já pode acessar o painel e começar a usar a plataforma.</p>';
-        $site = 'https://meufreelas.com.br';
-        $loginUrl = $site . '/login';
-        return $this->send($to, $subject, $this->layout('Ativação de cadastro', $content, 'Acessar minha conta', $loginUrl), "Olá, $name! Sua conta foi criada. Acesse: $loginUrl");
+        $loginUrl = 'https://meufreelas.com.br/login';
+        return $this->send($to, $subject, $this->layout('Conta ativada', $content, 'Acessar minha conta', $loginUrl), "Olá, $name! Acesse: $loginUrl");
     }
 
     /** Aprovação de proposta (freelancer aprovado no projeto) */
