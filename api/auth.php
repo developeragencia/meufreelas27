@@ -42,6 +42,25 @@ try {
 $input = json_decode(file_get_contents('php://input'), true) ?? [];
 $action = $input['action'] ?? '';
 
+$buildUserById = function (string $id) use ($pdo) {
+    $stmt = $pdo->prepare('SELECT id, email, name, type, avatar, rating, completed_projects, has_freelancer_account, has_client_account, is_verified FROM users WHERE id = ? LIMIT 1');
+    $stmt->execute([$id]);
+    $row = $stmt->fetch();
+    if (!$row) return null;
+    return [
+        'id' => $row['id'],
+        'email' => $row['email'],
+        'name' => $row['name'],
+        'type' => $row['type'],
+        'avatar' => $row['avatar'],
+        'rating' => (float)$row['rating'],
+        'completedProjects' => (int)$row['completed_projects'],
+        'hasFreelancerAccount' => (bool)$row['has_freelancer_account'],
+        'hasClientAccount' => (bool)$row['has_client_account'],
+        'isVerified' => (int)($row['is_verified'] ?? 0) === 1,
+    ];
+};
+
 if ($action === 'register') {
     $name = trim($input['name'] ?? '');
     $email = trim($input['email'] ?? '');
@@ -200,11 +219,64 @@ if ($action === 'resend_activation') {
         $emailSent = $emailService->sendActivationEmail($email, $row['name'], $row['type'], $siteUrl . '/ativar?token=' . $token);
     }
     if (!$emailSent) {
-        echo json_encode(['ok' => false, 'error' => 'Não foi possível enviar o e-mail. Verifique a configuração SMTP no servidor (api/.env com SMTP_PASS) ou tente novamente mais tarde.']);
+        echo json_encode(['ok' => false, 'error' => 'Não foi possível enviar o e-mail. Verifique SMTP_USER/SMTP_PASS no ambiente de produção e se a pasta api/vendor está presente no servidor.']);
         exit;
     }
     echo json_encode(['ok' => true, 'message' => 'E-mail de ativação reenviado. Verifique sua caixa de entrada e o spam.']);
     exit;
 }
 
-echo json_encode(['ok' => false, 'error' => 'Ação inválida. Use action: register, login ou resend_activation.']);
+if ($action === 'switch_account_type') {
+    $userId = trim((string)($input['userId'] ?? ''));
+    $targetType = trim((string)($input['targetType'] ?? ''));
+    if ($userId === '' || !in_array($targetType, ['freelancer', 'client'], true)) {
+        echo json_encode(['ok' => false, 'error' => 'userId e targetType são obrigatórios.']);
+        exit;
+    }
+    $stmt = $pdo->prepare('SELECT id, has_freelancer_account, has_client_account FROM users WHERE id = ? LIMIT 1');
+    $stmt->execute([$userId]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        echo json_encode(['ok' => false, 'error' => 'Usuário não encontrado.']);
+        exit;
+    }
+    if ($targetType === 'freelancer' && (int)$row['has_freelancer_account'] !== 1) {
+        echo json_encode(['ok' => false, 'error' => 'Conta freelancer não disponível para este usuário.']);
+        exit;
+    }
+    if ($targetType === 'client' && (int)$row['has_client_account'] !== 1) {
+        echo json_encode(['ok' => false, 'error' => 'Conta cliente não disponível para este usuário.']);
+        exit;
+    }
+    $pdo->prepare('UPDATE users SET type = ? WHERE id = ?')->execute([$targetType, $userId]);
+    $user = $buildUserById($userId);
+    echo json_encode(['ok' => true, 'user' => $user]);
+    exit;
+}
+
+if ($action === 'create_secondary_account') {
+    $userId = trim((string)($input['userId'] ?? ''));
+    $accountType = trim((string)($input['accountType'] ?? ''));
+    if ($userId === '' || !in_array($accountType, ['freelancer', 'client'], true)) {
+        echo json_encode(['ok' => false, 'error' => 'userId e accountType são obrigatórios.']);
+        exit;
+    }
+    $stmt = $pdo->prepare('SELECT id, has_freelancer_account, has_client_account FROM users WHERE id = ? LIMIT 1');
+    $stmt->execute([$userId]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        echo json_encode(['ok' => false, 'error' => 'Usuário não encontrado.']);
+        exit;
+    }
+    $hasF = (int)$row['has_freelancer_account'] === 1;
+    $hasC = (int)$row['has_client_account'] === 1;
+    if ($accountType === 'freelancer') $hasF = true;
+    if ($accountType === 'client') $hasC = true;
+    $pdo->prepare('UPDATE users SET has_freelancer_account = ?, has_client_account = ?, type = ? WHERE id = ?')
+        ->execute([$hasF ? 1 : 0, $hasC ? 1 : 0, $accountType, $userId]);
+    $user = $buildUserById($userId);
+    echo json_encode(['ok' => true, 'user' => $user]);
+    exit;
+}
+
+echo json_encode(['ok' => false, 'error' => 'Ação inválida. Use action: register, login, resend_activation, switch_account_type ou create_secondary_account.']);

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import { apiAuth, hasApi } from '../lib/api';
+import { apiAuth, apiCreateSecondaryAccount, apiSwitchAccountType, hasApi } from '../lib/api';
 
 export type UserType = 'freelancer' | 'client' | 'admin' | null;
 
@@ -226,18 +226,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (newType === 'freelancer' && !user.hasFreelancerAccount) return false;
     if (newType === 'client' && !user.hasClientAccount) return false;
     
+    if (hasApi()) {
+      const res = await apiSwitchAccountType({ userId: user.id, targetType: newType });
+      if (!res.ok || !res.user) return false;
+      const normalizedUser = normalizeUser(res.user);
+      if (!normalizedUser) return false;
+      setUser(normalizedUser);
+      upsertStoredUser(normalizedUser);
+      localStorage.setItem('meufreelas_user', JSON.stringify(normalizedUser));
+      return true;
+    }
+
     const updatedUser = { ...user, type: newType };
     setUser(updatedUser);
     localStorage.setItem('meufreelas_user', JSON.stringify(updatedUser));
-    
-    // Update in users list
     const users = JSON.parse(localStorage.getItem('meufreelas_users') || '[]');
     const userIndex = users.findIndex((u: any) => u.id === user.id);
     if (userIndex !== -1) {
       users[userIndex] = { ...users[userIndex], type: newType };
       localStorage.setItem('meufreelas_users', JSON.stringify(users));
     }
-    
     return true;
   };
 
@@ -248,27 +256,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (type === 'freelancer' && user.hasFreelancerAccount) return false;
     if (type === 'client' && user.hasClientAccount) return false;
     
+    if (hasApi()) {
+      const res = await apiCreateSecondaryAccount({ userId: user.id, accountType: type });
+      if (!res.ok || !res.user) return false;
+      const normalizedUser = normalizeUser(res.user);
+      if (!normalizedUser) return false;
+      setUser(normalizedUser);
+      upsertStoredUser(normalizedUser);
+      localStorage.setItem('meufreelas_user', JSON.stringify(normalizedUser));
+      return true;
+    }
+
     const updatedUser = {
       ...user,
       hasFreelancerAccount: type === 'freelancer' || user.hasFreelancerAccount,
       hasClientAccount: type === 'client' || user.hasClientAccount,
     };
-    
     setUser(updatedUser);
     localStorage.setItem('meufreelas_user', JSON.stringify(updatedUser));
-    
-    // Update in users list
     const users = JSON.parse(localStorage.getItem('meufreelas_users') || '[]');
     const userIndex = users.findIndex((u: any) => u.id === user.id);
     if (userIndex !== -1) {
-      users[userIndex] = { 
-        ...users[userIndex], 
+      users[userIndex] = {
+        ...users[userIndex],
         hasFreelancerAccount: updatedUser.hasFreelancerAccount,
         hasClientAccount: updatedUser.hasClientAccount,
       };
       localStorage.setItem('meufreelas_users', JSON.stringify(users));
     }
-    
     return true;
   };
 

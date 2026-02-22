@@ -87,10 +87,11 @@ if ($action === 'create_project') {
         exit;
     }
 
-    $userStmt = $pdo->prepare('SELECT id, type FROM users WHERE id = ? LIMIT 1');
+    $userStmt = $pdo->prepare('SELECT id, type, has_client_account FROM users WHERE id = ? LIMIT 1');
     $userStmt->execute([$userId]);
     $author = $userStmt->fetch();
-    if (!$author || ($author['type'] ?? '') !== 'client') {
+    $isClient = $author && (($author['type'] ?? '') === 'client' || (int)($author['has_client_account'] ?? 0) === 1);
+    if (!$isClient) {
         echo json_encode(['ok' => false, 'error' => 'Apenas clientes podem publicar projetos.']);
         exit;
     }

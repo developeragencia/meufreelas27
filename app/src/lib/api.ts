@@ -13,7 +13,10 @@ export type ApiAuthResponse = {
   message?: string;
 };
 
-export async function apiAuth(action: 'register' | 'login', body: Record<string, string>): Promise<ApiAuthResponse> {
+export async function apiAuth(
+  action: 'register' | 'login' | 'switch_account_type' | 'create_secondary_account',
+  body: Record<string, string>
+): Promise<ApiAuthResponse> {
   if (!API_URL) return { ok: false, error: 'API não configurada' };
   try {
     const url = `${API_URL.replace(/\/$/, '')}/auth.php`;
@@ -43,6 +46,20 @@ export async function apiAuth(action: 'register' | 'login', body: Record<string,
     console.error('apiAuth', e);
     return { ok: false, error: 'Falha de conexão com o servidor' };
   }
+}
+
+export async function apiSwitchAccountType(payload: {
+  userId: string;
+  targetType: 'freelancer' | 'client';
+}): Promise<ApiAuthResponse> {
+  return apiAuth('switch_account_type', payload);
+}
+
+export async function apiCreateSecondaryAccount(payload: {
+  userId: string;
+  accountType: 'freelancer' | 'client';
+}): Promise<ApiAuthResponse> {
+  return apiAuth('create_secondary_account', payload);
 }
 
 export async function apiActivate(token: string): Promise<{ ok: boolean; error?: string; message?: string }> {

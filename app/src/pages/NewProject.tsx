@@ -79,7 +79,7 @@ export default function NewProject() {
   }, []);
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (user?.type !== 'client') return <Navigate to="/freelancer/dashboard" replace />;
+  if (user?.type !== 'client' && !user?.hasClientAccount) return <Navigate to="/freelancer/dashboard" replace />;
 
   const filteredSkills = allSkills.filter(
     (skill) => skill.toLowerCase().includes(skillSearch.toLowerCase()) && !formData.selectedSkills.includes(skill)

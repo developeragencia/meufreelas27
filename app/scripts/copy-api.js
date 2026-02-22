@@ -32,10 +32,6 @@ function copyRecursive(src, dest) {
   }
   if (fs.existsSync(path.join(apiSrc, '.env.example'))) {
     fs.copyFileSync(path.join(apiSrc, '.env.example'), path.join(dest, '.env.example'));
-    if (!fs.existsSync(path.join(dest, '.env'))) {
-      fs.copyFileSync(path.join(apiSrc, '.env.example'), path.join(dest, '.env'));
-      console.log('copy-api: .env criado em dist/api/ a partir de .env.example (configuração completa)');
-    }
   }
   console.log('copy-api: api/ copiada para dist/api/');
 }
