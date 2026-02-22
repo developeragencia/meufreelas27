@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
   AlertTriangle,
@@ -44,6 +44,7 @@ function formatMessageTime(value?: string | null): string {
 
 export default function Messages() {
   const { user } = useAuth();
+  const location = useLocation();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [conversations, setConversations] = useState<ApiConversation[]>([]);
@@ -70,6 +71,16 @@ export default function Messages() {
     if (!user?.id) return;
     setUserSanctionStatus(getUserSanctionStatus(user.id));
   }, [user?.id]);
+
+  useEffect(() => {
+    const conversationId = new URLSearchParams(location.search).get('conversation');
+    if (!conversationId) return;
+    const found = conversations.find((c) => c.id === conversationId);
+    if (!found) return;
+    setSelectedConversation(found);
+    setShowMobileChat(true);
+    loadMessages(found.id);
+  }, [location.search, conversations]);
 
   useEffect(() => {
     let mounted = true;

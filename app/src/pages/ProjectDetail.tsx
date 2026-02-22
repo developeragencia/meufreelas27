@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { apiCreateProposal, apiGetProject, apiListProposals, apiUpdateProposalStatus, hasApi, type ApiProposal } from '../lib/api';
+import { apiCreateProposal, apiEnsureConversation, apiGetProject, apiListProposals, apiSendMessage, apiUpdateProposalStatus, hasApi, type ApiProposal } from '../lib/api';
 import { 
   ArrowLeft, 
   Clock, 
@@ -109,6 +109,7 @@ export default function ProjectDetail() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [negotiatingProposalId, setNegotiatingProposalId] = useState<string | null>(null);
 
   const menuItems = [
     { icon: Home, label: 'Início', href: '/' },
@@ -233,6 +234,21 @@ export default function ProjectDetail() {
       return;
     }
     showToast('Proposta recusada.');
+  };
+
+  const handleNegotiateProposal = async (proposal: Proposal) => {
+    if (!user?.id || user.type !== 'client' || !project || project.clientId !== user.id) return;
+    setNegotiatingProposalId(proposal.id);
+    const conv = await apiEnsureConversation(user.id, proposal.freelancerId, project.id);
+    if (!conv.ok || !conv.conversationId) {
+      setNegotiatingProposalId(null);
+      showToast(conv.error || 'Não foi possível abrir negociação.');
+      return;
+    }
+    const intro = `Olá, ${proposal.freelancerName}! Vamos negociar sua proposta?\nValor enviado: ${proposal.value}\nPrazo enviado: ${proposal.deliveryTime}`;
+    await apiSendMessage(user.id, conv.conversationId, intro);
+    setNegotiatingProposalId(null);
+    navigate(`/messages?conversation=${conv.conversationId}`);
   };
 
   const handleSaveProject = () => {
@@ -645,6 +661,14 @@ export default function ProjectDetail() {
                               className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
                             >
                               Recusar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleNegotiateProposal(proposal)}
+                              disabled={negotiatingProposalId === proposal.id}
+                              className="px-4 py-2 bg-99blue text-white rounded-lg hover:bg-sky-500 transition-colors text-sm disabled:opacity-50"
+                            >
+                              {negotiatingProposalId === proposal.id ? 'Abrindo chat...' : 'Negociar'}
                             </button>
                           </div>
                         )}
