@@ -64,12 +64,16 @@ if ($action === 'register') {
         $expires = date('Y-m-d H:i:s', strtotime('+24 hours'));
         $pdo->prepare('UPDATE users SET is_verified = 0, activation_token = ?, activation_token_expires_at = ? WHERE id = ?')
             ->execute([$token, $expires, $userId]);
+        $emailSent = false;
         if (file_exists(__DIR__ . '/EmailService.php')) {
             require_once __DIR__ . '/EmailService.php';
             $emailService = new EmailService($_ENV);
-            $emailService->sendActivationEmail($userEmail, $userName, $userType, $siteUrl . '/ativar?token=' . $token);
+            $emailSent = $emailService->sendActivationEmail($userEmail, $userName, $userType, $siteUrl . '/ativar?token=' . $token);
         }
-        echo json_encode(['ok' => true, 'requiresActivation' => true, 'message' => 'Enviamos um e-mail de ativação. Clique no link para ativar sua conta e depois faça login.']);
+        $message = $emailSent
+            ? 'Enviamos um e-mail de ativação. Clique no link para ativar sua conta e depois faça login.'
+            : 'Conta criada, mas não foi possível enviar o e-mail. Na tela de login, use "Reenviar e-mail de ativação".';
+        echo json_encode(['ok' => true, 'requiresActivation' => true, 'message' => $message, 'emailSent' => $emailSent]);
     };
 
     if ($existing) {
@@ -114,12 +118,16 @@ if ($action === 'register') {
     $sql = 'INSERT INTO users (id, email, password_hash, name, type, avatar, rating, completed_projects, has_freelancer_account, has_client_account, is_verified, activation_token, activation_token_expires_at) VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, ?, 0, ?, ?)';
     $pdo->prepare($sql)->execute([$id, $email, $hash, $name, $type, $avatar, $hasF, $hasC, $token, $expires]);
 
+    $emailSent = false;
     if (file_exists(__DIR__ . '/EmailService.php')) {
         require_once __DIR__ . '/EmailService.php';
         $emailService = new EmailService($_ENV);
-        $emailService->sendActivationEmail($email, $name, $type, $siteUrl . '/ativar?token=' . $token);
+        $emailSent = $emailService->sendActivationEmail($email, $name, $type, $siteUrl . '/ativar?token=' . $token);
     }
-    echo json_encode(['ok' => true, 'requiresActivation' => true, 'message' => 'Enviamos um e-mail de ativação. Clique no link para ativar sua conta e depois faça login.']);
+    $message = $emailSent
+        ? 'Enviamos um e-mail de ativação. Clique no link para ativar sua conta e depois faça login.'
+        : 'Conta criada, mas não foi possível enviar o e-mail. Na tela de login, use "Reenviar e-mail de ativação".';
+    echo json_encode(['ok' => true, 'requiresActivation' => true, 'message' => $message, 'emailSent' => $emailSent]);
     exit;
 }
 
@@ -185,10 +193,15 @@ if ($action === 'resend_activation') {
     $expires = date('Y-m-d H:i:s', strtotime('+24 hours'));
     $pdo->prepare('UPDATE users SET activation_token = ?, activation_token_expires_at = ? WHERE id = ?')
         ->execute([$token, $expires, $row['id']]);
+    $emailSent = false;
     if (file_exists(__DIR__ . '/EmailService.php')) {
         require_once __DIR__ . '/EmailService.php';
         $emailService = new EmailService($_ENV);
-        $emailService->sendActivationEmail($email, $row['name'], $row['type'], $siteUrl . '/ativar?token=' . $token);
+        $emailSent = $emailService->sendActivationEmail($email, $row['name'], $row['type'], $siteUrl . '/ativar?token=' . $token);
+    }
+    if (!$emailSent) {
+        echo json_encode(['ok' => false, 'error' => 'Não foi possível enviar o e-mail. Verifique a configuração SMTP no servidor (api/.env com SMTP_PASS) ou tente novamente mais tarde.']);
+        exit;
     }
     echo json_encode(['ok' => true, 'message' => 'E-mail de ativação reenviado. Verifique sua caixa de entrada e o spam.']);
     exit;
