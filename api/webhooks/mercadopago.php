@@ -1,21 +1,11 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
-require_once __DIR__ . '/../load_env.php';
+require_once __DIR__ . '/../db.php';
 
-$dbHost = $_ENV['DB_HOST'] ?? 'localhost';
-$dbPort = $_ENV['DB_PORT'] ?? '3306';
-$dbName = $_ENV['DB_NAME'] ?? 'u892594395_meufreelas';
-$dbUser = $_ENV['DB_USER'] ?? 'u892594395_meufreelas27';
-$dbPass = $_ENV['DB_PASS'] ?? '';
-$mpAccessToken = trim((string)($_ENV['MERCADOPAGO_ACCESS_TOKEN'] ?? ''));
+$mpAccessToken = trim((string)(mf_env('MERCADOPAGO_ACCESS_TOKEN', '')));
 
 try {
-    $pdo = new PDO(
-        "mysql:host=$dbHost;port=$dbPort;dbname=$dbName;charset=utf8mb4",
-        $dbUser,
-        $dbPass,
-        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]
-    );
+    $pdo = mf_pdo();
 } catch (Throwable $e) {
     http_response_code(500);
     echo json_encode(['ok' => false]);
@@ -58,8 +48,20 @@ if ($externalReference === '') {
 }
 
 if ($paymentStatus === 'approved') {
-    $upd = $pdo->prepare('UPDATE payments SET status = "held", external_id = ? WHERE id = ? AND status IN ("pending","processing")');
-    $upd->execute([(string)$id, $externalReference]);
+    $stmt = $pdo->prepare('SELECT id, user_id, plan_code, billing_cycle FROM user_subscriptions WHERE id = ? AND status = ? LIMIT 1');
+    $stmt->execute([$externalReference, 'pending']);
+    $sub = $stmt->fetch();
+    if ($sub) {
+        $interval = ($sub['billing_cycle'] ?? '') === 'yearly' ? '1 YEAR' : '1 MONTH';
+        $pdo->prepare('UPDATE user_subscriptions SET status = ?, started_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL ' . $interval . '), external_id = ? WHERE id = ?')
+            ->execute(['active', (string)$id, $sub['id']]);
+        $planType = (string)($sub['plan_code'] ?? 'pro');
+        $pdo->prepare('UPDATE users SET is_premium = 1, plan_type = ?, plan_expires_at = DATE_ADD(NOW(), INTERVAL ' . $interval . ') WHERE id = ?')
+            ->execute([$planType, $sub['user_id']]);
+    } else {
+        $upd = $pdo->prepare('UPDATE payments SET status = "held", external_id = ? WHERE id = ? AND status IN ("pending","processing")');
+        $upd->execute([(string)$id, $externalReference]);
+    }
 }
 
 echo json_encode(['ok' => true]);

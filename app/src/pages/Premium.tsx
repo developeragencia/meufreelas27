@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { hasApi, apiCreateSubscriptionCheckout } from '../lib/api';
 import { 
   Crown, Check, Zap, TrendingUp, Shield, MessageCircle,
   Clock, Award, Users, Sparkles,
-  ThumbsUp, Percent, X
+  ThumbsUp, Percent, X, CreditCard, Loader2
 } from 'lucide-react';
 
 interface Plan {
@@ -31,6 +32,8 @@ export default function Premium() {
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState<'stripe' | 'mercadopago' | null>(null);
+  const [checkoutError, setCheckoutError] = useState('');
 
   const plans: Plan[] = [
     {
@@ -179,8 +182,28 @@ export default function Premium() {
     setShowPaymentModal(true);
   };
 
+  const handlePaymentProvider = async (provider: 'stripe' | 'mercadopago') => {
+    if (!user?.id || selectedPlan !== 'pro' && selectedPlan !== 'premium') return;
+    setCheckoutError('');
+    setCheckoutLoading(provider);
+    const res = await apiCreateSubscriptionCheckout({
+      userId: user.id,
+      planCode: selectedPlan as 'pro' | 'premium',
+      billingCycle: billingPeriod,
+      provider,
+      successUrl: `${window.location.origin}/premium?subscription=success`,
+      cancelUrl: `${window.location.origin}/premium?subscription=cancel`,
+    });
+    setCheckoutLoading(null);
+    if (res.ok && res.checkoutUrl) {
+      window.location.href = res.checkoutUrl;
+      return;
+    }
+    setCheckoutError(res.error || 'Não foi possível abrir o checkout. Tente novamente.');
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Header */}
       <header className="bg-99dark text-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4">
@@ -269,14 +292,14 @@ export default function Premium() {
       </section>
 
       {/* Plans */}
-      <section className="py-16">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <section className="py-12 md:py-16">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
             {plans.map((plan) => (
                 <div
                   key={plan.id}
                   className={`relative bg-white rounded-2xl shadow-lg overflow-hidden ${
-                    plan.highlighted ? 'ring-2 ring-99blue scale-105 md:scale-110' : ''
+                    plan.highlighted ? 'ring-2 ring-99blue md:scale-105' : ''
                   }`}
                 >
                   {plan.badge && (
@@ -502,20 +525,21 @@ export default function Premium() {
         </div>
       </footer>
 
-      {/* Payment Modal */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
+      {/* Payment Modal - Stripe e Mercado Pago */}
+      {showPaymentModal && selectedPlan && selectedPlan !== 'free' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 my-4 shadow-xl">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-gray-900">Finalizar Assinatura</h3>
               <button
-                onClick={() => setShowPaymentModal(false)}
+                onClick={() => { setShowPaymentModal(false); setCheckoutError(''); }}
                 className="p-2 hover:bg-gray-100 rounded-lg"
+                disabled={!!checkoutLoading}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="bg-gray-50 rounded-lg p-4 mb-6">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-gray-600">Plano</span>
@@ -534,56 +558,39 @@ export default function Premium() {
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Número do cartão</label>
-                <input
-                  type="text"
-                  placeholder="0000 0000 0000 0000"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Validade</label>
-                  <input
-                    type="text"
-                    placeholder="MM/AA"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">CVV</label>
-                  <input
-                    type="text"
-                    placeholder="123"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Nome no cartão</label>
-                <input
-                  type="text"
-                  placeholder="NOME COMO ESTÁ NO CARTÃO"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
-                />
-              </div>
-            </div>
+            <p className="text-sm text-gray-600 mb-4">Escolha a forma de pagamento. Você será redirecionado ao ambiente seguro do provedor.</p>
 
-            <button
-              onClick={() => {
-                setShowPaymentModal(false);
-                alert('Assinatura realizada com sucesso!');
-                navigate('/dashboard');
-              }}
-              className="w-full mt-6 py-3 bg-99blue text-white rounded-lg font-medium hover:bg-99blue-light transition-colors"
-            >
-              Confirmar Pagamento
-            </button>
+            {hasApi() ? (
+              <div className="space-y-3">
+                <button
+                  onClick={() => handlePaymentProvider('stripe')}
+                  disabled={!!checkoutLoading}
+                  className="w-full py-3 px-4 bg-[#635bff] hover:bg-[#5851ea] text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {checkoutLoading === 'stripe' ? <Loader2 className="w-5 h-5 animate-spin" /> : <CreditCard className="w-5 h-5" />}
+                  Pagar com Stripe (cartão)
+                </button>
+                <button
+                  onClick={() => handlePaymentProvider('mercadopago')}
+                  disabled={!!checkoutLoading}
+                  className="w-full py-3 px-4 bg-[#009ee3] hover:bg-[#0088c7] text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {checkoutLoading === 'mercadopago' ? <Loader2 className="w-5 h-5 animate-spin" /> : <CreditCard className="w-5 h-5" />}
+                  Pagar com Mercado Pago (PIX ou cartão)
+                </button>
+              </div>
+            ) : (
+              <p className="text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
+                Pagamentos por Stripe e Mercado Pago estão disponíveis quando a API estiver configurada.
+              </p>
+            )}
 
-            <p className="text-center text-sm text-gray-500 mt-4">
-              Pagamento seguro processado com criptografia
+            {checkoutError && (
+              <p className="mt-3 text-sm text-red-600 bg-red-50 rounded-lg p-2">{checkoutError}</p>
+            )}
+
+            <p className="text-center text-xs text-gray-500 mt-4">
+              Pagamento seguro. Stripe e Mercado Pago processam com criptografia.
             </p>
           </div>
         </div>

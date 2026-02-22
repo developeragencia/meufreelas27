@@ -7,13 +7,13 @@
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
 
-require_once __DIR__ . '/load_env.php';
-
-$dbHost = $_ENV['DB_HOST'] ?? 'localhost';
-$dbPort = $_ENV['DB_PORT'] ?? '3306';
-$dbName = $_ENV['DB_NAME'] ?? 'u892594395_meufreelas';
-$dbUser = $_ENV['DB_USER'] ?? 'u892594395_meufreelas27';
-$dbPass = $_ENV['DB_PASS'] ?? '';
+require_once __DIR__ . '/db.php';
+$dbCfg = mf_db_config();
+$dbHost = $dbCfg['host'];
+$dbPort = $dbCfg['port'];
+$dbName = $dbCfg['name'];
+$dbUser = $dbCfg['user'];
+$dbPass = $dbCfg['pass'];
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -87,6 +87,8 @@ $columnsToAdd = [
     'activation_token_expires_at' => "ALTER TABLE users ADD COLUMN activation_token_expires_at TIMESTAMP NULL DEFAULT NULL",
     'password_reset_token'   => "ALTER TABLE users ADD COLUMN password_reset_token VARCHAR(64) DEFAULT NULL",
     'password_reset_expires_at' => "ALTER TABLE users ADD COLUMN password_reset_expires_at TIMESTAMP NULL DEFAULT NULL",
+    'plan_type' => "ALTER TABLE users ADD COLUMN plan_type VARCHAR(20) DEFAULT 'free'",
+    'plan_expires_at' => "ALTER TABLE users ADD COLUMN plan_expires_at TIMESTAMP NULL DEFAULT NULL",
 ];
 foreach ($columnsToAdd as $col => $sql) {
     try {
@@ -206,6 +208,24 @@ $otherTables = [
         sanction_type VARCHAR(50) NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_user (user_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+    'user_subscriptions' => "CREATE TABLE IF NOT EXISTS user_subscriptions (
+        id VARCHAR(36) PRIMARY KEY,
+        user_id VARCHAR(36) NOT NULL,
+        plan_code VARCHAR(20) NOT NULL,
+        billing_cycle VARCHAR(20) NOT NULL,
+        provider VARCHAR(20) NOT NULL,
+        amount DECIMAL(12,2) NOT NULL,
+        status VARCHAR(20) DEFAULT 'pending',
+        external_id VARCHAR(255) DEFAULT NULL,
+        checkout_url TEXT DEFAULT NULL,
+        started_at TIMESTAMP NULL DEFAULT NULL,
+        expires_at TIMESTAMP NULL DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_user_status (user_id, status),
+        INDEX idx_external_id (external_id),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
 ];
 

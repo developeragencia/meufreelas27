@@ -1,21 +1,11 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
-require_once __DIR__ . '/../load_env.php';
+require_once __DIR__ . '/../db.php';
 
-$dbHost = $_ENV['DB_HOST'] ?? 'localhost';
-$dbPort = $_ENV['DB_PORT'] ?? '3306';
-$dbName = $_ENV['DB_NAME'] ?? 'u892594395_meufreelas';
-$dbUser = $_ENV['DB_USER'] ?? 'u892594395_meufreelas27';
-$dbPass = $_ENV['DB_PASS'] ?? '';
-$stripeWebhookSecret = trim((string)($_ENV['STRIPE_WEBHOOK_SECRET'] ?? ''));
+$stripeWebhookSecret = trim((string)(mf_env('STRIPE_WEBHOOK_SECRET', '')));
 
 try {
-    $pdo = new PDO(
-        "mysql:host=$dbHost;port=$dbPort;dbname=$dbName;charset=utf8mb4",
-        $dbUser,
-        $dbPass,
-        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]
-    );
+    $pdo = mf_pdo();
 } catch (Throwable $e) {
     http_response_code(500);
     echo json_encode(['ok' => false]);
@@ -49,7 +39,26 @@ if (($event['type'] ?? '') !== 'checkout.session.completed') {
 
 $session = $event['data']['object'] ?? [];
 $externalId = (string)($session['id'] ?? '');
-$paymentId = (string)($session['metadata']['payment_id'] ?? '');
+$metadata = $session['metadata'] ?? [];
+$paymentId = (string)($metadata['payment_id'] ?? '');
+$subscriptionId = (string)($metadata['subscription_id'] ?? '');
+
+if ($subscriptionId !== '') {
+    $stmt = $pdo->prepare('SELECT id, user_id, plan_code, billing_cycle FROM user_subscriptions WHERE id = ? AND status = ? LIMIT 1');
+    $stmt->execute([$subscriptionId, 'pending']);
+    $sub = $stmt->fetch();
+    if ($sub) {
+        $interval = ($sub['billing_cycle'] ?? '') === 'yearly' ? '1 YEAR' : '1 MONTH';
+        $pdo->prepare('UPDATE user_subscriptions SET status = ?, started_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL ' . $interval . '), external_id = ? WHERE id = ?')
+            ->execute(['active', $externalId, $subscriptionId]);
+        $planType = (string)($sub['plan_code'] ?? 'pro');
+        $pdo->prepare('UPDATE users SET is_premium = 1, plan_type = ?, plan_expires_at = DATE_ADD(NOW(), INTERVAL ' . $interval . ') WHERE id = ?')
+            ->execute([$planType, $sub['user_id']]);
+    }
+    echo json_encode(['ok' => true]);
+    exit;
+}
+
 if ($paymentId === '' && $externalId !== '') {
     $stmt = $pdo->prepare('SELECT id FROM payments WHERE external_id = ? LIMIT 1');
     $stmt->execute([$externalId]);

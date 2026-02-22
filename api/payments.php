@@ -16,26 +16,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-require_once __DIR__ . '/load_env.php';
+require_once __DIR__ . '/db.php';
 
-$dbHost = $_ENV['DB_HOST'] ?? 'localhost';
-$dbPort = $_ENV['DB_PORT'] ?? '3306';
-$dbName = $_ENV['DB_NAME'] ?? 'u892594395_meufreelas';
-$dbUser = $_ENV['DB_USER'] ?? 'u892594395_meufreelas27';
-$dbPass = $_ENV['DB_PASS'] ?? '';
-$frontendUrl = rtrim((string)($_ENV['FRONTEND_URL'] ?? 'https://meufreelas.com.br'), '/');
-$apiOrigin = rtrim((string)($_ENV['API_ORIGIN'] ?? 'https://meufreelas.com.br'), '/');
-$stripeSecret = trim((string)($_ENV['STRIPE_SECRET_KEY'] ?? ''));
-$mpAccessToken = trim((string)($_ENV['MERCADOPAGO_ACCESS_TOKEN'] ?? ''));
-$mpWebhookUrl = trim((string)($_ENV['MERCADOPAGO_WEBHOOK_URL'] ?? ($apiOrigin . '/api/webhooks/mercadopago.php')));
+$frontendUrl = rtrim((string)(mf_first_env(['FRONTEND_URL', 'VITE_APP_DOMAIN'], 'https://meufreelas.com.br')), '/');
+$apiOrigin = rtrim((string)(mf_env('API_ORIGIN', 'https://meufreelas.com.br')), '/');
+$stripeSecret = trim((string)(mf_env('STRIPE_SECRET_KEY', '')));
+$mpAccessToken = trim((string)(mf_env('MERCADOPAGO_ACCESS_TOKEN', '')));
+$mpWebhookUrl = trim((string)(mf_env('MERCADOPAGO_WEBHOOK_URL', $apiOrigin . '/api/webhooks/mercadopago.php')));
 
 try {
-    $pdo = new PDO(
-        "mysql:host=$dbHost;port=$dbPort;dbname=$dbName;charset=utf8mb4",
-        $dbUser,
-        $dbPass,
-        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]
-    );
+    $pdo = mf_pdo();
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode(['ok' => false, 'error' => 'Erro de conexão com o banco.']);

@@ -16,24 +16,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-require_once __DIR__ . '/load_env.php';
-
-$dbHost = $_ENV['DB_HOST'] ?? 'localhost';
-$dbPort = $_ENV['DB_PORT'] ?? '3306';
-$dbName = $_ENV['DB_NAME'] ?? 'u892594395_meufreelas';
-$dbUser = $_ENV['DB_USER'] ?? 'u892594395_meufreelas27';
-$dbPass = $_ENV['DB_PASS'] ?? '';
+require_once __DIR__ . '/db.php';
 
 try {
-    $pdo = new PDO(
-        "mysql:host=$dbHost;port=$dbPort;dbname=$dbName;charset=utf8mb4",
-        $dbUser,
-        $dbPass,
-        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]
-    );
+    $pdo = mf_pdo();
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'Erro de conexão.']);
+    echo json_encode(['ok' => false, 'error' => 'Erro de conexão com banco.']);
     exit;
 }
 

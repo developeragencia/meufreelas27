@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS users (
     activation_token VARCHAR(64) DEFAULT NULL,
     activation_token_expires_at TIMESTAMP NULL DEFAULT NULL,
     is_premium TINYINT(1) DEFAULT 0,
+    plan_type VARCHAR(20) DEFAULT 'free',
+    plan_expires_at TIMESTAMP NULL DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_email (email),
@@ -133,6 +135,25 @@ CREATE TABLE IF NOT EXISTS project_deliveries (
     INDEX idx_status (status),
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
     FOREIGN KEY (proposal_id) REFERENCES proposals(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS user_subscriptions (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    plan_code VARCHAR(20) NOT NULL,
+    billing_cycle VARCHAR(20) NOT NULL,
+    provider VARCHAR(20) NOT NULL,
+    amount DECIMAL(12,2) NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    external_id VARCHAR(255) DEFAULT NULL,
+    checkout_url TEXT DEFAULT NULL,
+    started_at TIMESTAMP NULL DEFAULT NULL,
+    expires_at TIMESTAMP NULL DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_user_status (user_id, status),
+    INDEX idx_external_id (external_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS notifications (

@@ -18,24 +18,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-require_once __DIR__ . '/load_env.php';
-
-$dbHost = $_ENV['DB_HOST'] ?? 'localhost';
-$dbPort = $_ENV['DB_PORT'] ?? '3306';
-$dbName = $_ENV['DB_NAME'] ?? 'u892594395_meufreelas';
-$dbUser = $_ENV['DB_USER'] ?? 'u892594395_meufreelas27';
-$dbPass = $_ENV['DB_PASS'] ?? '';
+require_once __DIR__ . '/db.php';
 
 try {
-    $pdo = new PDO(
-        "mysql:host=$dbHost;port=$dbPort;dbname=$dbName;charset=utf8mb4",
-        $dbUser,
-        $dbPass,
-        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]
-    );
+    $pdo = mf_pdo();
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'Erro de conexão com o banco.', 'detail' => $e->getMessage()]);
+    echo json_encode(['ok' => false, 'error' => 'Erro de conexão com o banco. Verifique variáveis DB_* no ambiente.']);
     exit;
 }
 
@@ -43,7 +32,7 @@ $input = json_decode(file_get_contents('php://input'), true) ?? [];
 $action = $input['action'] ?? '';
 
 $buildUserById = function (string $id) use ($pdo) {
-    $stmt = $pdo->prepare('SELECT id, email, name, type, avatar, rating, completed_projects, has_freelancer_account, has_client_account, is_verified FROM users WHERE id = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT id, email, name, type, avatar, rating, completed_projects, has_freelancer_account, has_client_account, is_verified, is_premium, plan_type FROM users WHERE id = ? LIMIT 1');
     $stmt->execute([$id]);
     $row = $stmt->fetch();
     if (!$row) return null;
@@ -58,6 +47,8 @@ $buildUserById = function (string $id) use ($pdo) {
         'hasFreelancerAccount' => (bool)$row['has_freelancer_account'],
         'hasClientAccount' => (bool)$row['has_client_account'],
         'isVerified' => (int)($row['is_verified'] ?? 0) === 1,
+        'isPremium' => (int)($row['is_premium'] ?? 0) === 1,
+        'planType' => (string)($row['plan_type'] ?? 'free'),
     ];
 };
 
@@ -108,7 +99,7 @@ if ($action === 'register') {
         $newHash = password_hash($password, PASSWORD_DEFAULT);
         $pdo->prepare('UPDATE users SET password_hash = ?, has_freelancer_account = ?, has_client_account = ?, type = ? WHERE id = ?')
             ->execute([$newHash, $hasFreelancer, $hasClient, $type, $existing['id']]);
-        $stmt = $pdo->prepare('SELECT id, email, name, type, avatar, rating, completed_projects, has_freelancer_account, has_client_account FROM users WHERE id = ?');
+        $stmt = $pdo->prepare('SELECT id, email, name, type, avatar, rating, completed_projects, has_freelancer_account, has_client_account, is_premium, plan_type FROM users WHERE id = ?');
         $stmt->execute([$existing['id']]);
         $row = $stmt->fetch();
         $user = [
@@ -121,6 +112,8 @@ if ($action === 'register') {
             'completedProjects' => (int) $row['completed_projects'],
             'hasFreelancerAccount' => (bool) $row['has_freelancer_account'],
             'hasClientAccount' => (bool) $row['has_client_account'],
+            'isPremium' => (int)($row['is_premium'] ?? 0) === 1,
+            'planType' => (string)($row['plan_type'] ?? 'free'),
         ];
         echo json_encode(['ok' => true, 'user' => $user]);
         exit;
@@ -159,7 +152,7 @@ if ($action === 'login') {
         exit;
     }
 
-    $stmt = $pdo->prepare('SELECT id, email, password_hash, name, type, avatar, rating, completed_projects, has_freelancer_account, has_client_account, is_verified FROM users WHERE email = ?');
+    $stmt = $pdo->prepare('SELECT id, email, password_hash, name, type, avatar, rating, completed_projects, has_freelancer_account, has_client_account, is_verified, is_premium, plan_type FROM users WHERE email = ?');
     $stmt->execute([$email]);
     $row = $stmt->fetch();
 
@@ -184,6 +177,8 @@ if ($action === 'login') {
         'completedProjects' => (int) $row['completed_projects'],
         'hasFreelancerAccount' => (bool) $row['has_freelancer_account'],
         'hasClientAccount' => (bool) $row['has_client_account'],
+        'isPremium' => (int)($row['is_premium'] ?? 0) === 1,
+        'planType' => (string)($row['plan_type'] ?? 'free'),
     ];
     echo json_encode(['ok' => true, 'user' => $user]);
     exit;

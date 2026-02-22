@@ -585,6 +585,36 @@ export async function apiCreateCheckout(payload: {
   }
 }
 
+export async function apiCreateSubscriptionCheckout(payload: {
+  userId: string;
+  planCode: 'pro' | 'premium';
+  billingCycle: 'monthly' | 'yearly';
+  provider: 'stripe' | 'mercadopago';
+  successUrl?: string;
+  cancelUrl?: string;
+}): Promise<{ ok: boolean; checkoutUrl?: string; subscriptionId?: string; error?: string }> {
+  if (!API_URL) return { ok: false, error: 'API não configurada' };
+  try {
+    const url = `${API_URL.replace(/\/$/, '')}/subscriptions.php`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'create_checkout', ...payload }),
+      credentials: 'omit',
+    });
+    const data = await res.json().catch(() => ({})) as Record<string, unknown>;
+    return {
+      ok: !!data.ok,
+      checkoutUrl: data.checkoutUrl as string | undefined,
+      subscriptionId: data.subscriptionId as string | undefined,
+      error: data.error as string | undefined,
+    };
+  } catch (e) {
+    console.error('apiCreateSubscriptionCheckout', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
 export type ApiDelivery = {
   id: string;
   projectId: string;
