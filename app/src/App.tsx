@@ -37,6 +37,7 @@ import Checkout from './pages/Checkout';
 import AdminUsers from './pages/AdminUsers';
 import AdminSanctions from './pages/AdminSanctions';
 import PremiumPlans from './pages/PremiumPlans';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Protected Route Component - reconhece login; sair só ao clicar em Sair
 function ProtectedRoute({ children, allowedType }: { children: React.ReactNode; allowedType?: 'freelancer' | 'client' | 'admin' }) {
@@ -261,11 +262,13 @@ function AppRoutes() {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <AppRoutes />
-      </Router>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <Router>
+          <AppRoutes />
+        </Router>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

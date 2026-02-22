@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { apiActivate, hasApi } from '../lib/api';
 import { CheckCircle, XCircle } from 'lucide-react';
 
 export default function Activate() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token') ?? '';
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');

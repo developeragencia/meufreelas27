@@ -39,14 +39,17 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function isUserType(value: unknown): value is Exclude<UserType, null> {
-  return value === 'freelancer' || value === 'client' || value === 'admin';
+  if (typeof value !== 'string') return false;
+  const t = value.toLowerCase();
+  return t === 'freelancer' || t === 'client' || t === 'admin';
 }
 
 function normalizeUser(raw: Record<string, unknown>): User | null {
   const id = raw.id;
   const email = raw.email;
   const name = raw.name;
-  const type = raw.type;
+  let type = raw.type;
+  if (typeof type === 'string') type = type.toLowerCase() as UserType;
 
   if (typeof id !== 'string' || typeof email !== 'string' || typeof name !== 'string' || !isUserType(type)) {
     return null;
@@ -56,7 +59,7 @@ function normalizeUser(raw: Record<string, unknown>): User | null {
     id,
     email,
     name,
-    type,
+    type: type as Exclude<UserType, null>,
     avatar: typeof raw.avatar === 'string' ? raw.avatar : undefined,
     phone: typeof raw.phone === 'string' ? raw.phone : undefined,
     location: typeof raw.location === 'string' ? raw.location : undefined,

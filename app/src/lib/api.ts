@@ -24,14 +24,21 @@ export async function apiAuth(action: 'register' | 'login', body: Record<string,
       credentials: 'omit',
     });
     const text = await res.text();
-    let data: ApiAuthResponse = {};
+    let data: Record<string, unknown> = {};
     try {
-      data = text ? JSON.parse(text) : {};
+      data = (text ? JSON.parse(text) : {}) as Record<string, unknown>;
     } catch {
       return { ok: false, error: res.ok ? 'Resposta inválida do servidor' : `Erro ${res.status}` };
     }
-    if (!res.ok) return { ok: false, error: data?.error || 'Erro na requisição', code: data?.code };
-    return { ok: !!data.ok, user: data.user, error: data.error, code: data.code, requiresActivation: data.requiresActivation, message: data.message };
+    if (!res.ok) return { ok: false, error: (data?.error as string) || 'Erro na requisição', code: data?.code as string | undefined };
+    return {
+      ok: !!data.ok,
+      user: data.user as Record<string, unknown> | undefined,
+      error: data.error as string | undefined,
+      code: data.code as string | undefined,
+      requiresActivation: data.requiresActivation as boolean | undefined,
+      message: data.message as string | undefined,
+    };
   } catch (e) {
     console.error('apiAuth', e);
     return { ok: false, error: 'Falha de conexão com o servidor' };

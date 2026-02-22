@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, ChevronDown, ChevronUp, Briefcase, ThumbsUp, Calendar, Crown, Star, Menu, X } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { Search, ChevronDown, ChevronUp, Briefcase, ThumbsUp, Calendar, Crown, Star, Menu, X, User, LogOut } from 'lucide-react';
 
 interface Freelancer {
   id: string;
@@ -89,6 +90,8 @@ function loadFreelancersFromStorage(): Freelancer[] {
 }
 
 export default function Freelancers() {
+  const { user, isAuthenticated, logout } = useAuth();
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [freelancers, setFreelancers] = useState<Freelancer[]>(() => loadFreelancersFromStorage());
   const [keywords, setKeywords] = useState('');
   useEffect(() => {
@@ -272,8 +275,44 @@ export default function Freelancers() {
                   className="bg-transparent text-white placeholder-gray-400 outline-none w-48"
                 />
               </div>
-              <Link to="/login" className="text-gray-300 hover:text-white hidden sm:block">Login</Link>
-              <Link to="/register" className="text-gray-300 hover:text-white hidden sm:block">Cadastre-se</Link>
+              {isAuthenticated && user ? (
+                <div className="relative hidden sm:block">
+                  <button
+                    type="button"
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className="flex items-center space-x-2 text-white hover:text-white/90"
+                  >
+                    {user.avatar ? (
+                      <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full" />
+                    ) : (
+                      <div className="w-8 h-8 bg-99blue rounded-full flex items-center justify-center">
+                        <User className="w-5 h-5" />
+                      </div>
+                    )}
+                    <span className="text-sm">{user.name.split(' ')[0]}</span>
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                  {showUserMenu && (
+                    <>
+                      <div className="fixed inset-0 z-40" aria-hidden onClick={() => setShowUserMenu(false)} />
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50 animate-fade-in">
+                        <Link to={user.type === 'freelancer' ? '/freelancer/dashboard' : '/dashboard'} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setShowUserMenu(false)}>Dashboard</Link>
+                        <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setShowUserMenu(false)}>Meu perfil</Link>
+                        <Link to="/freelancers" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setShowUserMenu(false)}>Freelancers</Link>
+                        <Link to="/projects" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setShowUserMenu(false)}>Projetos</Link>
+                        <button type="button" onClick={() => { setShowUserMenu(false); logout(); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                          <LogOut className="w-4 h-4 mr-2" /> Sair
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <Link to="/login" className="text-gray-300 hover:text-white hidden sm:block">Login</Link>
+                  <Link to="/register" className="text-gray-300 hover:text-white hidden sm:block">Cadastre-se</Link>
+                </>
+              )}
               <Link to="/project/new" className="px-4 py-2 bg-99blue rounded-lg hover:bg-sky-400 text-sm md:text-base">
                 Publicar
               </Link>
