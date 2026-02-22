@@ -4,14 +4,19 @@
   "description": "Plataforma para encontrar freelancers talentosos e publicar projetos. Conecte-se com profissionais de todo o Brasil.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#003366",
-  "theme_color": "#003366",
+  "background_color": "#0058ff",
+  "theme_color": "#0058ff",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml"
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
     }
   ]
 }

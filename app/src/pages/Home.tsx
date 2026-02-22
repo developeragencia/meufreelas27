@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { ChevronDown, Search, User, LogOut, Briefcase, CheckCircle, Menu, X } from 'lucide-react';
+import BrandLogo from '../components/BrandLogo';
 
 const rotatingTexts = [
   'desenvolver o seu código',
@@ -41,11 +42,7 @@ export default function Home() {
             <div className="flex items-center justify-between h-14">
               {/* Logo */}
               <div className="flex items-center">
-                <Link to="/" className="flex items-center">
-                  <span className="text-white text-2xl font-bold tracking-tight">
-                    meu<span className="font-light">freelas</span>
-                  </span>
-                </Link>
+                <BrandLogo heightClassName="h-8" />
               </div>
 
               {/* Search Bar */}

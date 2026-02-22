@@ -22,9 +22,7 @@ export default function Header() {
             {/* Logo */}
             <div className="flex items-center">
               <a href="/" className="flex items-center">
-                <span className="text-white text-2xl font-bold tracking-tight">
-                  meu<span className="font-light">freelas</span>
-                </span>
+                <img src="/logo-original.png" alt="MeuFreelas" className="h-8 w-auto" />
               </a>
             </div>
 

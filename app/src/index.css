@@ -12,27 +12,29 @@
     --card-foreground: 210 11% 15%;
     --popover: 0 0% 100%;
     --popover-foreground: 210 11% 15%;
-    --primary: 210 100% 20%;
+    --primary: 219 100% 50%;
     --primary-foreground: 0 0% 100%;
     --secondary: 210 11% 96%;
     --secondary-foreground: 210 11% 15%;
     --muted: 210 11% 96%;
     --muted-foreground: 210 9% 45%;
-    --accent: 210 100% 20%;
+    --accent: 29 100% 50%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
     --border: 210 11% 90%;
     --input: 210 11% 90%;
-    --ring: 210 100% 20%;
+    --ring: 29 100% 50%;
     --radius: 0.25rem;
     
-    /* MeuFreelas Azul Marinho */
-    --99blue: #003366;
-    --99blue-light: #004080;
-    --99blue-dark: #002244;
-    --99dark: #1a1f36;
-    --99darker: #141829;
+    /* MeuFreelas brand colors (logo) */
+    --99blue: #0058ff;
+    --99blue-light: #1a7dff;
+    --99blue-dark: #0038b8;
+    --99accent: #ff7a00;
+    --99accent-light: #ffab00;
+    --99dark: #0b1020;
+    --99darker: #070b16;
     --99gray: #f5f5f5;
   }
 }
@@ -64,6 +66,9 @@
   }
   .text-shadow-lg {
     text-shadow: 0 4px 8px rgba(0,0,0,0.4);
+  }
+  .brand-gradient-bg {
+    background: linear-gradient(90deg, var(--99blue), var(--99blue-light) 45%, var(--99accent) 72%, var(--99accent-light));
   }
 }
 
@@ -131,22 +136,22 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #003366;
+  background: #0058ff;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #002244;
+  background: #0038b8;
 }
 
 /* Focus styles */
 *:focus-visible {
-  outline: 2px solid #003366;
+  outline: 2px solid #ff7a00;
   outline-offset: 2px;
 }
 
 /* Selection color */
 ::selection {
-  background: #003366;
+  background: #0058ff;
   color: white;
 }
