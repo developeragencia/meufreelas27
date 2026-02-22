@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   Search, 
   MessageCircle, 
@@ -24,6 +25,7 @@ interface FAQCategory {
 }
 
 export default function HelpCenter() {
+  const { isAuthenticated, user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [openCategory, setOpenCategory] = useState<string | null>('Geral');
   const [openFAQ, setOpenFAQ] = useState<string | null>(null);
@@ -149,10 +151,16 @@ export default function HelpCenter() {
             <nav className="hidden md:flex items-center space-x-6">
               <Link to="/projects" className="text-gray-300 hover:text-white">Projetos</Link>
               <Link to="/freelancers" className="text-gray-300 hover:text-white">Freelancers</Link>
-              <Link to="/login" className="text-gray-300 hover:text-white">Login</Link>
-              <Link to="/register" className="px-4 py-2 bg-99blue rounded-lg hover:bg-sky-400">
-                Cadastre-se
-              </Link>
+              {isAuthenticated ? (
+                <Link to={user?.type === 'freelancer' ? '/freelancer/dashboard' : '/dashboard'} className="text-gray-300 hover:text-white">Dashboard</Link>
+              ) : (
+                <>
+                  <Link to="/login" className="text-gray-300 hover:text-white">Login</Link>
+                  <Link to="/register" className="px-4 py-2 bg-99blue rounded-lg hover:bg-sky-400">
+                    Cadastre-se
+                  </Link>
+                </>
+              )}
             </nav>
           </div>
         </div>

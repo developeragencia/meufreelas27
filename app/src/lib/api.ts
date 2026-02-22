@@ -75,3 +75,39 @@ export async function apiResendActivation(email: string): Promise<{ ok: boolean;
     return { ok: false, error: 'Falha de conexão' };
   }
 }
+
+export async function apiForgotPassword(email: string): Promise<{ ok: boolean; error?: string; message?: string }> {
+  if (!API_URL) return { ok: false, error: 'API não configurada' };
+  try {
+    const url = `${API_URL.replace(/\/$/, '')}/forgot_password.php`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim() }),
+      credentials: 'omit',
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: !!data.ok, error: data.error as string | undefined, message: data.message as string | undefined };
+  } catch (e) {
+    console.error('apiForgotPassword', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiResetPassword(token: string, password: string): Promise<{ ok: boolean; error?: string; message?: string }> {
+  if (!API_URL) return { ok: false, error: 'API não configurada' };
+  try {
+    const url = `${API_URL.replace(/\/$/, '')}/reset_password.php`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, password }),
+      credentials: 'omit',
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: !!data.ok, error: data.error as string | undefined, message: data.message as string | undefined };
+  } catch (e) {
+    console.error('apiResetPassword', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}

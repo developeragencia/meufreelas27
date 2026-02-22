@@ -19,6 +19,7 @@ import Proposals from './pages/Proposals';
 import Payments from './pages/Payments';
 import Settings from './pages/Settings';
 import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Activate from './pages/Activate';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfUse from './pages/TermsOfUse';
@@ -74,6 +75,7 @@ function AppRoutes() {
       <Route path="/register" element={<Register />} />
       <Route path="/ativar" element={<Activate />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/projects" element={<Projects />} />
       <Route path="/freelancers" element={<Freelancers />} />
       <Route path="/como-funciona" element={<HowItWorks />} />

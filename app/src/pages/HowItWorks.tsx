@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { FilePlus, Users, ShieldCheck, Search, MessageSquare, CreditCard, CheckCircle } from 'lucide-react';
 
 export default function HowItWorks() {
+  const { isAuthenticated, user } = useAuth();
   const freelancerSteps = [
     {
       icon: Search,
@@ -77,10 +79,16 @@ export default function HowItWorks() {
             <nav className="hidden md:flex items-center space-x-6">
               <Link to="/projects" className="text-gray-300 hover:text-white">Projetos</Link>
               <Link to="/freelancers" className="text-gray-300 hover:text-white">Freelancers</Link>
-              <Link to="/login" className="text-gray-300 hover:text-white">Login</Link>
-              <Link to="/register" className="px-4 py-2 bg-99blue rounded-lg hover:bg-sky-400">
-                Cadastre-se
-              </Link>
+              {isAuthenticated ? (
+                <Link to={user?.type === 'freelancer' ? '/freelancer/dashboard' : '/dashboard'} className="text-gray-300 hover:text-white">Dashboard</Link>
+              ) : (
+                <>
+                  <Link to="/login" className="text-gray-300 hover:text-white">Login</Link>
+                  <Link to="/register" className="px-4 py-2 bg-99blue rounded-lg hover:bg-sky-400">
+                    Cadastre-se
+                  </Link>
+                </>
+              )}
             </nav>
           </div>
         </div>
