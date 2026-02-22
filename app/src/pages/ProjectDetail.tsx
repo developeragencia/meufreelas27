@@ -110,6 +110,10 @@ export default function ProjectDetail() {
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [negotiatingProposalId, setNegotiatingProposalId] = useState<string | null>(null);
+  const [maxProposalValue, setMaxProposalValue] = useState('');
+  const [maxDeliveryDays, setMaxDeliveryDays] = useState('');
+  const [minFreelancerRating, setMinFreelancerRating] = useState('');
+  const [proposalSort, setProposalSort] = useState<'recent' | 'value_asc' | 'value_desc' | 'days_asc' | 'rating_desc'>('recent');
 
   const menuItems = [
     { icon: Home, label: 'Início', href: '/' },
@@ -250,6 +254,38 @@ export default function ProjectDetail() {
     setNegotiatingProposalId(null);
     navigate(`/messages?conversation=${conv.conversationId}`);
   };
+
+  const parseMoney = (raw: string): number => {
+    const cleaned = raw.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.');
+    const parsed = Number.parseFloat(cleaned);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
+
+  const parseDeliveryDays = (raw: string): number => {
+    const match = raw.match(/\d+/);
+    if (!match) return Number.MAX_SAFE_INTEGER;
+    const parsed = Number.parseInt(match[0], 10);
+    return Number.isNaN(parsed) ? Number.MAX_SAFE_INTEGER : parsed;
+  };
+
+  const filteredProposals = proposals.filter((proposal) => {
+    const proposalValue = parseMoney(proposal.value);
+    const deliveryDays = parseDeliveryDays(proposal.deliveryTime);
+    const rating = proposal.freelancerRating || 0;
+
+    if (maxProposalValue.trim() && proposalValue > Number(maxProposalValue)) return false;
+    if (maxDeliveryDays.trim() && deliveryDays > Number(maxDeliveryDays)) return false;
+    if (minFreelancerRating.trim() && rating < Number(minFreelancerRating)) return false;
+    return true;
+  });
+
+  const sortedProposals = [...filteredProposals].sort((a, b) => {
+    if (proposalSort === 'value_asc') return parseMoney(a.value) - parseMoney(b.value);
+    if (proposalSort === 'value_desc') return parseMoney(b.value) - parseMoney(a.value);
+    if (proposalSort === 'days_asc') return parseDeliveryDays(a.deliveryTime) - parseDeliveryDays(b.deliveryTime);
+    if (proposalSort === 'rating_desc') return (b.freelancerRating || 0) - (a.freelancerRating || 0);
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
 
   const handleSaveProject = () => {
     if (!isAuthenticated) {
@@ -598,18 +634,67 @@ export default function ProjectDetail() {
               </>
             ) : (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Propostas Enviadas</h2>
-                {proposals.length === 0 ? (
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                  {user?.type === 'client' && project.clientId === user.id ? 'Propostas Recebidas' : 'Propostas Enviadas'}
+                </h2>
+
+                {user?.type === 'client' && project.clientId === user.id && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                    <input
+                      type="number"
+                      min="0"
+                      value={maxProposalValue}
+                      onChange={(e) => setMaxProposalValue(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      placeholder="Valor máx. (R$)"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      value={maxDeliveryDays}
+                      onChange={(e) => setMaxDeliveryDays(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      placeholder="Prazo máx. (dias)"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="5"
+                      step="0.1"
+                      value={minFreelancerRating}
+                      onChange={(e) => setMinFreelancerRating(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      placeholder="Avaliação mínima"
+                    />
+                    <select
+                      value={proposalSort}
+                      onChange={(e) => setProposalSort(e.target.value as typeof proposalSort)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    >
+                      <option value="recent">Mais recentes</option>
+                      <option value="value_asc">Menor valor</option>
+                      <option value="value_desc">Maior valor</option>
+                      <option value="days_asc">Menor prazo</option>
+                      <option value="rating_desc">Melhor avaliação</option>
+                    </select>
+                  </div>
+                )}
+
+                {sortedProposals.length === 0 ? (
                   <div className="text-center py-8">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <Send className="w-8 h-8 text-gray-400" />
                     </div>
-                    <p className="text-gray-500">Nenhuma proposta enviada ainda</p>
-                    <p className="text-sm text-gray-400 mt-1">Seja o primeiro a enviar uma proposta!</p>
+                    <p className="text-gray-500">
+                      {proposals.length === 0 ? 'Nenhuma proposta enviada ainda' : 'Nenhuma proposta encontrada com os filtros'}
+                    </p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      {proposals.length === 0 ? 'Seja o primeiro a enviar uma proposta!' : 'Ajuste os filtros para visualizar outras propostas'}
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {proposals.map((proposal) => (
+                    {sortedProposals.map((proposal) => (
                       <div key={proposal.id} className="p-4 border border-gray-200 rounded-lg">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center">
