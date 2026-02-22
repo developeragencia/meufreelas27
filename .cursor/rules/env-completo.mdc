@@ -1,10 +1,11 @@
 ---
-description: Manter .env e .env.example sempre completos com todas as variáveis necessárias
+description: Manter .env e .env.example sempre completos; .env.hostinger.completo preenchido para Hostinger
 alwaysApply: true
 ---
 
 # .env sempre completo
 
 - Manter **api/.env.example** com **todas** as variáveis que a API usa (DB_*, API_ORIGIN, SMTP_*), sempre preenchidas com os valores de produção/desenvolvimento.
-- Ao adicionar nova variável em qualquer PHP da api (uso de $_ENV), adicionar também em **api/.env.example** e, se existir, em **api/.env** (local).
-- O **api/.env** está no .gitignore; o deploy usa **api/.env.example** para criar **dist/api/.env** quando não existe. Assim o env fica totalmente configurado após o build.
+- **Sempre** manter **.env.hostinger.completo** atualizado e **totalmente preenchido** com os mesmos valores de produção Hostinger (VITE_*, DB_*, API_ORIGIN, SMTP_*). É a referência para envio no ambiente Hostinger.
+- Ao adicionar nova variável em qualquer PHP da api (uso de $_ENV), adicionar em **api/.env.example**, em **api/.env** (local) se existir, e em **.env.hostinger.completo**.
+- O **api/.env** está no .gitignore; o deploy usa **api/.env.example** para criar **dist/api/.env** quando não existe.
