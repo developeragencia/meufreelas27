@@ -13,6 +13,76 @@ interface Goal {
   link: string;
 }
 
+const GOAL_TEMPLATES: Goal[] = [
+  {
+    id: 'complete_profile',
+    icon: User,
+    title: 'Completar Perfil',
+    description: 'Preencha todas as informações do seu perfil',
+    points: 50,
+    completed: false,
+    link: '/profile/edit'
+  },
+  {
+    id: 'publish_project',
+    icon: Briefcase,
+    title: 'Publicar Projeto',
+    description: 'Publique seu primeiro projeto',
+    points: 100,
+    completed: false,
+    link: '/project/new'
+  },
+  {
+    id: 'send_proposal',
+    icon: MessageSquare,
+    title: 'Enviar Proposta',
+    description: 'Envie sua primeira proposta',
+    points: 50,
+    completed: false,
+    link: '/projects'
+  },
+  {
+    id: 'receive_review',
+    icon: Star,
+    title: 'Receber Avaliação',
+    description: 'Receba sua primeira avaliação positiva',
+    points: 100,
+    completed: false,
+    link: '/profile'
+  },
+  {
+    id: 'invite_friend',
+    icon: Users,
+    title: 'Convidar Amigo',
+    description: 'Convide um amigo para a plataforma',
+    points: 50,
+    completed: false,
+    link: '#'
+  },
+  {
+    id: 'complete_project',
+    icon: Award,
+    title: 'Completar Projeto',
+    description: 'Complete seu primeiro projeto',
+    points: 150,
+    completed: false,
+    link: '/my-projects'
+  },
+  {
+    id: 'premium_member',
+    icon: Gift,
+    title: 'Tornar-se Premium',
+    description: 'Assine o plano Premium',
+    points: 200,
+    completed: false,
+    link: '/premium'
+  }
+];
+
+function cloneGoalsTemplate(): Goal[] {
+  return GOAL_TEMPLATES.map((g) => ({ ...g }));
+}
+
 function safeParseArray<T = unknown>(raw: string | null): T[] {
   if (!raw) return [];
   try {
@@ -45,74 +115,20 @@ export default function GoalsWidget() {
     const savedGoals = localStorage.getItem(`goals_${user.id}`);
     
     if (savedGoals) {
-      const parsedGoals = safeParseArray<Goal>(savedGoals);
-      setGoals(parsedGoals);
-    } else {
-      const initialGoals: Goal[] = [
-        {
-          id: 'complete_profile',
-          icon: User,
-          title: 'Completar Perfil',
-          description: 'Preencha todas as informações do seu perfil',
-          points: 50,
-          completed: false,
-          link: '/profile/edit'
-        },
-        {
-          id: 'publish_project',
-          icon: Briefcase,
-          title: 'Publicar Projeto',
-          description: 'Publique seu primeiro projeto',
-          points: 100,
-          completed: false,
-          link: '/project/new'
-        },
-        {
-          id: 'send_proposal',
-          icon: MessageSquare,
-          title: 'Enviar Proposta',
-          description: 'Envie sua primeira proposta',
-          points: 50,
-          completed: false,
-          link: '/projects'
-        },
-        {
-          id: 'receive_review',
-          icon: Star,
-          title: 'Receber Avaliação',
-          description: 'Receba sua primeira avaliação positiva',
-          points: 100,
-          completed: false,
-          link: '/profile'
-        },
-        {
-          id: 'invite_friend',
-          icon: Users,
-          title: 'Convidar Amigo',
-          description: 'Convide um amigo para a plataforma',
-          points: 50,
-          completed: false,
-          link: '#'
-        },
-        {
-          id: 'complete_project',
-          icon: Award,
-          title: 'Completar Projeto',
-          description: 'Complete seu primeiro projeto',
-          points: 150,
-          completed: false,
-          link: '/my-projects'
-        },
-        {
-          id: 'premium_member',
-          icon: Gift,
-          title: 'Tornar-se Premium',
-          description: 'Assine o plano Premium',
-          points: 200,
-          completed: false,
-          link: '/premium'
+      const parsedGoals = safeParseArray<Partial<Goal>>(savedGoals);
+      const completedById = new Map<string, boolean>();
+      parsedGoals.forEach((g) => {
+        if (typeof g?.id === 'string') {
+          completedById.set(g.id, Boolean(g.completed));
         }
-      ];
+      });
+      const hydrated = cloneGoalsTemplate().map((g) => ({
+        ...g,
+        completed: completedById.get(g.id) ?? g.completed,
+      }));
+      setGoals(hydrated);
+    } else {
+      const initialGoals = cloneGoalsTemplate();
       
       // Check if profile is already complete
       const profileData = localStorage.getItem(`profile_${user.id}`);
@@ -138,7 +154,10 @@ export default function GoalsWidget() {
       }
       
       setGoals(initialGoals);
-      localStorage.setItem(`goals_${user.id}`, JSON.stringify(initialGoals));
+      localStorage.setItem(
+        `goals_${user.id}`,
+        JSON.stringify(initialGoals.map(({ icon: _icon, ...rest }) => rest))
+      );
     }
   }, [user]);
 
