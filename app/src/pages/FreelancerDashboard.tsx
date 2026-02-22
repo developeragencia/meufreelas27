@@ -234,7 +234,7 @@ export default function FreelancerDashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-16 md:pb-0">
+    <div className="min-h-screen bg-gray-100 pb-16 md:pb-0 overflow-x-hidden">
       <header className="bg-99dark text-white hidden md:block sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">

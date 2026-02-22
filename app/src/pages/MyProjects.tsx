@@ -100,7 +100,7 @@ export default function MyProjects() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 overflow-x-hidden">
       {/* Header */}
       <header className="bg-99dark text-white">
         <div className="max-w-7xl mx-auto px-4">

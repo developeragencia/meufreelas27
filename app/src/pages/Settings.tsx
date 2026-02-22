@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   Plus
 } from 'lucide-react';
+import { BR_CITIES_BY_UF, BR_STATES } from '../constants/brLocations';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -38,6 +39,8 @@ export default function Settings() {
     email: user?.email || '',
     phone: '',
     location: '',
+    stateUf: '',
+    city: '',
     bio: '',
     website: '',
   });
@@ -89,8 +92,52 @@ export default function Settings() {
     setTimeout(() => setSuccessMessage(''), 3000);
   };
 
+  useEffect(() => {
+    const saved = localStorage.getItem(`profile_${user?.id}`);
+    if (!saved) return;
+    try {
+      const parsed = JSON.parse(saved) as Record<string, unknown>;
+      const stateUf = (parsed.stateUf as string) || '';
+      const city = (parsed.city as string) || '';
+      const location = (parsed.location as string) || '';
+      setProfileData((prev) => ({
+        ...prev,
+        phone: (parsed.phone as string) || '',
+        bio: (parsed.bio as string) || '',
+        website: (parsed.website as string) || '',
+        stateUf,
+        city,
+        location: city && stateUf ? `${city}, ${stateUf}` : location,
+      }));
+    } catch {
+      // Ignora storage inválido para não quebrar a página.
+    }
+  }, [user?.id]);
+
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
+    const normalizedLocation =
+      profileData.city && profileData.stateUf
+        ? `${profileData.city}, ${profileData.stateUf}`
+        : profileData.location;
+    let previousProfile: Record<string, unknown> = {};
+    try {
+      previousProfile = JSON.parse(localStorage.getItem(`profile_${user?.id}`) || '{}') as Record<string, unknown>;
+    } catch {
+      previousProfile = {};
+    }
+    localStorage.setItem(
+      `profile_${user?.id}`,
+      JSON.stringify({
+        ...previousProfile,
+        phone: profileData.phone,
+        bio: profileData.bio,
+        website: profileData.website,
+        city: profileData.city,
+        stateUf: profileData.stateUf,
+        location: normalizedLocation,
+      })
+    );
     updateUser({ 
       name: profileData.name,
       avatar: avatar 
@@ -138,7 +185,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 overflow-x-hidden">
       {/* Header */}
       <header className="bg-99dark text-white">
         <div className="max-w-7xl mx-auto px-4">
@@ -312,18 +359,60 @@ export default function Settings() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Localização
+                        Estado
                       </label>
                       <div className="relative">
                         <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                        <input
-                          type="text"
-                          value={profileData.location}
-                          onChange={(e) => setProfileData({ ...profileData, location: e.target.value })}
-                          placeholder="Cidade, Estado"
+                        <select
+                          value={profileData.stateUf}
+                          onChange={(e) =>
+                            setProfileData((prev) => ({
+                              ...prev,
+                              stateUf: e.target.value,
+                              city: '',
+                              location: '',
+                            }))
+                          }
                           className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
-                        />
+                        >
+                          <option value="">Selecione o estado</option>
+                          {BR_STATES.map((state) => (
+                            <option key={state.uf} value={state.uf}>
+                              {state.name} ({state.uf})
+                            </option>
+                          ))}
+                        </select>
                       </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Cidade
+                    </label>
+                    <div className="relative">
+                      <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <select
+                        value={profileData.city}
+                        disabled={!profileData.stateUf}
+                        onChange={(e) =>
+                          setProfileData((prev) => ({
+                            ...prev,
+                            city: e.target.value,
+                            location: e.target.value && prev.stateUf ? `${e.target.value}, ${prev.stateUf}` : '',
+                          }))
+                        }
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
+                      >
+                        <option value="">
+                          {profileData.stateUf ? 'Selecione a cidade' : 'Selecione primeiro o estado'}
+                        </option>
+                        {(BR_CITIES_BY_UF[profileData.stateUf] || []).map((cityName) => (
+                          <option key={cityName} value={cityName}>
+                            {cityName}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 

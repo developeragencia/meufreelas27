@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { apiEnsureConversation, apiSendMessage } from '../lib/api';
 import { 
   ArrowLeft, 
   Star, 
@@ -54,6 +55,9 @@ export default function FreelancerProfile() {
   const [activeTab, setActiveTab] = useState<'about' | 'portfolio' | 'reviews' | 'experience'>('about');
   const [isFavorite, setIsFavorite] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [contactMessage, setContactMessage] = useState('');
+  const [isSendingContact, setIsSendingContact] = useState(false);
+  const [contactError, setContactError] = useState('');
 
   useEffect(() => {
     loadFreelancer();
@@ -139,6 +143,31 @@ export default function FreelancerProfile() {
     setIsFavorite(!isFavorite);
   };
 
+  const sendContactMessage = async () => {
+    if (!user?.id || !freelancer?.id) return;
+    if (!contactMessage.trim()) {
+      setContactError('Digite uma mensagem para continuar.');
+      return;
+    }
+    setContactError('');
+    setIsSendingContact(true);
+    const ensure = await apiEnsureConversation(user.id, freelancer.id);
+    if (!ensure.ok || !ensure.conversationId) {
+      setIsSendingContact(false);
+      setContactError(ensure.error || 'Não foi possível iniciar a conversa.');
+      return;
+    }
+    const sent = await apiSendMessage(user.id, ensure.conversationId, contactMessage.trim());
+    setIsSendingContact(false);
+    if (!sent.ok) {
+      setContactError(sent.error || 'Não foi possível enviar a mensagem.');
+      return;
+    }
+    setShowContactModal(false);
+    setContactMessage('');
+    navigate('/messages');
+  };
+
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
@@ -173,7 +202,7 @@ export default function FreelancerProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 overflow-x-hidden">
       {/* Header */}
       <header className="bg-99dark text-white">
         <div className="max-w-7xl mx-auto px-4">
@@ -285,8 +314,8 @@ export default function FreelancerProfile() {
 
       {/* Tabs */}
       <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4">
-          <nav className="flex space-x-8">
+        <div className="max-w-6xl mx-auto px-4 overflow-x-auto">
+          <nav className="flex min-w-max space-x-6">
             {[
               { id: 'about', label: 'Sobre', icon: Briefcase },
               { id: 'portfolio', label: 'Portfólio', icon: Globe },
@@ -296,7 +325,7 @@ export default function FreelancerProfile() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center py-4 border-b-2 font-medium text-sm transition-colors ${
+                className={`flex items-center whitespace-nowrap py-4 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === tab.id
                     ? 'border-99blue text-99blue'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -532,7 +561,15 @@ export default function FreelancerProfile() {
             {/* Actions */}
             <div className="bg-white rounded-lg shadow-sm p-6">
               <button
-                onClick={() => isAuthenticated ? setShowContactModal(true) : navigate('/login')}
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    navigate('/login');
+                    return;
+                  }
+                  setContactError('');
+                  setContactMessage('');
+                  setShowContactModal(true);
+                }}
                 className="w-full py-3 bg-99blue text-white rounded-lg hover:bg-99blue-light transition-colors font-medium flex items-center justify-center mb-3"
               >
                 <MessageSquare className="w-4 h-4 mr-2" />
@@ -580,23 +617,29 @@ export default function FreelancerProfile() {
             <textarea
               placeholder="Escreva sua mensagem..."
               rows={4}
+              value={contactMessage}
+              onChange={(e) => setContactMessage(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent mb-4"
             />
+            {contactError && (
+              <div className="mb-4 text-sm text-red-600">{contactError}</div>
+            )}
             <div className="flex space-x-3">
               <button
-                onClick={() => setShowContactModal(false)}
+                onClick={() => {
+                  setShowContactModal(false);
+                  setContactError('');
+                }}
                 className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancelar
               </button>
               <button
-                onClick={() => {
-                  setShowContactModal(false);
-                  navigate('/messages');
-                }}
-                className="flex-1 py-3 bg-99blue text-white rounded-lg hover:bg-99blue-light transition-colors"
+                onClick={sendContactMessage}
+                disabled={isSendingContact}
+                className="flex-1 py-3 bg-99blue text-white rounded-lg hover:bg-99blue-light transition-colors disabled:opacity-60"
               >
-                Enviar
+                {isSendingContact ? 'Enviando...' : 'Enviar'}
               </button>
             </div>
           </div>

@@ -217,7 +217,7 @@ export default function Projects() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 overflow-x-hidden">
       {/* Header with Mobile Menu */}
       <header className="bg-99dark text-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4">

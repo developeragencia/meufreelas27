@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getSortedSkills } from '../constants/skills';
+import { BR_CITIES_BY_UF, BR_STATES } from '../constants/brLocations';
 import { 
   User, Mail, Phone, MapPin, Briefcase, GraduationCap, 
   Globe, Linkedin, Github, Camera, Save, ArrowLeft,
@@ -36,6 +37,8 @@ export default function EditProfile() {
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState('');
   const [location, setLocation] = useState('');
+  const [stateUf, setStateUf] = useState('');
+  const [city, setCity] = useState('');
   const [bio, setBio] = useState('');
   const [avatar, setAvatar] = useState(user?.avatar || '');
   
@@ -67,7 +70,21 @@ export default function EditProfile() {
     if (savedProfile) {
       const profile = JSON.parse(savedProfile);
       setPhone(profile.phone || '');
-      setLocation(profile.location || '');
+      const parsedLocation = (profile.location || '') as string;
+      const parsedState = (profile.stateUf || '') as string;
+      const parsedCity = (profile.city || '') as string;
+      if (parsedState || parsedCity) {
+        setStateUf(parsedState);
+        setCity(parsedCity);
+        setLocation(parsedCity && parsedState ? `${parsedCity}, ${parsedState}` : parsedLocation);
+      } else if (parsedLocation.includes(',')) {
+        const [locCity, locState] = parsedLocation.split(',').map((s: string) => s.trim());
+        setCity(locCity || '');
+        setStateUf((locState || '').toUpperCase());
+        setLocation(parsedLocation);
+      } else {
+        setLocation(parsedLocation);
+      }
       setBio(profile.bio || '');
       setTitle(profile.title || '');
       setExperience(profile.experience || '');
@@ -187,7 +204,9 @@ export default function EditProfile() {
     // Save profile data
     const profileData = {
       phone,
-      location,
+      location: city && stateUf ? `${city}, ${stateUf}` : location,
+      city,
+      stateUf,
       bio,
       title,
       experience,
@@ -215,7 +234,7 @@ export default function EditProfile() {
   const renderPersonalTab = () => (
     <div className="space-y-6">
       {/* Avatar */}
-      <div className="flex items-center space-x-6">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
         <div 
           onClick={handleAvatarClick}
           className="relative w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity overflow-hidden"
@@ -292,18 +311,54 @@ export default function EditProfile() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Localização
+            Estado
           </label>
           <div className="relative">
             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Cidade, Estado"
+            <select
+              value={stateUf}
+              onChange={(e) => {
+                const nextUf = e.target.value;
+                setStateUf(nextUf);
+                setCity('');
+                setLocation('');
+              }}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
-            />
+            >
+              <option value="">Selecione o estado</option>
+              {BR_STATES.map((state) => (
+                <option key={state.uf} value={state.uf}>
+                  {state.name} ({state.uf})
+                </option>
+              ))}
+            </select>
           </div>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Cidade
+        </label>
+        <div className="relative">
+          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <select
+            value={city}
+            onChange={(e) => {
+              const nextCity = e.target.value;
+              setCity(nextCity);
+              setLocation(nextCity && stateUf ? `${nextCity}, ${stateUf}` : '');
+            }}
+            disabled={!stateUf}
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
+          >
+            <option value="">{stateUf ? 'Selecione a cidade' : 'Selecione primeiro o estado'}</option>
+            {(BR_CITIES_BY_UF[stateUf] || []).map((cityName) => (
+              <option key={cityName} value={cityName}>
+                {cityName}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -537,7 +592,7 @@ export default function EditProfile() {
 
   const renderPortfolioTab = () => (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h3 className="font-medium text-gray-900">Meus projetos</h3>
         <button
           onClick={openAddPortfolioModal}
@@ -612,10 +667,10 @@ export default function EditProfile() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 overflow-x-hidden">
       {/* Header */}
       <header className="bg-99blue text-white py-4">
-        <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 flex items-center justify-between gap-2">
           <button
             onClick={() => navigate(-1)}
             className="flex items-center text-white hover:text-gray-200 transition-colors"
@@ -623,12 +678,12 @@ export default function EditProfile() {
             <ArrowLeft className="w-5 h-5 mr-2" />
             Voltar
           </button>
-          <h1 className="text-xl font-semibold">Editar Perfil</h1>
-          <div className="w-20" />
+          <h1 className="text-base sm:text-xl font-semibold text-center">Editar Perfil</h1>
+          <div className="w-10 sm:w-20" />
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
         {/* Success Message */}
         {successMessage && (
           <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center">
@@ -639,8 +694,8 @@ export default function EditProfile() {
 
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow-sm mb-6">
-          <div className="border-b">
-            <nav className="flex">
+          <div className="border-b overflow-x-auto">
+            <nav className="flex min-w-max">
               {[
                 { id: 'personal', label: 'Pessoal', icon: User },
                 { id: 'professional', label: 'Profissional', icon: Briefcase },
@@ -650,20 +705,20 @@ export default function EditProfile() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  className={`flex items-center whitespace-nowrap px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors ${
                     activeTab === tab.id
                       ? 'border-99blue text-99blue'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  <tab.icon className="w-4 h-4 mr-2" />
+                  <tab.icon className="w-4 h-4 mr-1.5 sm:mr-2" />
                   {tab.label}
                 </button>
               ))}
             </nav>
           </div>
 
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {activeTab === 'personal' && renderPersonalTab()}
             {activeTab === 'professional' && renderProfessionalTab()}
             {activeTab === 'skills' && renderSkillsTab()}
@@ -676,7 +731,7 @@ export default function EditProfile() {
           <button
             onClick={handleSave}
             disabled={isLoading}
-            className="flex items-center px-8 py-3 bg-99blue text-white rounded-lg hover:bg-99blue-light transition-colors disabled:opacity-50"
+            className="w-full sm:w-auto justify-center flex items-center px-8 py-3 bg-99blue text-white rounded-lg hover:bg-99blue-light transition-colors disabled:opacity-50"
           >
             <Save className="w-5 h-5 mr-2" />
             {isLoading ? 'Salvando...' : 'Salvar alterações'}
@@ -761,7 +816,7 @@ export default function EditProfile() {
               </div>
             </div>
 
-            <div className="flex space-x-3 mt-6">
+            <div className="flex flex-col sm:flex-row gap-3 mt-6">
               <button
                 onClick={() => setShowPortfolioModal(false)}
                 className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"

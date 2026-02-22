@@ -1,10 +1,9 @@
-import { useState, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  ArrowLeft, X, Check, Briefcase, DollarSign, 
-  Globe, Lock, Info, ChevronDown, Paperclip
-} from 'lucide-react';
+import { ArrowLeft, Briefcase, Check, ChevronDown, DollarSign, Globe, Info, Lock, Paperclip, X } from 'lucide-react';
+import { getSortedSkills } from '../constants/skills';
+import { apiCreateProject, hasApi } from '../lib/api';
 
 const categories = [
   'Administração & Contabilidade',
@@ -19,51 +18,37 @@ const categories = [
   'Tradução',
   'Vendas & Marketing',
   'Web, Mobile & Software',
-  'Outra Categoria'
-];
-
-const skills = [
-  '.NET Compact Framework', '.NET Framework', '.NET para Web', '.NET Remoting',
-  '1ShoppingCart', '3DS Max', 'A/B Testing', 'Adobe After Effects',
-  'Adobe Illustrator', 'Adobe Photoshop', 'Adobe Premiere', 'Angular',
-  'API REST', 'AWS', 'Azure', 'Bootstrap', 'C#', 'C++', 'CSS3',
-  'Django', 'Docker', 'Figma', 'Flutter', 'Git', 'HTML5', 'Java',
-  'JavaScript', 'jQuery', 'Kotlin', 'Kubernetes', 'Laravel', 'MongoDB',
-  'MySQL', 'Node.js', 'PHP', 'PostgreSQL', 'Python', 'React', 'React Native',
-  'Redis', 'Ruby on Rails', 'Rust', 'SASS', 'Scala', 'Spring Boot',
-  'SQL Server', 'Swift', 'TypeScript', 'Vue.js', 'WordPress', 'Xamarin'
+  'Outra Categoria',
 ];
 
 const experienceLevels = [
-  {
-    id: 'beginner',
-    label: 'Iniciante',
-    description: 'Estou à procura de freelancers com os menores valores.'
-  },
-  {
-    id: 'intermediate',
-    label: 'Intermediário',
-    description: 'Estou à procura de uma combinação de experiência e valor.'
-  },
-  {
-    id: 'expert',
-    label: 'Especialista',
-    description: 'Estou disposto a pagar valores mais elevados para freelancers experientes.'
-  }
+  { id: 'beginner', label: 'Iniciante', description: 'Estou à procura de freelancers com os menores valores.' },
+  { id: 'intermediate', label: 'Intermediário', description: 'Estou à procura de uma combinação de experiência e valor.' },
+  { id: 'expert', label: 'Especialista', description: 'Estou disposto a pagar valores mais elevados para freelancers experientes.' },
 ];
 
 const proposalDays = [
   { value: '7', label: '7 dias' },
   { value: '14', label: '14 dias' },
   { value: '30', label: '30 dias' },
-  { value: '60', label: '60 dias' }
+  { value: '60', label: '60 dias' },
 ];
+
+function safeParseProjects() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]') as unknown;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
 export default function NewProject() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+  const skillsDropdownRef = useRef<HTMLDivElement>(null);
+
   const [formData, setFormData] = useState({
     category: '',
     title: '',
@@ -71,115 +56,121 @@ export default function NewProject() {
     selectedSkills: [] as string[],
     experienceLevel: 'intermediate',
     proposalDays: '30',
-    visibility: 'public',
-    budget: ''
+    visibility: 'public' as 'public' | 'private',
+    budget: '',
   });
-  
   const [files, setFiles] = useState<File[]>([]);
   const [skillSearch, setSkillSearch] = useState('');
   const [showSkillsDropdown, setShowSkillsDropdown] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
-  if (!isAuthenticated) {
-    navigate('/login');
-    return null;
-  }
+  const allSkills = getSortedSkills();
 
-  if (user?.type !== 'client') {
-    navigate('/freelancer/dashboard');
-    return null;
-  }
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (skillsDropdownRef.current && !skillsDropdownRef.current.contains(event.target as Node)) {
+        setShowSkillsDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (user?.type !== 'client') return <Navigate to="/freelancer/dashboard" replace />;
+
+  const filteredSkills = allSkills.filter(
+    (skill) => skill.toLowerCase().includes(skillSearch.toLowerCase()) && !formData.selectedSkills.includes(skill)
+  );
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      setFiles([...files, ...newFiles]);
-    }
+    if (!e.target.files) return;
+    const selected = Array.from(e.target.files);
+    const total = [...files, ...selected].slice(0, 5);
+    setFiles(total);
   };
 
-  const removeFile = (index: number) => {
-    setFiles(files.filter((_, i) => i !== index));
-  };
+  const removeFile = (index: number) => setFiles((prev) => prev.filter((_, i) => i !== index));
 
   const addSkill = (skill: string) => {
-    if (formData.selectedSkills.length < 5 && !formData.selectedSkills.includes(skill)) {
-      setFormData({
-        ...formData,
-        selectedSkills: [...formData.selectedSkills, skill]
-      });
-    }
+    if (formData.selectedSkills.length >= 5 || formData.selectedSkills.includes(skill)) return;
+    setFormData((prev) => ({ ...prev, selectedSkills: [...prev.selectedSkills, skill] }));
     setSkillSearch('');
     setShowSkillsDropdown(false);
   };
 
   const removeSkill = (skill: string) => {
-    setFormData({
-      ...formData,
-      selectedSkills: formData.selectedSkills.filter(s => s !== skill)
-    });
+    setFormData((prev) => ({ ...prev, selectedSkills: prev.selectedSkills.filter((s) => s !== skill) }));
   };
 
-  const filteredSkills = skills.filter(skill => 
-    skill.toLowerCase().includes(skillSearch.toLowerCase()) &&
-    !formData.selectedSkills.includes(skill)
-  );
+  const validateForm = (): string | null => {
+    if (!formData.category) return 'Selecione uma categoria.';
+    if (!formData.title.trim() || formData.title.trim().length < 10) return 'O título deve ter pelo menos 10 caracteres.';
+    if (!formData.description.trim() || formData.description.trim().length < 30) return 'A descrição deve ter pelo menos 30 caracteres.';
+    if (formData.budget && Number(formData.budget) < 50) return 'Informe um orçamento maior ou igual a R$ 50.';
+    return null;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.category || !formData.title || !formData.description) {
-      alert('Por favor, preencha todos os campos obrigatórios.');
+    setErrorMessage('');
+    const validationError = validateForm();
+    if (validationError) {
+      setErrorMessage(validationError);
       return;
     }
 
     setIsSubmitting(true);
-
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    // Save project to localStorage
-    const projects = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]');
-    const newProject = {
-      id: Date.now().toString(),
-      clientId: user?.id,
-      ...formData,
-      files: files.map(f => f.name),
-      status: 'Aberto',
-      proposals: 0,
-      createdAt: new Date().toISOString()
+    const payload = {
+      userId: user!.id,
+      category: formData.category,
+      title: formData.title.trim(),
+      description: formData.description.trim(),
+      budget: formData.budget?.trim(),
+      skills: formData.selectedSkills,
+      experienceLevel: formData.experienceLevel,
+      proposalDays: formData.proposalDays,
+      visibility: formData.visibility,
     };
-    projects.push(newProject);
-    localStorage.setItem('meufreelas_projects', JSON.stringify(projects));
 
-    // Update goals
-    const goals = JSON.parse(localStorage.getItem(`goals_${user?.id}`) || '[]');
-    const publishGoal = goals.find((g: any) => g.id === 'publish_project');
-    if (publishGoal && !publishGoal.completed) {
-      publishGoal.completed = true;
-      publishGoal.completedAt = new Date().toISOString();
-      localStorage.setItem(`goals_${user?.id}`, JSON.stringify(goals));
+    let createdProject: Record<string, unknown> | null = null;
+    if (hasApi()) {
+      const res = await apiCreateProject(payload);
+      if (!res.ok) {
+        setIsSubmitting(false);
+        setErrorMessage(res.error || 'Não foi possível publicar o projeto.');
+        return;
+      }
+      createdProject = res.project || null;
     }
 
-    setIsSubmitting(false);
+    const cachedProjects = safeParseProjects();
+    const fallbackProject = {
+      id: Date.now().toString(),
+      clientId: user!.id,
+      ...payload,
+      files: files.map((f) => f.name),
+      status: 'Aberto',
+      proposals: 0,
+      createdAt: new Date().toISOString(),
+    };
+    cachedProjects.push(createdProject || fallbackProject);
+    localStorage.setItem('meufreelas_projects', JSON.stringify(cachedProjects));
+
     setSuccessMessage('Projeto publicado com sucesso!');
-    
-    setTimeout(() => {
-      navigate('/my-projects');
-    }, 2000);
+    setIsSubmitting(false);
+    setTimeout(() => navigate('/my-projects'), 1000);
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Header */}
+    <div className="min-h-screen bg-gray-100 overflow-x-hidden">
       <header className="bg-99blue text-white">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
-              <button 
-                onClick={() => navigate(-1)}
-                className="mr-4 p-2 hover:bg-white/10 rounded-lg transition-colors"
-              >
+              <button onClick={() => navigate(-1)} className="mr-4 p-2 hover:bg-white/10 rounded-lg transition-colors">
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <Link to="/" className="text-2xl font-bold">
@@ -187,10 +178,18 @@ export default function NewProject() {
               </Link>
             </div>
             <nav className="hidden md:flex items-center space-x-6">
-              <Link to="/" className="text-white/80 hover:text-white">Página inicial</Link>
-              <Link to="/projects" className="text-white/80 hover:text-white">Projetos</Link>
-              <Link to="/freelancers" className="text-white/80 hover:text-white">Freelancers</Link>
-              <Link to="/dashboard" className="text-white/80 hover:text-white">Dashboard</Link>
+              <Link to="/" className="text-white/80 hover:text-white">
+                Página inicial
+              </Link>
+              <Link to="/projects" className="text-white/80 hover:text-white">
+                Projetos
+              </Link>
+              <Link to="/freelancers" className="text-white/80 hover:text-white">
+                Freelancers
+              </Link>
+              <Link to="/dashboard" className="text-white/80 hover:text-white">
+                Dashboard
+              </Link>
             </nav>
           </div>
         </div>
@@ -205,37 +204,34 @@ export default function NewProject() {
             {successMessage}
           </div>
         )}
+        {errorMessage && <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{errorMessage}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Category */}
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <label className="block text-lg font-medium text-gray-900 mb-3">
-              Escolha uma categoria
-            </label>
+            <label className="block text-lg font-medium text-gray-900 mb-3">Escolha uma categoria</label>
             <div className="relative">
               <select
                 value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                onChange={(e) => setFormData((prev) => ({ ...prev, category: e.target.value }))}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent appearance-none bg-white"
               >
                 <option value="">Selecione uma categoria</option>
                 {categories.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
                 ))}
               </select>
               <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
             </div>
           </div>
 
-          {/* Title */}
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <label className="block text-lg font-medium text-gray-900 mb-3">
-              Dê um nome para o trabalho
-            </label>
+            <label className="block text-lg font-medium text-gray-900 mb-3">Dê um nome para o trabalho</label>
             <input
               type="text"
               value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
               placeholder="Ex: Redator para blog de tecnologia"
               maxLength={75}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
@@ -243,14 +239,11 @@ export default function NewProject() {
             <p className="text-right text-sm text-gray-500 mt-1">{formData.title.length}/75</p>
           </div>
 
-          {/* Description */}
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <label className="block text-lg font-medium text-gray-900 mb-3">
-              Descreva o trabalho a ser feito
-            </label>
+            <label className="block text-lg font-medium text-gray-900 mb-3">Descreva o trabalho a ser feito</label>
             <textarea
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
               placeholder="Descreva detalhadamente o que você precisa..."
               rows={6}
               maxLength={5000}
@@ -259,17 +252,15 @@ export default function NewProject() {
             <p className="text-right text-sm text-gray-500 mt-1">{formData.description.length}/5000</p>
           </div>
 
-          {/* Budget */}
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <label className="block text-lg font-medium text-gray-900 mb-3">
-              Orçamento (R$)
-            </label>
+            <label className="block text-lg font-medium text-gray-900 mb-3">Orçamento (R$)</label>
             <div className="relative">
               <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="number"
+                min={0}
                 value={formData.budget}
-                onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+                onChange={(e) => setFormData((prev) => ({ ...prev, budget: e.target.value }))}
                 placeholder="Ex: 5000"
                 className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
               />
@@ -280,44 +271,31 @@ export default function NewProject() {
             </p>
           </div>
 
-          {/* File Upload */}
           <div className="bg-white rounded-xl shadow-sm p-6">
             <label className="block text-lg font-medium text-gray-900 mb-3">
               Anexe um arquivo <span className="text-gray-500 font-normal">(Opcional)</span>
             </label>
-            <div 
+            <div
               onClick={() => fileInputRef.current?.click()}
               className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-99blue transition-colors"
             >
               <div className="flex items-center justify-center">
-                <span className="px-4 py-2 bg-green-500 text-white rounded-lg font-medium mr-3">
-                  Adicionar arquivos
-                </span>
+                <span className="px-4 py-2 bg-green-500 text-white rounded-lg font-medium mr-3">Adicionar arquivos</span>
                 <span className="text-gray-500">Ou se preferir arraste seus arquivos aqui.</span>
               </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                onChange={handleFileSelect}
-                className="hidden"
-              />
+              <input ref={fileInputRef} type="file" multiple onChange={handleFileSelect} className="hidden" />
             </div>
-            
+            <p className="text-xs text-gray-500 mt-2">Máximo de 5 arquivos por projeto.</p>
             {files.length > 0 && (
               <div className="mt-4 space-y-2">
                 {files.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={`${file.name}-${index}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center">
                       <Paperclip className="w-4 h-4 text-gray-400 mr-2" />
                       <span className="text-sm text-gray-700">{file.name}</span>
                       <span className="text-xs text-gray-500 ml-2">({(file.size / 1024).toFixed(1)} KB)</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeFile(index)}
-                      className="p-1 text-gray-400 hover:text-red-500"
-                    >
+                    <button type="button" onClick={() => removeFile(index)} className="p-1 text-gray-400 hover:text-red-500">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
@@ -326,12 +304,10 @@ export default function NewProject() {
             )}
           </div>
 
-          {/* Skills */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-white rounded-xl shadow-sm p-6" ref={skillsDropdownRef}>
             <label className="block text-lg font-medium text-gray-900 mb-3">
               Quais habilidades são desejadas? <span className="text-gray-500 font-normal">(Opcional)</span>
             </label>
-            
             <div className="relative">
               <input
                 type="text"
@@ -344,40 +320,27 @@ export default function NewProject() {
                 placeholder="Digite para buscar habilidades..."
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
               />
-              
-              {showSkillsDropdown && skillSearch && (
+              {showSkillsDropdown && skillSearch.trim() && (
                 <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
-                  {filteredSkills.map((skill) => (
-                    <button
-                      key={skill}
-                      type="button"
-                      onClick={() => addSkill(skill)}
-                      className="w-full px-4 py-2 text-left hover:bg-gray-50 text-sm"
-                    >
-                      {skill}
-                    </button>
-                  ))}
+                  {filteredSkills.length === 0 ? (
+                    <div className="px-4 py-2 text-sm text-gray-500">Nenhuma habilidade encontrada.</div>
+                  ) : (
+                    filteredSkills.slice(0, 80).map((skill) => (
+                      <button key={skill} type="button" onClick={() => addSkill(skill)} className="w-full px-4 py-2 text-left hover:bg-gray-50 text-sm">
+                        {skill}
+                      </button>
+                    ))
+                  )}
                 </div>
               )}
             </div>
-            
-            <p className="text-sm text-gray-500 mt-2">
-              Selecionadas (max 5): {formData.selectedSkills.length}/5
-            </p>
-            
+            <p className="text-sm text-gray-500 mt-2">Selecionadas (max 5): {formData.selectedSkills.length}/5</p>
             {formData.selectedSkills.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-3">
                 {formData.selectedSkills.map((skill) => (
-                  <span 
-                    key={skill}
-                    className="inline-flex items-center px-3 py-1 bg-99blue/10 text-99blue rounded-full text-sm"
-                  >
+                  <span key={skill} className="inline-flex items-center px-3 py-1 bg-99blue/10 text-99blue rounded-full text-sm">
                     {skill}
-                    <button
-                      type="button"
-                      onClick={() => removeSkill(skill)}
-                      className="ml-2 hover:text-99blue-dark"
-                    >
+                    <button type="button" onClick={() => removeSkill(skill)} className="ml-2 hover:text-99blue-dark">
                       <X className="w-3 h-3" />
                     </button>
                   </span>
@@ -386,58 +349,45 @@ export default function NewProject() {
             )}
           </div>
 
-          {/* Experience Level */}
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <label className="block text-lg font-medium text-gray-900 mb-3">
-              Nível de experiência desejado
-            </label>
+            <label className="block text-lg font-medium text-gray-900 mb-3">Nível de experiência desejado</label>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {experienceLevels.map((level) => (
                 <button
                   key={level.id}
                   type="button"
-                  onClick={() => setFormData({ ...formData, experienceLevel: level.id })}
+                  onClick={() => setFormData((prev) => ({ ...prev, experienceLevel: level.id }))}
                   className={`p-4 border-2 rounded-lg text-left transition-all ${
-                    formData.experienceLevel === level.id
-                      ? 'border-99blue bg-99blue/5'
-                      : 'border-gray-200 hover:border-gray-300'
+                    formData.experienceLevel === level.id ? 'border-99blue bg-99blue/5' : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <p className={`font-medium mb-2 ${
-                    formData.experienceLevel === level.id ? 'text-99blue' : 'text-gray-700'
-                  }`}>
-                    {level.label}
-                  </p>
+                  <p className={`font-medium mb-2 ${formData.experienceLevel === level.id ? 'text-99blue' : 'text-gray-700'}`}>{level.label}</p>
                   <p className="text-sm text-gray-500">{level.description}</p>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Proposal Days */}
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <label className="block text-lg font-medium text-gray-900 mb-3">
-              Durante quantos dias você quer receber propostas?
-            </label>
-            <div className="relative w-48">
+            <label className="block text-lg font-medium text-gray-900 mb-3">Durante quantos dias você quer receber propostas?</label>
+            <div className="relative w-full sm:w-48">
               <select
                 value={formData.proposalDays}
-                onChange={(e) => setFormData({ ...formData, proposalDays: e.target.value })}
+                onChange={(e) => setFormData((prev) => ({ ...prev, proposalDays: e.target.value }))}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent appearance-none bg-white"
               >
                 {proposalDays.map((day) => (
-                  <option key={day.value} value={day.value}>{day.label}</option>
+                  <option key={day.value} value={day.value}>
+                    {day.label}
+                  </option>
                 ))}
               </select>
               <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
             </div>
           </div>
 
-          {/* Visibility */}
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <label className="block text-lg font-medium text-gray-900 mb-3">
-              Visibilidade do projeto
-            </label>
+            <label className="block text-lg font-medium text-gray-900 mb-3">Visibilidade do projeto</label>
             <div className="space-y-3">
               <label className="flex items-start cursor-pointer">
                 <input
@@ -445,7 +395,7 @@ export default function NewProject() {
                   name="visibility"
                   value="public"
                   checked={formData.visibility === 'public'}
-                  onChange={(e) => setFormData({ ...formData, visibility: e.target.value })}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, visibility: e.target.value as 'public' | 'private' }))}
                   className="mt-1 w-4 h-4 text-99blue border-gray-300 focus:ring-99blue"
                 />
                 <div className="ml-3">
@@ -456,14 +406,13 @@ export default function NewProject() {
                   <p className="text-sm text-gray-500">Visível para todos os profissionais.</p>
                 </div>
               </label>
-              
               <label className="flex items-start cursor-pointer">
                 <input
                   type="radio"
                   name="visibility"
                   value="private"
                   checked={formData.visibility === 'private'}
-                  onChange={(e) => setFormData({ ...formData, visibility: e.target.value })}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, visibility: e.target.value as 'public' | 'private' }))}
                   className="mt-1 w-4 h-4 text-99blue border-gray-300 focus:ring-99blue"
                 />
                 <div className="ml-3">
@@ -471,19 +420,14 @@ export default function NewProject() {
                     <Lock className="w-5 h-5 text-gray-400 mr-2" />
                     <span className="font-medium text-gray-900">Privado</span>
                   </div>
-                  <p className="text-sm text-gray-500">Apenas os freelancers que forem convidados poderão se candidatar.</p>
+                  <p className="text-sm text-gray-500">Apenas os freelancers convidados poderão se candidatar.</p>
                 </div>
               </label>
             </div>
           </div>
 
-          {/* Submit Button */}
           <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
+            <button type="button" onClick={() => navigate(-1)} className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
               Cancelar
             </button>
             <button

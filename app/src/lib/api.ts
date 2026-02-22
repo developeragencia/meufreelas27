@@ -111,3 +111,144 @@ export async function apiResetPassword(token: string, password: string): Promise
     return { ok: false, error: 'Falha de conexão' };
   }
 }
+
+export type ApiConversation = {
+  id: string;
+  participantId: string;
+  participantName: string;
+  participantAvatar?: string;
+  participantTitle?: string;
+  lastMessage: string;
+  lastMessageTime?: string | null;
+  unreadCount: number;
+  online?: boolean;
+  projectTitle?: string;
+  projectValue?: string;
+};
+
+export type ApiChatMessage = {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar?: string;
+  content: string;
+  timestamp: string;
+  read: boolean;
+};
+
+async function callMessagesApi(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+  if (!API_URL) return { ok: false, error: 'API não configurada' };
+  const url = `${API_URL.replace(/\/$/, '')}/messages.php`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    credentials: 'omit',
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { ok: false, error: (data?.error as string) || `Erro ${res.status}` };
+  return data as Record<string, unknown>;
+}
+
+export async function apiListConversations(userId: string): Promise<{ ok: boolean; conversations?: ApiConversation[]; error?: string }> {
+  try {
+    const data = await callMessagesApi({ action: 'list_conversations', userId });
+    return {
+      ok: !!data.ok,
+      conversations: (data.conversations as ApiConversation[] | undefined) || [],
+      error: data.error as string | undefined,
+    };
+  } catch (e) {
+    console.error('apiListConversations', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiGetMessages(
+  userId: string,
+  conversationId: string
+): Promise<{ ok: boolean; messages?: ApiChatMessage[]; error?: string }> {
+  try {
+    const data = await callMessagesApi({ action: 'get_messages', userId, conversationId });
+    return {
+      ok: !!data.ok,
+      messages: (data.messages as ApiChatMessage[] | undefined) || [],
+      error: data.error as string | undefined,
+    };
+  } catch (e) {
+    console.error('apiGetMessages', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiSendMessage(
+  userId: string,
+  conversationId: string,
+  content: string
+): Promise<{ ok: boolean; message?: ApiChatMessage; error?: string }> {
+  try {
+    const data = await callMessagesApi({ action: 'send_message', userId, conversationId, content });
+    return {
+      ok: !!data.ok,
+      message: data.message as ApiChatMessage | undefined,
+      error: data.error as string | undefined,
+    };
+  } catch (e) {
+    console.error('apiSendMessage', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiEnsureConversation(
+  userId: string,
+  participantId: string,
+  projectId?: string
+): Promise<{ ok: boolean; conversationId?: string; error?: string }> {
+  try {
+    const data = await callMessagesApi({ action: 'ensure_conversation', userId, participantId, projectId });
+    return {
+      ok: !!data.ok,
+      conversationId: data.conversationId as string | undefined,
+      error: data.error as string | undefined,
+    };
+  } catch (e) {
+    console.error('apiEnsureConversation', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export type CreateProjectPayload = {
+  userId: string;
+  title: string;
+  description: string;
+  category: string;
+  budget?: string;
+  skills?: string[];
+  experienceLevel?: string;
+  proposalDays?: string;
+  visibility?: 'public' | 'private';
+};
+
+export async function apiCreateProject(
+  payload: CreateProjectPayload
+): Promise<{ ok: boolean; project?: Record<string, unknown>; error?: string }> {
+  if (!API_URL) return { ok: false, error: 'API não configurada' };
+  try {
+    const url = `${API_URL.replace(/\/$/, '')}/projects.php`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'create_project', ...payload }),
+      credentials: 'omit',
+    });
+    const data = await res.json().catch(() => ({}));
+    return {
+      ok: !!data.ok,
+      project: data.project as Record<string, unknown> | undefined,
+      error: data.error as string | undefined,
+    };
+  } catch (e) {
+    console.error('apiCreateProject', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
