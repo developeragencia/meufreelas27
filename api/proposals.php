@@ -160,7 +160,10 @@ if ($action === 'list_proposals') {
             prj.title AS project_title,
             prj.client_id AS client_id,
             c.name AS client_name,
-            f.name AS freelancer_name
+            c.avatar AS client_avatar,
+            f.name AS freelancer_name,
+            f.avatar AS freelancer_avatar,
+            f.rating AS freelancer_rating
         FROM proposals p
         INNER JOIN projects prj ON prj.id = p.project_id
         INNER JOIN users c ON c.id = prj.client_id
@@ -179,8 +182,11 @@ if ($action === 'list_proposals') {
             'projectTitle' => $r['project_title'],
             'clientId' => $r['client_id'],
             'clientName' => $r['client_name'],
+            'clientAvatar' => $r['client_avatar'],
             'freelancerId' => $r['freelancer_id'],
             'freelancerName' => $r['freelancer_name'],
+            'freelancerAvatar' => $r['freelancer_avatar'],
+            'freelancerRating' => (float)($r['freelancer_rating'] ?? 0),
             'value' => (string)$r['amount'],
             'deliveryDays' => (string)$r['delivery_days'],
             'message' => $r['message'],

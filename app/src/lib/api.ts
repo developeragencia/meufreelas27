@@ -335,8 +335,11 @@ export type ApiProposal = {
   projectTitle: string;
   clientId: string;
   clientName: string;
+  clientAvatar?: string;
   freelancerId: string;
   freelancerName: string;
+  freelancerAvatar?: string;
+  freelancerRating?: number;
   value: string;
   deliveryDays: string;
   message: string;
@@ -385,6 +388,42 @@ export async function apiListProposals(payload: {
     return { ok: !!data.ok, proposals: (data.proposals as ApiProposal[] | undefined) || [], error: data.error as string | undefined };
   } catch (e) {
     console.error('apiListProposals', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiUpdateProposalStatus(payload: {
+  proposalId: string;
+  clientId: string;
+  status: 'Aceita' | 'Recusada';
+}): Promise<{ ok: boolean; error?: string; message?: string }> {
+  try {
+    const data = await callProposalsApi({ action: 'update_proposal_status', ...payload });
+    return {
+      ok: !!data.ok,
+      error: data.error as string | undefined,
+      message: data.message as string | undefined,
+    };
+  } catch (e) {
+    console.error('apiUpdateProposalStatus', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiUpdateProposalStatus(payload: {
+  proposalId: string;
+  clientId: string;
+  status: 'Aceita' | 'Recusada' | 'Pendente';
+}): Promise<{ ok: boolean; error?: string; message?: string }> {
+  try {
+    const data = await callProposalsApi({ action: 'update_proposal_status', ...payload });
+    return {
+      ok: !!data.ok,
+      error: data.error as string | undefined,
+      message: data.message as string | undefined,
+    };
+  } catch (e) {
+    console.error('apiUpdateProposalStatus', e);
     return { ok: false, error: 'Falha de conexão' };
   }
 }

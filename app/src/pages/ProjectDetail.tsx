@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { apiCreateProposal, apiGetProject, apiListProposals, apiUpdateProposalStatus, hasApi, type ApiProposal } from '../lib/api';
 import { 
   ArrowLeft, 
   Clock, 
@@ -68,6 +69,28 @@ interface Proposal {
   createdAt: string;
 }
 
+function toLocalProposalStatus(status: ApiProposal['status']): 'pending' | 'accepted' | 'rejected' {
+  if (status === 'Aceita') return 'accepted';
+  if (status === 'Recusada') return 'rejected';
+  return 'pending';
+}
+
+function mapApiProposal(p: ApiProposal): Proposal {
+  return {
+    id: p.id,
+    projectId: p.projectId,
+    freelancerId: p.freelancerId,
+    freelancerName: p.freelancerName,
+    freelancerAvatar: p.freelancerAvatar,
+    freelancerRating: p.freelancerRating || 0,
+    text: p.message,
+    value: p.value,
+    deliveryTime: p.deliveryDays,
+    status: toLocalProposalStatus(p.status),
+    createdAt: p.createdAt,
+  };
+}
+
 export default function ProjectDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -102,71 +125,56 @@ export default function ProjectDetail() {
     'Outro'
   ];
 
-  useEffect(() => {
-    const projects = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]');
-    const found = projects.find((p: Project) => p.id === id);
-    
-    if (found) {
-      setProject(found);
-    } else {
-      const mockProject: Project = {
-        id: id || '5',
-        title: 'Desenvolvimento de DApp e aplicações Web3 (Blockchain)',
-        category: 'Web, Mobile & Software',
-        subcategory: 'Desenvolvimento Web',
-        description: `Procuramos programador(a) Web3/DApp/Blockchain (cripto) para projeto desafiador e inovador.
-
-**Sobre o Projeto:**
-Estamos em busca de um(a) desenvolvedor(a) apaixonado(a) por tecnologia descentralizada para participar da construção de uma aplicação Web3 inovadora na área DeFi.
-
-**O que é preciso fazer:**
-• Desenvolver uma DApp funcional e responsiva
-• Criar e integrar smart contracts em Solidity
-• Implementar wallet connect (MetaMask, WalletConnect, Coinbase Wallet)
-• Desenvolver sistema de transações e staking
-• Garantir segurança, performance e escalabilidade
-• Realizar testes e auditoria de segurança
-
-**Requisitos Técnicos:**
-• Experiência comprovada com Solidity e Smart Contracts
-• Conhecimento avançado em Web3.js ou Ethers.js
-• Familiaridade com React.js e Next.js
-• Experiência com integração de wallets
-• Conhecimento em protocolos DeFi
-• Inglês técnico para leitura de documentação
-
-**Diferenciais:**
-• Experiência com Chainlink Oracles
-• Conhecimento em Layer 2 solutions (Polygon, Arbitrum)
-• Certificações em blockchain
-• Portfólio de projetos Web3 publicados`,
-        budget: 'R$ 5.000 - R$ 10.000',
-        budgetType: 'range',
-        deadline: '30 dias',
-        requiredSkills: ['Solidity', 'Web3.js', 'React', 'Smart Contracts', 'Blockchain', 'Ethereum', 'DeFi', 'MetaMask'],
-        clientId: 'client1',
-        clientName: 'Wagner Quintana',
-        clientAvatar: '',
-        clientRating: 4.8,
-        clientJobs: 15,
-        clientMemberSince: '2022-03-15',
-        clientLocation: 'São Paulo, SP',
-        proposals: 10,
-        interested: 17,
-        status: 'Aberto',
-        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        experienceLevel: 'Especialista',
-        projectType: 'Proj único',
-        views: 234,
-        attachments: ['especificacao-tecnica.pdf', 'wireframes.fig']
-      };
-      setProject(mockProject);
+  const loadProject = async () => {
+    if (!id || !hasApi()) return;
+    const res = await apiGetProject(id);
+    if (!res.ok || !res.project) {
+      setProject(null);
+      return;
     }
+    const p = res.project;
+    const requiredSkills = Array.isArray(p.skills) ? p.skills : [];
+    setProject({
+      id: p.id,
+      title: p.title,
+      category: p.category,
+      subcategory: '',
+      description: p.description,
+      budget: p.budget || 'A combinar',
+      budgetType: 'range',
+      deadline: p.proposalDays ? `${p.proposalDays} dias` : '-',
+      requiredSkills,
+      clientId: p.clientId,
+      clientName: p.clientName || 'Cliente',
+      clientAvatar: '',
+      clientRating: 0,
+      clientJobs: 0,
+      clientMemberSince: new Date(p.createdAt).toLocaleDateString('pt-BR'),
+      clientLocation: '',
+      proposals: p.proposals || 0,
+      interested: p.proposals || 0,
+      status: p.status,
+      createdAt: p.createdAt,
+      experienceLevel: p.experienceLevel || 'Intermediário',
+      projectType: 'Proj único',
+      views: 0,
+      attachments: [],
+    });
+  };
 
-    const allProposals = JSON.parse(localStorage.getItem('meufreelas_proposals') || '[]');
-    const projectProposals = allProposals.filter((p: Proposal) => p.projectId === id);
-    setProposals(projectProposals);
+  const loadProposals = async () => {
+    if (!id || !hasApi()) return;
+    const res = await apiListProposals({ projectId: id });
+    if (!res.ok) {
+      setProposals([]);
+      return;
+    }
+    setProposals((res.proposals || []).map(mapApiProposal));
+  };
 
+  useEffect(() => {
+    loadProject();
+    loadProposals();
     const savedProjects = JSON.parse(localStorage.getItem('meufreelas_saved_projects') || '[]');
     setIsSaved(savedProjects.includes(id));
   }, [id]);
@@ -177,37 +185,49 @@ Estamos em busca de um(a) desenvolvedor(a) apaixonado(a) por tecnologia descentr
     setTimeout(() => setShowSuccessToast(false), 3000);
   };
 
-  const handleSubmitProposal = (e: React.FormEvent) => {
+  const handleSubmitProposal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAuthenticated) {
       navigate('/login');
       return;
     }
-    
-    const newProposal: Proposal = {
-      id: Date.now().toString(),
-      projectId: id || '',
-      freelancerId: user?.id || '',
-      freelancerName: user?.name || '',
-      freelancerAvatar: user?.avatar,
-      freelancerRating: 4.5,
-      text: proposalText,
-      value: proposalValue,
-      deliveryTime: deliveryTime,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-    };
+    if (!id || !user?.id || user.type !== 'freelancer') {
+      showToast('Apenas freelancers podem enviar propostas.');
+      return;
+    }
 
-    const allProposals = JSON.parse(localStorage.getItem('meufreelas_proposals') || '[]');
-    allProposals.push(newProposal);
-    localStorage.setItem('meufreelas_proposals', JSON.stringify(allProposals));
-    
-    setProposals([...proposals, newProposal]);
+    const normalizedValue = proposalValue.startsWith('R$') ? proposalValue : `R$ ${proposalValue}`;
+    const res = await apiCreateProposal({
+      projectId: id,
+      freelancerId: user.id,
+      amount: normalizedValue,
+      deliveryDays: deliveryTime,
+      message: proposalText,
+    });
+    if (!res.ok) {
+      showToast(res.error || 'Não foi possível enviar proposta.');
+      return;
+    }
+    await loadProposals();
+    await loadProject();
     showToast('Proposta enviada com sucesso!');
     setShowProposalForm(false);
     setProposalText('');
     setProposalValue('');
     setDeliveryTime('');
+  };
+
+  const handleProposalDecision = async (proposalId: string, decision: 'accepted' | 'rejected') => {
+    if (!user?.id || user.type !== 'client' || !project || project.clientId !== user.id) return;
+    const status = decision === 'accepted' ? 'Aceita' : 'Recusada';
+    const res = await apiUpdateProposalStatus({ proposalId, clientId: user.id, status });
+    if (!res.ok) {
+      showToast(res.error || 'Não foi possível atualizar proposta.');
+      return;
+    }
+    await loadProposals();
+    await loadProject();
+    showToast(decision === 'accepted' ? 'Proposta aceita com sucesso!' : 'Proposta recusada.');
   };
 
   const handleSaveProject = () => {
@@ -572,8 +592,12 @@ Estamos em busca de um(a) desenvolvedor(a) apaixonado(a) por tecnologia descentr
                       <div key={proposal.id} className="p-4 border border-gray-200 rounded-lg">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center">
-                            <div className="w-10 h-10 bg-99blue rounded-full flex items-center justify-center text-white font-semibold">
-                              {proposal.freelancerName.charAt(0)}
+                            <div className="w-10 h-10 bg-99blue rounded-full flex items-center justify-center text-white font-semibold overflow-hidden">
+                              {proposal.freelancerAvatar ? (
+                                <img src={proposal.freelancerAvatar} alt={proposal.freelancerName} className="w-full h-full object-cover" />
+                              ) : (
+                                proposal.freelancerName.charAt(0)
+                              )}
                             </div>
                             <div className="ml-3">
                               <p className="font-medium text-gray-800">{proposal.freelancerName}</p>
@@ -601,6 +625,24 @@ Estamos em busca de um(a) desenvolvedor(a) apaixonado(a) por tecnologia descentr
                             Entrega em <strong className="text-gray-800">{proposal.deliveryTime}</strong>
                           </span>
                         </div>
+                        {user?.type === 'client' && project.clientId === user.id && proposal.status === 'pending' && (
+                          <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                            <button
+                              type="button"
+                              onClick={() => handleProposalDecision(proposal.id, 'accepted')}
+                              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
+                            >
+                              Aceitar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleProposalDecision(proposal.id, 'rejected')}
+                              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
+                            >
+                              Recusar
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -609,7 +651,7 @@ Estamos em busca de um(a) desenvolvedor(a) apaixonado(a) por tecnologia descentr
             )}
 
             {/* Proposal Form */}
-            {showProposalForm && (
+            {showProposalForm && user?.type === 'freelancer' && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold text-gray-800 flex items-center">
@@ -698,7 +740,7 @@ Estamos em busca de um(a) desenvolvedor(a) apaixonado(a) por tecnologia descentr
             {/* Action Card */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Interessado no projeto?</h3>
-              {!showProposalForm && (
+              {!showProposalForm && user?.type === 'freelancer' && (
                 <button
                   onClick={() => {
                     if (!isAuthenticated) {
