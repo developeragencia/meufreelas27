@@ -86,6 +86,29 @@ Não é necessário criar outro `.htaccess` na Hostinger.
 
 ---
 
+## E-mails automáticos (SMTP Hostinger)
+
+A API envia e-mails automáticos (boas-vindas, aprovação, assinatura, pagamento, etc.) via SMTP da Hostinger.
+
+**Configuração:**
+
+1. No painel Hostinger: **E-mails** → **Conectar apps e dispositivos** → use **smtp.hostinger.com**, porta **465**, SSL/TLS.
+2. Crie ou use a caixa **noreply@meufreelas.com.br** (recomendado para envios automáticos).
+3. No servidor, no arquivo **`api/.env`**, adicione (com a senha real da caixa de e-mail):
+
+```env
+SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=465
+SMTP_USER=noreply@meufreelas.com.br
+SMTP_PASS=senha_da_caixa_noreply
+SMTP_FROM=noreply@meufreelas.com.br
+SMTP_FROM_NAME=MeuFreelas
+```
+
+**E-mails implementados:** ativação de cadastro (após registro), aprovação de proposta, nova proposta ao cliente, assinatura ativada, lembrete de renovação, pagamento recebido/confirmado, redefinição de senha, projeto concluído. O envio de boas-vindas já é disparado no cadastro; os demais são chamados quando você integrar as ações correspondentes na API (propostas, pagamentos, etc.).
+
+---
+
 ## Resumo
 
 - **Tudo é Hostinger:** servidor Apache, `.htaccess`, sem Netlify.

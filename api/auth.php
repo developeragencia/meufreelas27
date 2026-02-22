@@ -91,6 +91,11 @@ if ($action === 'register') {
             'hasFreelancerAccount' => (bool) $row['has_freelancer_account'],
             'hasClientAccount' => (bool) $row['has_client_account'],
         ];
+        if (file_exists(__DIR__ . '/EmailService.php')) {
+            require_once __DIR__ . '/EmailService.php';
+            $emailService = new EmailService($_ENV);
+            $emailService->sendWelcomeActivation($row['email'], $row['name'], $row['type']);
+        }
         echo json_encode(['ok' => true, 'user' => $user]);
         exit;
     }
@@ -115,6 +120,11 @@ if ($action === 'register') {
         'hasFreelancerAccount' => $type === 'freelancer',
         'hasClientAccount' => $type === 'client',
     ];
+    if (file_exists(__DIR__ . '/EmailService.php')) {
+        require_once __DIR__ . '/EmailService.php';
+        $emailService = new EmailService($_ENV);
+        $emailService->sendWelcomeActivation($email, $name, $type);
+    }
     echo json_encode(['ok' => true, 'user' => $user]);
     exit;
 }
