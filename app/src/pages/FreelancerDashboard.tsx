@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import GoalsWidget from '../components/GoalsWidget';
 import { apiListNotifications, apiListPayments, apiListProposals, hasApi } from '../lib/api';
+import { calculateFreelancerProfileCompletion } from '../lib/profileCompletion';
 
 interface Proposal {
   id: string;
@@ -132,6 +133,7 @@ export default function FreelancerDashboard() {
     { label: 'Ganhos', value: earnings, icon: DollarSign, color: 'bg-purple-500' },
     { label: 'Avaliação', value: (user.rating != null ? user.rating : 0).toFixed(1), icon: Star, color: 'bg-yellow-500' },
   ];
+  const profileCompletion = calculateFreelancerProfileCompletion(user);
 
   const quickLinks: MenuItem[] = [
     { icon: MessageSquare, label: 'Mensagens', href: '/messages' },
@@ -370,6 +372,31 @@ export default function FreelancerDashboard() {
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-semibold text-gray-800">Completude do Perfil</h2>
+              <span
+                className={`text-xs px-2 py-1 rounded-full ${
+                  profileCompletion.level === 'alta'
+                    ? 'bg-green-100 text-green-700'
+                    : profileCompletion.level === 'média'
+                    ? 'bg-yellow-100 text-yellow-700'
+                    : 'bg-red-100 text-red-700'
+                }`}
+              >
+                {profileCompletion.score}%
+              </span>
+            </div>
+            <div className="w-full h-2 bg-gray-200 rounded-full mb-3">
+              <div className="h-full bg-99blue rounded-full transition-all" style={{ width: `${profileCompletion.score}%` }} />
+            </div>
+            {profileCompletion.nextSteps.length > 0 && (
+              <p className="text-sm text-gray-500">
+                Próximos passos: {profileCompletion.nextSteps.join(', ')}.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
