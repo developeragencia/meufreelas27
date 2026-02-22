@@ -6,17 +6,7 @@
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 
-$envFile = __DIR__ . '/.env';
-$_ENV = [];
-if (file_exists($envFile)) {
-    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
-        if (strpos(trim($line), '#') === 0) continue;
-        if (strpos($line, '=') !== false) {
-            list($k, $v) = explode('=', $line, 2);
-            $_ENV[trim($k)] = trim($v, " \t\"'");
-        }
-    }
-}
+require_once __DIR__ . '/load_env.php';
 
 $dbHost = $_ENV['DB_HOST'] ?? 'localhost';
 $dbPort = $_ENV['DB_PORT'] ?? '3306';
