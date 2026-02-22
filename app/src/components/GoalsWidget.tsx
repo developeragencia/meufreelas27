@@ -13,6 +13,26 @@ interface Goal {
   link: string;
 }
 
+function safeParseArray<T = unknown>(raw: string | null): T[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function safeParseObject<T = Record<string, unknown>>(raw: string | null): T | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === 'object' ? (parsed as T) : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function GoalsWidget() {
   const { user } = useAuth();
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -25,7 +45,8 @@ export default function GoalsWidget() {
     const savedGoals = localStorage.getItem(`goals_${user.id}`);
     
     if (savedGoals) {
-      setGoals(JSON.parse(savedGoals));
+      const parsedGoals = safeParseArray<Goal>(savedGoals);
+      setGoals(parsedGoals);
     } else {
       const initialGoals: Goal[] = [
         {
@@ -96,21 +117,21 @@ export default function GoalsWidget() {
       // Check if profile is already complete
       const profileData = localStorage.getItem(`profile_${user.id}`);
       if (profileData) {
-        const profile = JSON.parse(profileData);
-        if (profile.title && profile.bio && profile.skills?.length > 0) {
+        const profile = safeParseObject<{ title?: string; bio?: string; skills?: string[] }>(profileData);
+        if (profile?.title && profile?.bio && Array.isArray(profile.skills) && profile.skills.length > 0) {
           initialGoals[0].completed = true;
         }
       }
       
       // Check if user has projects
-      const projects = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]');
+      const projects = safeParseArray<{ clientId?: string }>(localStorage.getItem('meufreelas_projects'));
       const userProjects = projects.filter((p: any) => p.clientId === user.id);
       if (userProjects.length > 0) {
         initialGoals[1].completed = true;
       }
       
       // Check if user has proposals
-      const proposals = JSON.parse(localStorage.getItem('meufreelas_proposals') || '[]');
+      const proposals = safeParseArray<{ freelancerId?: string }>(localStorage.getItem('meufreelas_proposals'));
       const userProposals = proposals.filter((p: any) => p.freelancerId === user.id);
       if (userProposals.length > 0) {
         initialGoals[2].completed = true;
