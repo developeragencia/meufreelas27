@@ -1,22 +1,25 @@
-# MeuFreelas - Hostinger (Apache)
-# Deploy 100% Hostinger - SPA React
+# MeuFreelas - Hostinger (Apache) - SPA React
+# Garante que /freelancers, /projects, etc. sirvam index.html
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
 
-  # Forçar HTTPS em produção
+  # Forçar HTTPS
   RewriteCond %{HTTPS} off
   RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-  # Não reescrever a pasta /api/ (PHP da API)
-  RewriteCond %{REQUEST_URI} ^/api/ [OR]
-  # Não reescrever arquivos ou pastas existentes
-  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  # Não reescrever /api/ (PHP)
+  RewriteCond %{REQUEST_URI} ^/api/
+  RewriteRule ^ - [L]
+
+  # Não reescrever arquivos ou diretórios que existem
+  RewriteCond %{REQUEST_FILENAME} -f
+  RewriteRule ^ - [L]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # SPA: encaminhar todas as outras rotas para index.html
+  # SPA: qualquer outra rota -> index.html (URL preservada)
   RewriteRule ^ index.html [QSA,L]
 </IfModule>
 

@@ -147,10 +147,20 @@ function loadFreelancersFromStorage(): Freelancer[] {
 export default function Freelancers() {
   const { user, isAuthenticated, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [freelancers, setFreelancers] = useState<Freelancer[]>(() => loadFreelancersFromStorage());
+  const [freelancers, setFreelancers] = useState<Freelancer[]>(() => {
+    try {
+      return loadFreelancersFromStorage();
+    } catch {
+      return [];
+    }
+  });
   const [keywords, setKeywords] = useState('');
   useEffect(() => {
-    setFreelancers(loadFreelancersFromStorage());
+    try {
+      setFreelancers(loadFreelancersFromStorage());
+    } catch {
+      setFreelancers([]);
+    }
   }, []);
   const [selectedArea, setSelectedArea] = useState('Todas as áreas');
   const [selectedRanking, setSelectedRanking] = useState('any');
