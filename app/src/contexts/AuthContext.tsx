@@ -44,6 +44,15 @@ function isUserType(value: unknown): value is Exclude<UserType, null> {
   return t === 'freelancer' || t === 'client' || t === 'admin';
 }
 
+function normalizeDisplayName(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  return trimmed
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
 function normalizeUser(raw: Record<string, unknown>): User | null {
   const id = raw.id;
   const email = raw.email;
@@ -58,7 +67,7 @@ function normalizeUser(raw: Record<string, unknown>): User | null {
   return {
     id,
     email,
-    name,
+    name: normalizeDisplayName(name),
     type: type as Exclude<UserType, null>,
     avatar: typeof raw.avatar === 'string' ? raw.avatar : undefined,
     phone: typeof raw.phone === 'string' ? raw.phone : undefined,
@@ -143,8 +152,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     turnstileToken?: string
   ): Promise<RegisterResult> => {
     try {
+      const normalizedName = normalizeDisplayName(name);
       if (hasApi()) {
-        const body: Record<string, string> = { name, email, password, type };
+        const body: Record<string, string> = { name: normalizedName, email, password, type };
         if (turnstileToken) body.turnstileToken = turnstileToken;
         const res = await apiAuth('register', body);
         if (res.ok && res.requiresActivation) {
@@ -181,7 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const newUser: User = {
         id: Date.now().toString(),
-        name,
+        name: normalizedName,
         email,
         type,
         avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=003366&color=fff`,
@@ -208,7 +218,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateUser = (data: Partial<User>) => {
     if (user) {
-      const updatedUser = { ...user, ...data };
+      const normalizedData: Partial<User> = {
+        ...data,
+        name: typeof data.name === 'string' ? normalizeDisplayName(data.name) : data.name,
+      };
+      const updatedUser = { ...user, ...normalizedData };
       setUser(updatedUser);
       localStorage.setItem('meufreelas_user', JSON.stringify(updatedUser));
       
@@ -216,7 +230,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const users = JSON.parse(localStorage.getItem('meufreelas_users') || '[]');
       const userIndex = users.findIndex((u: any) => u.id === user.id);
       if (userIndex !== -1) {
-        users[userIndex] = { ...users[userIndex], ...data };
+        users[userIndex] = { ...users[userIndex], ...normalizedData };
         localStorage.setItem('meufreelas_users', JSON.stringify(users));
       }
     }

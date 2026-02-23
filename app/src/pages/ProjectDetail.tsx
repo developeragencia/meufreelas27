@@ -168,6 +168,7 @@ export default function ProjectDetail() {
   const [deliveryFeedbackById, setDeliveryFeedbackById] = useState<Record<string, string>>({});
   const [deliveryRatingById, setDeliveryRatingById] = useState<Record<string, number>>({});
   const [loadingProject, setLoadingProject] = useState(true);
+  const [questionLoading, setQuestionLoading] = useState(false);
 
   const menuItems = [
     { icon: Home, label: 'Início', href: '/' },
@@ -388,6 +389,39 @@ export default function ProjectDetail() {
     const intro = `Olá, ${proposal.freelancerName}! Vamos negociar sua proposta?\nValor enviado: ${proposal.value}\nPrazo enviado: ${proposal.deliveryTime}`;
     await apiSendMessage(user.id, conv.conversationId, intro);
     setNegotiatingProposalId(null);
+    navigate(`/messages?conversation=${conv.conversationId}`);
+  };
+
+  const handleAskQuestion = async () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    if (!project || !user?.id) {
+      navigate('/messages');
+      return;
+    }
+    if (!project.clientId) {
+      navigate('/messages');
+      return;
+    }
+    if (!hasApi()) {
+      navigate('/messages');
+      return;
+    }
+    setQuestionLoading(true);
+    const conv = await apiEnsureConversation(user.id, project.clientId, project.id);
+    if (!conv.ok || !conv.conversationId) {
+      setQuestionLoading(false);
+      showToast('Não foi possível abrir a conversa com o cliente.');
+      return;
+    }
+    await apiSendMessage(
+      user.id,
+      conv.conversationId,
+      `Olá! Tenho uma dúvida sobre o projeto: "${project.title}".`
+    );
+    setQuestionLoading(false);
     navigate(`/messages?conversation=${conv.conversationId}`);
   };
 
@@ -1220,7 +1254,18 @@ export default function ProjectDetail() {
           <div className="space-y-6">
             {/* Action Card */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Interessado no projeto?</h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                Tem dúvidas sobre o projeto?
+              </h3>
+              <button
+                type="button"
+                onClick={handleAskQuestion}
+                disabled={questionLoading}
+                className="w-full py-3 mb-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center justify-center"
+              >
+                <MessageSquare className="w-5 h-5 mr-2" />
+                {questionLoading ? 'Abrindo conversa...' : 'Fazer uma pergunta ao cliente'}
+              </button>
               {!showProposalForm && user?.type === 'freelancer' && (
                 <button
                   onClick={() => {
