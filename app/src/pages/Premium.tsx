@@ -586,7 +586,10 @@ export default function Premium() {
             )}
 
             {checkoutError && (
-              <p className="mt-3 text-sm text-red-600 bg-red-50 rounded-lg p-2">{checkoutError}</p>
+              <div className="mt-3 space-y-1">
+                <p className="text-sm text-red-600 bg-red-50 rounded-lg p-2">{checkoutError}</p>
+                <p className="text-xs text-gray-500">Configure as chaves no servidor (api/.env): STRIPE_SECRET_KEY e MERCADOPAGO_ACCESS_TOKEN.</p>
+              </div>
             )}
 
             <p className="text-center text-xs text-gray-500 mt-4">

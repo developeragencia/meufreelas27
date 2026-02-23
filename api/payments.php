@@ -26,10 +26,22 @@ $mpWebhookUrl = trim((string)(mf_first_env(['MERCADOPAGO_WEBHOOK_URL'], $apiOrig
 
 function env_key_configured(string $value): bool {
     if ($value === '') return false;
-    if (preg_match('/COLOQUE|substitua|SUBSTITUA|placeholder|example/i', $value)) return false;
-    if (preg_match('/^sk_live_[a-zA-Z0-9]{20,}$/', $value)) return true;
+    if (preg_match('/COLOQUE|substitua|SUBSTITUA|placeholder|example|sk_live_51ABCdef|APP_USR-12345/i', $value)) return false;
+    if (preg_match('/^sk_(live|test)_[a-zA-Z0-9]{20,}$/', $value)) return true;
     if (preg_match('/^APP_USR-[a-zA-Z0-9\-]{30,}$/', $value)) return true;
     return false;
+}
+
+function stripe_error_message(array $body): string {
+    if (!empty($body['error']['message'])) return 'Stripe: ' . (string)$body['error']['message'];
+    if (!empty($body['error']['code'])) return 'Stripe: ' . (string)$body['error']['code'];
+    return 'Stripe rejeitou a criação do checkout.';
+}
+
+function mp_error_message(array $body): string {
+    if (!empty($body['message'])) return 'Mercado Pago: ' . (string)$body['message'];
+    if (!empty($body['cause'][0]['description'])) return 'Mercado Pago: ' . (string)$body['cause'][0]['description'];
+    return 'Mercado Pago rejeitou a criação do checkout.';
 }
 
 try {
@@ -262,7 +274,7 @@ if ($action === 'create_checkout') {
         }
         $body = json_decode((string)$res['body'], true) ?? [];
         if ((int)$res['status'] < 200 || (int)$res['status'] >= 300 || empty($body['url']) || empty($body['id'])) {
-            echo json_encode(['ok' => false, 'error' => 'Stripe rejeitou a criação do checkout.']);
+            echo json_encode(['ok' => false, 'error' => stripe_error_message($body)]);
             exit;
         }
         $upd = $pdo->prepare('UPDATE payments SET provider = "stripe", external_id = ?, checkout_url = ?, status = "processing" WHERE id = ?');
@@ -305,7 +317,7 @@ if ($action === 'create_checkout') {
     }
     $body = json_decode((string)$res['body'], true) ?? [];
     if ((int)$res['status'] < 200 || (int)$res['status'] >= 300 || empty($body['init_point']) || empty($body['id'])) {
-        echo json_encode(['ok' => false, 'error' => 'Mercado Pago rejeitou a criação do checkout.']);
+        echo json_encode(['ok' => false, 'error' => mp_error_message($body)]);
         exit;
     }
     $upd = $pdo->prepare('UPDATE payments SET provider = "mercadopago", external_id = ?, checkout_url = ?, status = "processing" WHERE id = ?');
