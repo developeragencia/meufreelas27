@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { apiListProjects, hasApi } from '../lib/api';
-import { Search, ChevronDown, ChevronUp, Clock, FileText, Menu, X, Home, Briefcase, User, MessageSquare, LogOut, Loader2 } from 'lucide-react';
+import { apiListNotifications, apiListProjects, hasApi } from '../lib/api';
+import { Search, ChevronDown, ChevronUp, Clock, FileText, Menu, X, Home, Briefcase, User, MessageSquare, LogOut, Loader2, Bell } from 'lucide-react';
 
 interface Project {
   id: string;
@@ -136,6 +136,7 @@ export default function Projects() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState(0);
   const [keywords, setKeywords] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todas as categorias');
   const [featuredOnly, setFeaturedOnly] = useState(false);
@@ -196,6 +197,27 @@ export default function Projects() {
     load();
     return () => { cancelled = true; };
   }, [keywords, selectedCategory, sortBy]);
+
+  useEffect(() => {
+    const loadNotifications = async () => {
+      if (!user?.id || !hasApi()) {
+        setNotifications(0);
+        return;
+      }
+      try {
+        const res = await apiListNotifications(user.id);
+        if (!res.ok) {
+          setNotifications(0);
+          return;
+        }
+        const unread = (res.notifications || []).filter((n: any) => !n.isRead).length;
+        setNotifications(unread);
+      } catch {
+        setNotifications(0);
+      }
+    };
+    loadNotifications();
+  }, [user?.id]);
 
   const publishProjectHref = !isAuthenticated
     ? '/login'
@@ -355,6 +377,29 @@ export default function Projects() {
                 <Search className="w-4 h-4 mr-2 text-gray-400" />
                 <input type="text" placeholder="Buscar..." className="bg-transparent text-white placeholder-gray-400 outline-none w-48" />
               </div>
+              {isAuthenticated && user && (
+                <>
+                  <Link
+                    to="/messages"
+                    className="relative p-2 text-gray-300 hover:text-white hidden md:inline-flex"
+                    title="Mensagens"
+                  >
+                    <MessageSquare className="w-5 h-5" />
+                  </Link>
+                  <Link
+                    to="/notifications"
+                    className="relative p-2 text-gray-300 hover:text-white hidden md:inline-flex"
+                    title="Notificações"
+                  >
+                    <Bell className="w-5 h-5" />
+                    {notifications > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-4 px-1 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                        {notifications > 99 ? '99+' : notifications}
+                      </span>
+                    )}
+                  </Link>
+                </>
+              )}
               {isAuthenticated && user ? (
                 <div className="relative hidden sm:block">
                   <button type="button" onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center space-x-2 text-white hover:text-white/90">

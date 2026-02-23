@@ -8,6 +8,7 @@ import {
   apiEnsureConversation,
   apiGetProject,
   apiListDeliveries,
+  apiListNotifications,
   apiListProposals,
   apiRequestDeliveryRevision,
   apiSendMessage,
@@ -39,7 +40,8 @@ import {
   Shield,
   Eye,
   ThumbsUp,
-  ChevronRight
+  ChevronRight,
+  Bell
 } from 'lucide-react';
 
 interface Project {
@@ -158,6 +160,7 @@ export default function ProjectDetail() {
   const [maxProposalValue, setMaxProposalValue] = useState('');
   const [maxDeliveryDays, setMaxDeliveryDays] = useState('');
   const [minFreelancerRating, setMinFreelancerRating] = useState('');
+  const [notificationsCount, setNotificationsCount] = useState(0);
   const [proposalSort, setProposalSort] = useState<'recent' | 'value_asc' | 'value_desc' | 'days_asc' | 'rating_desc'>('recent');
   const [deliveryMessage, setDeliveryMessage] = useState('');
   const [deliveryUrl, setDeliveryUrl] = useState('');
@@ -295,6 +298,27 @@ export default function ProjectDetail() {
     const savedProjects = JSON.parse(localStorage.getItem('meufreelas_saved_projects') || '[]');
     setIsSaved(savedProjects.includes(id));
   }, [id, user?.id]);
+
+  useEffect(() => {
+    const loadNotifications = async () => {
+      if (!user?.id || !hasApi()) {
+        setNotificationsCount(0);
+        return;
+      }
+      try {
+        const res = await apiListNotifications(user.id);
+        if (!res.ok) {
+          setNotificationsCount(0);
+          return;
+        }
+        const unread = (res.notifications || []).filter((n: any) => !n.isRead).length;
+        setNotificationsCount(unread);
+      } catch {
+        setNotificationsCount(0);
+      }
+    };
+    loadNotifications();
+  }, [user?.id]);
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -589,6 +613,25 @@ export default function ProjectDetail() {
               <Link to="/como-funciona" className="text-gray-300 hover:text-white transition-colors">Como Funciona</Link>
               {isAuthenticated ? (
                 <div className="flex items-center space-x-4">
+                  <Link
+                    to="/messages"
+                    className="relative p-2 text-gray-300 hover:text-white"
+                    title="Mensagens"
+                  >
+                    <MessageSquare className="w-5 h-5" />
+                  </Link>
+                  <Link
+                    to="/notifications"
+                    className="relative p-2 text-gray-300 hover:text-white"
+                    title="Notificações"
+                  >
+                    <Bell className="w-5 h-5" />
+                    {notificationsCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-4 px-1 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                        {notificationsCount > 99 ? '99+' : notificationsCount}
+                      </span>
+                    )}
+                  </Link>
                   <Link to={user?.type === 'freelancer' ? '/freelancer/dashboard' : '/dashboard'} 
                     className="text-gray-300 hover:text-white transition-colors">
                     Dashboard

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { apiCreateProposal, apiEnsureConversation, apiGetProject, apiSendMessage, hasApi } from '../lib/api';
+import { apiCreateProposal, apiEnsureConversation, apiGetProject, apiListProposals, apiSendMessage, hasApi } from '../lib/api';
 import { 
   ArrowLeft, DollarSign, Clock,
   Calculator, AlertCircle
@@ -32,6 +32,7 @@ export default function SendProposal() {
   const [calculatorRate, setCalculatorRate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [questionLoading, setQuestionLoading] = useState(false);
+  const [hasExistingProposal, setHasExistingProposal] = useState(false);
 
   const categoryMinimumOffer: Record<string, number> = {
     'Web, Mobile & Software': 120,
@@ -80,6 +81,21 @@ export default function SendProposal() {
     loadProject();
   }, [projectId, isAuthenticated, navigate]);
 
+  useEffect(() => {
+    const checkExistingProposal = async () => {
+      if (!projectId || !user?.id || !hasApi()) return;
+      try {
+        const res = await apiListProposals({ projectId, freelancerId: user.id });
+        if (!res.ok) return;
+        if ((res.proposals || []).length > 0) {
+          setHasExistingProposal(true);
+        }
+      } catch {
+      }
+    };
+    checkExistingProposal();
+  }, [projectId, user?.id]);
+
   const calculateFinalOffer = () => {
     const value = parseFloat(offer);
     if (!value) return { gross: 0, fee: 0, net: 0 };
@@ -103,6 +119,11 @@ export default function SendProposal() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (hasExistingProposal) {
+      alert('Você já enviou uma proposta para este projeto.');
+      return;
+    }
     
     if (!offer || !duration || !details) {
       alert('Preencha todos os campos obrigatórios');
@@ -155,8 +176,8 @@ export default function SendProposal() {
     }
 
     setIsSubmitting(false);
-    alert('Proposta enviada com sucesso!');
-    navigate('/freelancer/proposals');
+    setHasExistingProposal(true);
+    alert('Proposta enviada com sucesso! Você pode melhorar sua proposta em "Minhas propostas".');
   };
 
   const offerCalc = calculateFinalOffer();
@@ -216,152 +237,171 @@ export default function SendProposal() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Form */}
           <div className="lg:col-span-2">
-            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm p-6 space-y-6 border border-gray-100">
-              <div className="bg-sky-100 border border-sky-200 text-sky-900 text-sm p-3">
-                Para ver o valor médio das propostas e a duração média estimada, assine um de nossos planos.
+            {hasExistingProposal ? (
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-green-200">
+                <h2 className="text-2xl font-light text-gray-800 mb-3">Proposta já enviada</h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  Você já enviou uma proposta para este projeto. Caso queira, você pode melhorar os detalhes da sua proposta na página de propostas.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <Link
+                    to="/freelancer/proposals"
+                    className="px-6 py-3 bg-99blue text-white rounded-lg font-medium hover:bg-99blue-light transition-colors text-sm"
+                  >
+                    Ver e melhorar minha proposta
+                  </Link>
+                  <Link
+                    to={`/project/${project.id}`}
+                    className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                  >
+                    Voltar à página do projeto
+                  </Link>
+                </div>
               </div>
-              {/* Offer */}
-              <div>
-                <h2 className="text-2xl font-light text-gray-800 mb-4">Enviar proposta</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-2">Sua oferta</label>
-                    <div className="flex border border-gray-300">
-                      <span className="px-3 py-2 text-sm bg-gray-100 border-r border-gray-300">R$</span>
-                      <input
-                        type="number"
-                        value={offer}
-                        onChange={(e) => setOffer(e.target.value)}
-                        placeholder="0,00"
-                        className="w-full px-3 py-2 outline-none"
-                      />
+            ) : (
+              <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm p-6 space-y-6 border border-gray-100">
+                <div className="bg-sky-100 border border-sky-200 text-sky-900 text-sm p-3">
+                  Para ver o valor médio das propostas e a duração média estimada, assine um de nossos planos.
+                </div>
+                <div>
+                  <h2 className="text-2xl font-light text-gray-800 mb-4">Enviar proposta</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-800 mb-2">Sua oferta</label>
+                      <div className="flex border border-gray-300">
+                        <span className="px-3 py-2 text-sm bg-gray-100 border-r border-gray-300">R$</span>
+                        <input
+                          type="number"
+                          value={offer}
+                          onChange={(e) => setOffer(e.target.value)}
+                          placeholder="0,00"
+                          className="w-full px-3 py-2 outline-none"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1">(Oferta mínima: R$ {project.minOffer.toFixed(2)})</p>
                     </div>
-                    <p className="text-xs text-gray-600 mt-1">(Oferta mínima: R$ {project.minOffer.toFixed(2)})</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-2">Oferta final</label>
-                    <div className="flex border border-gray-300 bg-gray-50">
-                      <span className="px-3 py-2 text-sm bg-gray-100 border-r border-gray-300">R$</span>
-                      <input type="text" value={(Number(offer || 0) * 1.25).toFixed(2)} readOnly className="w-full px-3 py-2 outline-none bg-gray-50" />
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-800 mb-2">Oferta final</label>
+                      <div className="flex border border-gray-300 bg-gray-50">
+                        <span className="px-3 py-2 text-sm bg-gray-100 border-r border-gray-300">R$</span>
+                        <input type="text" value={(Number(offer || 0) * 1.25).toFixed(2)} readOnly className="w-full px-3 py-2 outline-none bg-gray-50" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowCalculator(!showCalculator)}
+                        className="mt-1 text-xs text-99blue hover:underline inline-flex items-center"
+                      >
+                        <Calculator className="w-3.5 h-3.5 mr-1" />
+                        Como é calculada?
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowCalculator(!showCalculator)}
-                      className="mt-1 text-xs text-99blue hover:underline inline-flex items-center"
-                    >
-                      <Calculator className="w-3.5 h-3.5 mr-1" />
-                      Como é calculada?
-                    </button>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-2">Duração estimada</label>
-                    <div className="flex border border-gray-300">
-                      <input
-                        type="number"
-                        value={duration}
-                        onChange={(e) => setDuration(e.target.value)}
-                        placeholder="0"
-                        className="w-full px-3 py-2 outline-none"
-                      />
-                      <span className="px-3 py-2 text-sm bg-gray-100 border-l border-gray-300">dias</span>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-800 mb-2">Duração estimada</label>
+                      <div className="flex border border-gray-300">
+                        <input
+                          type="number"
+                          value={duration}
+                          onChange={(e) => setDuration(e.target.value)}
+                          placeholder="0"
+                          className="w-full px-3 py-2 outline-none"
+                        />
+                        <span className="px-3 py-2 text-sm bg-gray-100 border-l border-gray-300">dias</span>
+                      </div>
                     </div>
                   </div>
+
+                  {showCalculator && (
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                      <p className="text-sm font-medium text-gray-700 mb-3">Calcular valor</p>
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Horas estimadas</label>
+                          <input
+                            type="number"
+                            value={calculatorHours}
+                            onChange={(e) => setCalculatorHours(e.target.value)}
+                            placeholder="0"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Valor/hora (R$)</label>
+                          <input
+                            type="number"
+                            value={calculatorRate}
+                            onChange={(e) => setCalculatorRate(e.target.value)}
+                            placeholder="0,00"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={calculateFromHours}
+                        className="px-4 py-2 bg-99blue text-white rounded-lg text-sm"
+                      >
+                        Calcular
+                      </button>
+                    </div>
+                  )}
+
+                  {offer && (
+                    <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-gray-600">Sua oferta:</span>
+                        <span className="font-medium">R$ {parseFloat(offer).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-gray-600">Taxa da plataforma (10%):</span>
+                        <span className="text-red-500">- R$ {offerCalc.fee.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between font-medium pt-2 border-t border-blue-200">
+                        <span>Você receberá:</span>
+                        <span className="text-green-600">R$ {offerCalc.net.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm mt-2">
+                        <span className="text-gray-600">Oferta sugerida do nicho:</span>
+                        <span className="font-medium">R$ {finalSuggested.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {showCalculator && (
-                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                    <p className="text-sm font-medium text-gray-700 mb-3">Calcular valor</p>
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Horas estimadas</label>
-                        <input
-                          type="number"
-                          value={calculatorHours}
-                          onChange={(e) => setCalculatorHours(e.target.value)}
-                          placeholder="0"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Valor/hora (R$)</label>
-                        <input
-                          type="number"
-                          value={calculatorRate}
-                          onChange={(e) => setCalculatorRate(e.target.value)}
-                          placeholder="0,00"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        />
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={calculateFromHours}
-                      className="px-4 py-2 bg-99blue text-white rounded-lg text-sm"
-                    >
-                      Calcular
-                    </button>
-                  </div>
-                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Detalhes da proposta
+                  </label>
+                  <textarea
+                    value={details}
+                    onChange={(e) => setDetails(e.target.value)}
+                    placeholder="Descreva por que você é o profissional ideal para este projeto. Fale sobre sua experiência, habilidades relevantes e como você planeja executar o trabalho."
+                    rows={8}
+                    maxLength={5000}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent resize-none"
+                  />
+                  <p className="text-right text-sm text-gray-500 mt-1">{details.length}/5000</p>
+                  <p className="text-sm text-red-500 mt-2">Atenção: não compartilhe suas informações de contato.</p>
+                </div>
 
-                {offer && (
-                  <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-gray-600">Sua oferta:</span>
-                      <span className="font-medium">R$ {parseFloat(offer).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-gray-600">Taxa da plataforma (10%):</span>
-                      <span className="text-red-500">- R$ {offerCalc.fee.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between font-medium pt-2 border-t border-blue-200">
-                      <span>Você receberá:</span>
-                      <span className="text-green-600">R$ {offerCalc.net.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm mt-2">
-                      <span className="text-gray-600">Oferta sugerida do nicho:</span>
-                      <span className="font-medium">R$ {finalSuggested.toFixed(2)}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Details */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Detalhes da proposta
-                </label>
-                <textarea
-                  value={details}
-                  onChange={(e) => setDetails(e.target.value)}
-                  placeholder="Descreva por que você é o profissional ideal para este projeto. Fale sobre sua experiência, habilidades relevantes e como você planeja executar o trabalho."
-                  rows={8}
-                  maxLength={5000}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent resize-none"
-                />
-                <p className="text-right text-sm text-gray-500 mt-1">{details.length}/5000</p>
-                <p className="text-sm text-red-500 mt-2">Atenção: não compartilhe suas informações de contato.</p>
-              </div>
-
-              {/* Submit */}
-              <div className="flex items-center justify-between pt-4">
-                <button
-                  type="button"
-                  onClick={() => navigate(-1)}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting || !offer || !duration || !details || Number(offer) < project.minOffer}
-                  className="px-8 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? 'Enviando...' : 'Enviar Proposta'}
-                </button>
-              </div>
-            </form>
+                <div className="flex items-center justify-between pt-4">
+                  <button
+                    type="button"
+                    onClick={() => navigate(-1)}
+                    className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !offer || !duration || !details || Number(offer) < project.minOffer}
+                    className="px-8 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? 'Enviando...' : 'Enviar Proposta'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
 
           {/* Sidebar */}

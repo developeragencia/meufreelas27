@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import BrandLogo from '../components/BrandLogo';
-import { apiListFreelancersPublic, hasApi, type ApiFreelancerPublic } from '../lib/api';
-import { Search, ChevronDown, ChevronUp, Briefcase, ThumbsUp, Calendar, Crown, Star, Menu, X, User, LogOut } from 'lucide-react';
+import { apiListFreelancersPublic, apiListNotifications, hasApi, type ApiFreelancerPublic } from '../lib/api';
+import { Search, ChevronDown, ChevronUp, Briefcase, ThumbsUp, Calendar, Crown, Star, Menu, X, User, LogOut, Bell, MessageSquare } from 'lucide-react';
 
 interface Freelancer {
   id: string;
@@ -160,6 +160,7 @@ export default function Freelancers() {
   const [freelancers, setFreelancers] = useState<Freelancer[]>([]);
   const [keywords, setKeywords] = useState('');
   const [isLoadingFreelancers, setIsLoadingFreelancers] = useState(true);
+  const [notifications, setNotifications] = useState(0);
   useEffect(() => {
     const mapApiFreelancer = (f: ApiFreelancerPublic): Freelancer => ({
       id: f.id,
@@ -212,6 +213,26 @@ export default function Freelancers() {
       window.removeEventListener('meufreelas:profile-updated', handleRefresh as EventListener);
     };
   }, []);
+  useEffect(() => {
+    const loadNotifications = async () => {
+      if (!user?.id || !hasApi()) {
+        setNotifications(0);
+        return;
+      }
+      try {
+        const res = await apiListNotifications(user.id);
+        if (!res.ok) {
+          setNotifications(0);
+          return;
+        }
+        const unread = (res.notifications || []).filter((n: any) => !n.isRead).length;
+        setNotifications(unread);
+      } catch {
+        setNotifications(0);
+      }
+    };
+    loadNotifications();
+  }, [user?.id]);
   const [selectedArea, setSelectedArea] = useState('Todas as áreas');
   const [selectedRanking, setSelectedRanking] = useState('any');
   const [selectedRecommendations, setSelectedRecommendations] = useState('any');
@@ -421,6 +442,29 @@ export default function Freelancers() {
                   className="bg-transparent text-white placeholder-gray-400 outline-none w-48"
                 />
               </div>
+              {isAuthenticated && user && (
+                <>
+                  <Link
+                    to="/messages"
+                    className="relative p-2 text-gray-300 hover:text-white hidden md:inline-flex"
+                    title="Mensagens"
+                  >
+                    <MessageSquare className="w-5 h-5" />
+                  </Link>
+                  <Link
+                    to="/notifications"
+                    className="relative p-2 text-gray-300 hover:text-white hidden md:inline-flex"
+                    title="Notificações"
+                  >
+                    <Bell className="w-5 h-5" />
+                    {notifications > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-4 px-1 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                        {notifications > 99 ? '99+' : notifications}
+                      </span>
+                    )}
+                  </Link>
+                </>
+              )}
               {isAuthenticated && user ? (
                 <div className="relative hidden sm:block">
                   <button
