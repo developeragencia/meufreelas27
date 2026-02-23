@@ -32,6 +32,7 @@ import {
   GitBranch,
 } from 'lucide-react';
 import GoalsWidget from '../components/GoalsWidget';
+import BadgesWidget from '../components/BadgesWidget';
 import BrandLogo from '../components/BrandLogo';
 import { apiListNotifications, apiListPayments, apiListProjects, hasApi } from '../lib/api';
 
@@ -346,6 +347,42 @@ export default function ClientDashboard() {
         </div>
       </header>
 
+      <nav className="hidden md:block bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center space-x-6 h-11">
+            <Link
+              to="/dashboard"
+              className="text-sm font-medium text-gray-700 hover:text-99blue"
+            >
+              Página inicial
+            </Link>
+            {menuSections.map((section) => (
+              <div key={section.title} className="relative group">
+                <button
+                  type="button"
+                  className="flex items-center text-sm font-medium text-gray-700 hover:text-99blue"
+                >
+                  {section.title}
+                  <ChevronDown className="w-4 h-4 ml-1 text-gray-400 group-hover:text-99blue" />
+                </button>
+                <div className="absolute left-0 mt-2 bg-white shadow-lg rounded-lg py-2 min-w-[220px] opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto z-30">
+                  {section.items.map((item) => (
+                    <Link
+                      key={item.href}
+                      to={item.href}
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      <item.icon className="w-4 h-4 mr-2" />
+                      <span>{item.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </nav>
+
       <header className="bg-99dark text-white md:hidden sticky top-0 z-40">
         <div className="flex items-center justify-between h-14 px-4">
           <button
@@ -368,10 +405,6 @@ export default function ClientDashboard() {
       </header>
 
       <div className="flex">
-        <aside className="w-64 bg-white min-h-[calc(100vh-64px)] shadow-sm hidden md:block sticky top-16">
-          <SidebarContent />
-        </aside>
-
         {mobileMenuOpen && (
           <>
             <div
@@ -395,7 +428,7 @@ export default function ClientDashboard() {
           </>
         )}
 
-        <main className="flex-1 p-4 md:p-6">
+        <main className="flex-1 p-4 md:p-6 max-w-7xl mx-auto">
           <div className="mb-6">
             <h1 className="text-xl md:text-2xl font-semibold text-gray-800">
               Painel do cliente
@@ -486,7 +519,10 @@ export default function ClientDashboard() {
             )}
           </div>
 
-          <GoalsWidget />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <GoalsWidget />
+            <BadgesWidget />
+          </div>
         </main>
       </div>
 
