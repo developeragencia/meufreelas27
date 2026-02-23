@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeft, Briefcase, Check, ChevronDown, DollarSign, Globe, Info, Lock, Paperclip, X } from 'lucide-react';
+import { ArrowLeft, Briefcase, Check, ChevronDown, Globe, Lock, Paperclip, X } from 'lucide-react';
 import { getSortedSkills } from '../constants/skills';
 import { apiCreateProject, hasApi } from '../lib/api';
 
@@ -57,7 +57,6 @@ export default function NewProject() {
     experienceLevel: 'intermediate',
     proposalDays: '30',
     visibility: 'public' as 'public' | 'private',
-    budget: '',
   });
   const [files, setFiles] = useState<File[]>([]);
   const [skillSearch, setSkillSearch] = useState('');
@@ -109,7 +108,6 @@ export default function NewProject() {
     if (!formData.category) return 'Selecione uma categoria.';
     if (!formData.title.trim() || formData.title.trim().length < 10) return 'O título deve ter pelo menos 10 caracteres.';
     if (!formData.description.trim() || formData.description.trim().length < 30) return 'A descrição deve ter pelo menos 30 caracteres.';
-    if (formData.budget && Number(formData.budget) < 50) return 'Informe um orçamento maior ou igual a R$ 50.';
     return null;
   };
 
@@ -128,7 +126,6 @@ export default function NewProject() {
       category: formData.category,
       title: formData.title.trim(),
       description: formData.description.trim(),
-      budget: formData.budget?.trim(),
       skills: formData.selectedSkills,
       experienceLevel: formData.experienceLevel,
       proposalDays: formData.proposalDays,
@@ -250,25 +247,6 @@ export default function NewProject() {
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent resize-none"
             />
             <p className="text-right text-sm text-gray-500 mt-1">{formData.description.length}/5000</p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <label className="block text-lg font-medium text-gray-900 mb-3">Orçamento (R$)</label>
-            <div className="relative">
-              <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="number"
-                min={0}
-                value={formData.budget}
-                onChange={(e) => setFormData((prev) => ({ ...prev, budget: e.target.value }))}
-                placeholder="Ex: 5000"
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
-              />
-            </div>
-            <p className="text-sm text-gray-500 mt-2">
-              <Info className="w-4 h-4 inline mr-1" />
-              Deixe em branco para receber propostas com diferentes valores
-            </p>
           </div>
 
           <div className="bg-white rounded-xl shadow-sm p-6">

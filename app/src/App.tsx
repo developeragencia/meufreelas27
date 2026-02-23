@@ -165,6 +165,14 @@ function AppRoutes() {
           </ProtectedRoute>
         } 
       />
+      <Route
+        path="/project/bid/:projectId"
+        element={
+          <ProtectedRoute allowedType="freelancer">
+            <SendProposal />
+          </ProtectedRoute>
+        }
+      />
       <Route 
         path="/checkout/:proposalId" 
         element={

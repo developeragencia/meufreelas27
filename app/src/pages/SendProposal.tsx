@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { apiCreateProposal, apiGetProject, hasApi } from '../lib/api';
+import { apiCreateProposal, apiEnsureConversation, apiGetProject, apiSendMessage, hasApi } from '../lib/api';
 import { 
   ArrowLeft, DollarSign, Clock,
   Calculator, AlertCircle
@@ -12,8 +12,10 @@ interface Project {
   title: string;
   description: string;
   budget?: string;
+  clientId: string;
   clientName: string;
   category: string;
+  minOffer: number;
 }
 
 export default function SendProposal() {
@@ -29,6 +31,29 @@ export default function SendProposal() {
   const [calculatorHours, setCalculatorHours] = useState('');
   const [calculatorRate, setCalculatorRate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [questionLoading, setQuestionLoading] = useState(false);
+
+  const categoryMinimumOffer: Record<string, number> = {
+    'Web, Mobile & Software': 120,
+    'Design & Criação': 80,
+    'Vendas & Marketing': 60,
+    'Escrita': 60,
+    'Tradução': 60,
+    'Atendimento ao Consumidor': 60,
+    'Administração & Contabilidade': 90,
+    'Advogados & Leis': 120,
+    'Engenharia & Arquitetura': 140,
+    'Educação & Consultoria': 90,
+    'Suporte Administrativo': 70,
+    'Fotografia & AudioVisual': 100,
+  };
+
+  const detectMinimumOffer = (category: string, budget?: string): number => {
+    const byCategory = categoryMinimumOffer[category] ?? 60;
+    const numeric = Number(String(budget || '').replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.'));
+    if (!Number.isNaN(numeric) && numeric > 0) return numeric;
+    return byCategory;
+  };
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -39,14 +64,18 @@ export default function SendProposal() {
       if (!projectId || !hasApi()) return;
       const res = await apiGetProject(projectId);
       if (!res.ok || !res.project) return;
+      const minimumOffer = detectMinimumOffer(res.project.category, res.project.budget);
       setProject({
         id: res.project.id,
         title: res.project.title,
         description: res.project.description,
         budget: res.project.budget,
+        clientId: res.project.clientId,
         clientName: res.project.clientName || 'Cliente',
         category: res.project.category,
+        minOffer: minimumOffer,
       });
+      if (!offer) setOffer(minimumOffer.toFixed(2));
     }
     loadProject();
   }, [projectId, isAuthenticated, navigate]);
@@ -80,6 +109,11 @@ export default function SendProposal() {
       return;
     }
 
+    if (project && Number(offer) < Number(project.minOffer)) {
+      alert(`A oferta mínima para este projeto é R$ ${project.minOffer.toFixed(2)}.`);
+      return;
+    }
+
     setIsSubmitting(true);
 
     if (!projectId || !user?.id) {
@@ -100,6 +134,17 @@ export default function SendProposal() {
       return;
     }
 
+    if (project?.clientId) {
+      const conv = await apiEnsureConversation(user.id, project.clientId, projectId);
+      if (conv.ok && conv.conversationId) {
+        await apiSendMessage(
+          user.id,
+          conv.conversationId,
+          `Nova proposta enviada para "${project.title}". Oferta: R$ ${parseFloat(offer).toFixed(2)} | Prazo: ${duration}.`
+        );
+      }
+    }
+
     // Update goals
     const goals = JSON.parse(localStorage.getItem(`goals_${user?.id}`) || '[]');
     const sendProposalGoal = goals.find((g: any) => g.id === 'send_proposal');
@@ -115,6 +160,25 @@ export default function SendProposal() {
   };
 
   const offerCalc = calculateFinalOffer();
+
+  const finalSuggested = project ? Math.round(project.minOffer * 1.25) : 0;
+
+  const handleAskQuestion = async () => {
+    if (!project || !user?.id) return;
+    if (!project.clientId) {
+      navigate('/messages');
+      return;
+    }
+    setQuestionLoading(true);
+    const conv = await apiEnsureConversation(user.id, project.clientId, project.id);
+    if (conv.ok && conv.conversationId) {
+      await apiSendMessage(user.id, conv.conversationId, `Olá! Tenho uma dúvida sobre o projeto: "${project.title}".`);
+      navigate(`/messages?conversation=${conv.conversationId}`);
+      return;
+    }
+    setQuestionLoading(false);
+    alert(conv.error || 'Não foi possível abrir a conversa com o cliente.');
+  };
 
   if (!project) {
     return (
@@ -145,37 +209,66 @@ export default function SendProposal() {
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Enviar Proposta</h1>
-        <p className="text-gray-500 mb-8">{project.title}</p>
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-4xl font-light text-gray-800 leading-tight">{project.title} <span className="font-normal">(+ detalhes)</span></h1>
+          <Link to={`/project/${project.id}`} className="text-99blue hover:underline text-sm">Voltar à página do projeto</Link>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Form */}
           <div className="lg:col-span-2">
-            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm p-6 space-y-6">
+            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm p-6 space-y-6 border border-gray-100">
+              <div className="bg-sky-100 border border-sky-200 text-sky-900 text-sm p-3">
+                Para ver o valor médio das propostas e a duração média estimada, assine um de nossos planos.
+              </div>
               {/* Offer */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Sua oferta (R$)
-                </label>
-                <div className="relative">
-                  <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="number"
-                    value={offer}
-                    onChange={(e) => setOffer(e.target.value)}
-                    placeholder="0,00"
-                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
-                  />
+                <h2 className="text-2xl font-light text-gray-800 mb-4">Enviar proposta</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">Sua oferta</label>
+                    <div className="flex border border-gray-300">
+                      <span className="px-3 py-2 text-sm bg-gray-100 border-r border-gray-300">R$</span>
+                      <input
+                        type="number"
+                        value={offer}
+                        onChange={(e) => setOffer(e.target.value)}
+                        placeholder="0,00"
+                        className="w-full px-3 py-2 outline-none"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-600 mt-1">(Oferta mínima: R$ {project.minOffer.toFixed(2)})</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">Oferta final</label>
+                    <div className="flex border border-gray-300 bg-gray-50">
+                      <span className="px-3 py-2 text-sm bg-gray-100 border-r border-gray-300">R$</span>
+                      <input type="text" value={(Number(offer || 0) * 1.25).toFixed(2)} readOnly className="w-full px-3 py-2 outline-none bg-gray-50" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowCalculator(!showCalculator)}
+                      className="mt-1 text-xs text-99blue hover:underline inline-flex items-center"
+                    >
+                      <Calculator className="w-3.5 h-3.5 mr-1" />
+                      Como é calculada?
+                    </button>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">Duração estimada</label>
+                    <div className="flex border border-gray-300">
+                      <input
+                        type="number"
+                        value={duration}
+                        onChange={(e) => setDuration(e.target.value)}
+                        placeholder="0"
+                        className="w-full px-3 py-2 outline-none"
+                      />
+                      <span className="px-3 py-2 text-sm bg-gray-100 border-l border-gray-300">dias</span>
+                    </div>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowCalculator(!showCalculator)}
-                  className="mt-2 text-sm text-99blue hover:underline flex items-center"
-                >
-                  <Calculator className="w-4 h-4 mr-1" />
-                  Usar calculadora
-                </button>
 
                 {showCalculator && (
                   <div className="mt-4 p-4 bg-gray-50 rounded-lg">
@@ -226,25 +319,12 @@ export default function SendProposal() {
                       <span>Você receberá:</span>
                       <span className="text-green-600">R$ {offerCalc.net.toFixed(2)}</span>
                     </div>
+                    <div className="flex justify-between text-sm mt-2">
+                      <span className="text-gray-600">Oferta sugerida do nicho:</span>
+                      <span className="font-medium">R$ {finalSuggested.toFixed(2)}</span>
+                    </div>
                   </div>
                 )}
-              </div>
-
-              {/* Duration */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Duração estimada
-                </label>
-                <div className="relative">
-                  <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    value={duration}
-                    onChange={(e) => setDuration(e.target.value)}
-                    placeholder="Ex: 7 dias, 2 semanas"
-                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent"
-                  />
-                </div>
               </div>
 
               {/* Details */}
@@ -261,6 +341,7 @@ export default function SendProposal() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue focus:border-transparent resize-none"
                 />
                 <p className="text-right text-sm text-gray-500 mt-1">{details.length}/5000</p>
+                <p className="text-sm text-red-500 mt-2">Atenção: não compartilhe suas informações de contato.</p>
               </div>
 
               {/* Submit */}
@@ -274,7 +355,7 @@ export default function SendProposal() {
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting || !offer || !duration || !details}
+                  disabled={isSubmitting || !offer || !duration || !details || Number(offer) < project.minOffer}
                   className="px-8 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? 'Enviando...' : 'Enviar Proposta'}
@@ -285,16 +366,16 @@ export default function SendProposal() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Project Info */}
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Sobre o projeto</h3>
-              <p className="text-sm text-gray-600 mb-4">{project.description}</p>
-              {project.budget && (
-                <div className="flex items-center text-sm text-gray-500">
-                  <DollarSign className="w-4 h-4 mr-1" />
-                  Orçamento: {project.budget}
-                </div>
-              )}
+              <h3 className="text-xl font-light text-gray-800 mb-4">Tem dúvidas? Envie uma mensagem para o cliente!</h3>
+              <button
+                type="button"
+                onClick={handleAskQuestion}
+                disabled={questionLoading}
+                className="px-6 py-3 bg-green-500 text-white rounded hover:bg-green-600 transition-colors font-medium"
+              >
+                {questionLoading ? 'Abrindo...' : 'Fazer pergunta'}
+              </button>
             </div>
 
             {/* Tips */}

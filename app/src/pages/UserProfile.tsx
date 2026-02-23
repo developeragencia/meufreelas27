@@ -77,7 +77,7 @@ export default function UserProfile() {
       }
 
       const users = loadUsers().filter((u) => u?.type === 'freelancer' || u?.hasFreelancerAccount);
-      const found = users.find((u) => toUsername(String(u?.name || u?.id || '')) === username);
+      const found = users.find((u) => toUsername(String(u?.name || u?.id || '')) === username || String(u?.id || '') === username);
       if (!found) {
         setProfile(null);
         return;

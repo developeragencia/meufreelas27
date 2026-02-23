@@ -1185,7 +1185,7 @@ export default function ProjectDetail() {
                       navigate('/login');
                       return;
                     }
-                    setShowProposalForm(true);
+                    navigate(`/project/bid/${project.id}`);
                   }}
                   className="w-full py-3 bg-99blue text-white rounded-lg hover:bg-sky-400 transition-colors font-medium flex items-center justify-center mb-3"
                 >

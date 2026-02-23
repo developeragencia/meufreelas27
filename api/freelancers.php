@@ -128,7 +128,7 @@ if ($action === 'get') {
         exit;
     }
     foreach ($items as $item) {
-        if ($item['username'] === $username) {
+        if ($item['username'] === $username || $item['id'] === $username) {
             echo json_encode(['ok' => true, 'freelancer' => $item]);
             exit;
         }
