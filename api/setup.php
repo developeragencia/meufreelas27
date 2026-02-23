@@ -7,6 +7,13 @@
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
 
+$apiDir = __DIR__;
+$envFile = $apiDir . '/.env';
+$envExample = $apiDir . '/.env.example';
+if (!file_exists($envFile) && file_exists($envExample) && is_readable($envExample)) {
+    @copy($envExample, $envFile);
+}
+
 require_once __DIR__ . '/db.php';
 $dbCfg = mf_db_config();
 $dbHost = $dbCfg['host'];
