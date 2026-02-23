@@ -598,12 +598,6 @@ export default function Freelancers() {
                           <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1" />
                           Registrado desde: <strong className="ml-1 text-gray-700">{freelancer.memberSince}</strong>
                         </span>
-                        <span>
-                          Plano: <strong className="ml-1 text-gray-700 uppercase">{freelancer.planTier}</strong>
-                        </span>
-                        <span>
-                          Completude: <strong className="ml-1 text-gray-700">{freelancer.profileCompletion}%</strong>
-                        </span>
                       </div>
 
                       <p className="text-gray-800 font-medium text-sm md:text-base mb-2">{freelancer.title}</p>

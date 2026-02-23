@@ -173,20 +173,6 @@ export default function UserProfile() {
     return Array.from({ length: 5 }, (_, i) => i < Math.floor(rating));
   }, [profile?.rating]);
 
-  const completionScore = useMemo(() => {
-    if (!profile) return 0;
-    if (profile.profileCompletion > 0) return profile.profileCompletion;
-    let score = 0;
-    if (profile.name.trim()) score += 10;
-    if (profile.title.trim()) score += 20;
-    if (profile.bio.trim() && profile.bio !== 'Sem biografia cadastrada.') score += 20;
-    if (profile.avatar.trim()) score += 10;
-    if ((profile.skills?.length || 0) >= 3) score += 15;
-    if ((profile.completedProjects || 0) > 0) score += 15;
-    if (profile.isVerified) score += 10;
-    return Math.min(100, score);
-  }, [profile]);
-
   const inviteHref = !isAuthenticated ? '/register' : user?.type === 'client' ? '/project/new' : '/projects';
 
   const reputationBadges = useMemo(() => {
@@ -256,6 +242,15 @@ export default function UserProfile() {
               <div className="mt-2 text-sm text-gray-600">
                 Ranking: <strong>{profile.ranking || '-'}</strong> | Projetos concluídos: <strong>{profile.completedProjects}</strong> | Recomendações: <strong>{profile.recommendations}</strong> | Registrado desde: <strong>{profile.memberSince}</strong>
               </div>
+              {reputationBadges.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {reputationBadges.map((badge) => (
+                    <span key={badge} className="px-3 py-1.5 rounded-full text-xs font-medium bg-99blue/10 text-99blue">
+                      {badge}
+                    </span>
+                  ))}
+                </div>
+              )}
               <div className="flex items-center gap-2 mt-3 text-sm text-gray-600">
                 <div className="flex items-center">
                   {stars.map((filled, i) => (
@@ -332,30 +327,6 @@ export default function UserProfile() {
           <p className="text-gray-700">Avaliação média: {profile.rating.toFixed(2)}.</p>
           <p className="text-gray-700">Projetos concluídos: {profile.completedProjects}.</p>
           <p className="text-gray-700">Recomendações: {profile.recommendations}.</p>
-        </section>
-
-        <section className="bg-white rounded-2xl shadow-sm p-6 md:p-8 mt-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">Completude, Selo e Reputação</h2>
-          <div className="mb-4">
-            <div className="flex items-center justify-between text-sm mb-2">
-              <span className="text-gray-500">Completude do perfil</span>
-              <span className="font-semibold text-99blue">{completionScore}%</span>
-            </div>
-            <div className="w-full h-2 bg-gray-200 rounded-full">
-              <div className="h-full rounded-full bg-99blue transition-all" style={{ width: `${completionScore}%` }} />
-            </div>
-          </div>
-          {reputationBadges.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {reputationBadges.map((badge) => (
-                <span key={badge} className="px-3 py-1.5 rounded-full text-xs font-medium bg-99blue/10 text-99blue">
-                  {badge}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500">Sem selos no momento.</p>
-          )}
         </section>
 
         <section className="bg-white rounded-2xl shadow-sm p-6 md:p-8 mt-6">
