@@ -2,7 +2,7 @@
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../db.php';
 
-$stripeWebhookSecret = trim((string)(mf_env('STRIPE_WEBHOOK_SECRET', '')));
+$stripeWebhookSecret = trim((string)(mf_first_env(['STRIPE_WEBHOOK_SECRET', 'STRIPE_WEBHOOK_SECRET_KEY'], '')));
 
 try {
     $pdo = mf_pdo();

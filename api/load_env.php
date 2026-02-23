@@ -25,18 +25,18 @@ $envKeys = [
     'DATABASE_URL', 'DB_PASSWORD',
     'API_ORIGIN', 'FRONTEND_URL',
     'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM', 'SMTP_FROM_NAME', 'SMTP_SECURE',
-    'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET',
-    'MERCADOPAGO_ACCESS_TOKEN', 'MERCADOPAGO_WEBHOOK_URL', 'MERCADOPAGO_WEBHOOK_SECRET',
+    'STRIPE_SECRET_KEY', 'STRIPE_SECRET', 'STRIPE_API_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_WEBHOOK_SECRET_KEY',
+    'MERCADOPAGO_ACCESS_TOKEN', 'MP_ACCESS_TOKEN', 'MERCADOPAGO_WEBHOOK_URL', 'MERCADOPAGO_WEBHOOK_SECRET',
     'JWT_SECRET', 'JWT_REFRESH_SECRET', 'JWT_ACCESS_EXP', 'JWT_REFRESH_EXP',
     'VITE_API_URL', 'VITE_API_FALLBACK_URL', 'VITE_APP_DOMAIN'
 ];
 foreach ($envKeys as $k) {
     $v = getenv($k);
     if ($v !== false && $v !== '') {
-        $_ENV[$k] = $v;
+        $_ENV[$k] = is_string($v) ? trim($v) : $v;
     }
     // Alguns ambientes (ex.: Hostinger) expõem variáveis em $_SERVER
     if (empty($_ENV[$k]) && isset($_SERVER[$k]) && $_SERVER[$k] !== '') {
-        $_ENV[$k] = (string) $_SERVER[$k];
+        $_ENV[$k] = trim((string) $_SERVER[$k]);
     }
 }

@@ -2,7 +2,7 @@
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../db.php';
 
-$mpAccessToken = trim((string)(mf_env('MERCADOPAGO_ACCESS_TOKEN', '')));
+$mpAccessToken = trim((string)(mf_first_env(['MERCADOPAGO_ACCESS_TOKEN', 'MP_ACCESS_TOKEN'], '')));
 
 try {
     $pdo = mf_pdo();

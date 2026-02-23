@@ -19,10 +19,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 require_once __DIR__ . '/db.php';
 
 $frontendUrl = rtrim((string)(mf_first_env(['FRONTEND_URL', 'VITE_APP_DOMAIN'], 'https://meufreelas.com.br')), '/');
-$stripeSecret = trim((string)(mf_env('STRIPE_SECRET_KEY', '')));
-$mpAccessToken = trim((string)(mf_env('MERCADOPAGO_ACCESS_TOKEN', '')));
+$stripeSecret = trim((string)(mf_first_env(['STRIPE_SECRET_KEY', 'STRIPE_SECRET', 'STRIPE_API_KEY'], '')));
+$mpAccessToken = trim((string)(mf_first_env(['MERCADOPAGO_ACCESS_TOKEN', 'MP_ACCESS_TOKEN'], '')));
 $apiOrigin = rtrim((string)(mf_env('API_ORIGIN', 'https://meufreelas.com.br')), '/');
-$mpWebhookUrl = trim((string)(mf_env('MERCADOPAGO_WEBHOOK_URL', $apiOrigin . '/api/webhooks/mercadopago.php')));
+$mpWebhookUrl = trim((string)(mf_first_env(['MERCADOPAGO_WEBHOOK_URL'], $apiOrigin . '/api/webhooks/mercadopago.php')));
 
 try {
     $pdo = mf_pdo();
