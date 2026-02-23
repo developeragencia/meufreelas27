@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { hasApi, apiCreateSubscriptionCheckout } from '../lib/api';
+import BrandLogo from '../components/BrandLogo';
 import { 
   Crown, Check, Zap, TrendingUp, Shield, MessageCircle,
   Clock, Award, Users, Sparkles,
@@ -28,7 +29,7 @@ interface Feature {
 
 export default function Premium() {
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, switchAccountType } = useAuth();
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -175,7 +176,7 @@ export default function Premium() {
       return;
     }
     if (planId === 'free') {
-      navigate('/dashboard');
+      navigate('/freelancer/dashboard');
       return;
     }
     setSelectedPlan(planId);
@@ -202,15 +203,53 @@ export default function Premium() {
     setCheckoutError(res.error || 'Não foi possível abrir o checkout. Tente novamente.');
   };
 
+  if (isAuthenticated && user?.type !== 'freelancer') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white w-full max-w-xl rounded-2xl shadow-lg border border-gray-200 p-8 text-center">
+          <div className="mb-4 inline-flex items-center justify-center w-14 h-14 rounded-full bg-yellow-100 text-yellow-700">
+            <Crown className="w-7 h-7" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Assinatura para freelancers</h1>
+          <p className="text-gray-600 mb-6">
+            O plano Premium e Pro estao disponiveis somente para perfis freelancer.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            {user?.hasFreelancerAccount ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  const ok = await switchAccountType();
+                  if (ok) navigate('/premium');
+                }}
+                className="px-5 py-3 bg-99blue text-white rounded-lg hover:bg-99blue-light transition-colors font-medium"
+              >
+                Alternar para Freelancer
+              </button>
+            ) : (
+              <Link
+                to="/freelancer/dashboard"
+                className="px-5 py-3 bg-99blue text-white rounded-lg hover:bg-99blue-light transition-colors font-medium"
+              >
+                Ir para painel freelancer
+              </Link>
+            )}
+            <Link to="/dashboard" className="px-5 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
+              Voltar ao painel cliente
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Header */}
       <header className="bg-99dark text-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
-            <Link to="/" className="text-2xl font-bold">
-              meu<span className="font-light">freelas</span>
-            </Link>
+            <BrandLogo to="/" darkBg />
             <nav className="flex items-center space-x-6">
               <Link to="/projects" className="text-gray-300 hover:text-white">Projetos</Link>
               <Link to="/freelancers" className="text-gray-300 hover:text-white">Freelancers</Link>
@@ -513,9 +552,7 @@ export default function Premium() {
       <footer className="bg-99dark text-white py-8">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between">
-            <Link to="/" className="text-2xl font-bold mb-4 md:mb-0">
-              meu<span className="font-light">freelas</span>
-            </Link>
+            <BrandLogo to="/" className="mb-4 md:mb-0" darkBg />
             <div className="flex items-center space-x-6 text-sm text-gray-400">
               <Link to="/termos" className="hover:text-white">Termos de Uso</Link>
               <Link to="/privacidade" className="hover:text-white">Privacidade</Link>

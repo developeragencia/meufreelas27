@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { apiEnsureConversation, apiListReviews, apiSendMessage, hasApi } from '../lib/api';
+import BrandLogo from '../components/BrandLogo';
 import { 
   ArrowLeft, 
   Star, 
@@ -210,15 +211,33 @@ export default function FreelancerProfile() {
     );
   }
 
+  const completionScore = (() => {
+    let score = 0;
+    if (freelancer.avatar?.trim()) score += 10;
+    if (freelancer.title?.trim() && freelancer.title !== 'Freelancer Profissional') score += 15;
+    if (freelancer.description?.trim() && freelancer.description.length > 40) score += 20;
+    if ((freelancer.skills?.length || 0) >= 3) score += 15;
+    if (freelancer.location?.trim()) score += 10;
+    if (freelancer.hourlyRate && freelancer.hourlyRate !== 'R$ 0') score += 10;
+    if (freelancer.isVerified) score += 10;
+    if ((freelancer.completedProjects || 0) > 0 || freelancer.rating > 0) score += 10;
+    return Math.min(100, score);
+  })();
+
+  const reputationBadges = [
+    freelancer.isVerified ? 'Perfil Verificado' : null,
+    freelancer.isPremium ? 'Premium' : null,
+    freelancer.rating >= 4.5 ? 'Alta Avaliação' : null,
+    freelancer.completedProjects >= 3 ? 'Projetos Entregues' : null,
+  ].filter(Boolean) as string[];
+
   return (
     <div className="min-h-screen bg-gray-100 overflow-x-hidden">
       {/* Header */}
       <header className="bg-99dark text-white">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
-            <Link to="/" className="text-2xl font-bold">
-              meu<span className="font-light">freelas</span>
-            </Link>
+            <BrandLogo to="/" darkBg />
             <nav className="hidden md:flex items-center space-x-6">
               <Link to="/projects" className="text-gray-300 hover:text-white">Projetos</Link>
               <Link to="/freelancers" className="text-gray-300 hover:text-white">Freelancers</Link>
@@ -565,6 +584,30 @@ export default function FreelancerProfile() {
                   <span className="font-semibold">{freelancer.rating.toFixed(1)}</span>
                 </div>
               </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h3 className="text-sm font-medium text-gray-500 mb-4">Completude, selo e reputação</h3>
+              <div className="mb-4">
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span className="text-gray-500">Completude do perfil</span>
+                  <span className="text-99blue font-semibold">{completionScore}%</span>
+                </div>
+                <div className="w-full h-2 bg-gray-200 rounded-full">
+                  <div className="h-full bg-99blue rounded-full transition-all" style={{ width: `${completionScore}%` }} />
+                </div>
+              </div>
+              {reputationBadges.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {reputationBadges.map((badge) => (
+                    <span key={badge} className="px-3 py-1 rounded-full text-xs font-medium bg-99blue/10 text-99blue">
+                      {badge}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">Sem selos de reputação ainda.</p>
+              )}
             </div>
 
             {/* Actions */}

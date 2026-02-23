@@ -42,7 +42,7 @@ export default function Home() {
             <div className="flex items-center justify-between h-14">
               {/* Logo */}
               <div className="flex items-center">
-                <BrandLogo heightClassName="h-8" />
+                <BrandLogo heightClassName="h-8" darkBg />
               </div>
 
               {/* Search Bar */}

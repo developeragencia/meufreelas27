@@ -15,7 +15,6 @@ import {
   Search,
   CreditCard,
   Wallet,
-  Crown,
   ChevronDown,
   ChevronRight,
   RefreshCw,
@@ -33,6 +32,7 @@ import {
   GitBranch,
 } from 'lucide-react';
 import GoalsWidget from '../components/GoalsWidget';
+import BrandLogo from '../components/BrandLogo';
 import { apiListNotifications, apiListPayments, apiListProjects, hasApi } from '../lib/api';
 
 interface Project {
@@ -183,7 +183,6 @@ export default function ClientDashboard() {
         { icon: User, label: 'Dados da conta', href: '/profile/edit' },
         { icon: CreditCard, label: 'Cartões', href: '/account?tab=cards' },
         { icon: Wallet, label: 'Pagamentos', href: '/payments' },
-        { icon: Crown, label: 'Assinatura', href: '/premium' },
       ],
     },
     {
@@ -309,9 +308,7 @@ export default function ClientDashboard() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
-              <Link to="/" className="text-2xl font-bold">
-                meu<span className="font-light">freelas</span>
-              </Link>
+              <BrandLogo to="/" darkBg />
             </div>
             <div className="flex items-center space-x-4">
               <button
@@ -358,9 +355,7 @@ export default function ClientDashboard() {
           >
             <Menu className="w-6 h-6" />
           </button>
-          <Link to="/" className="text-xl font-bold">
-            meu<span className="font-light">freelas</span>
-          </Link>
+          <BrandLogo to="/" darkBg heightClassName="h-7" />
           <Link to="/notifications" className="relative p-2">
             <Bell className="w-5 h-5" />
             {notifications > 0 && (

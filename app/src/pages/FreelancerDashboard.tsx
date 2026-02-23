@@ -6,9 +6,10 @@ import {
   Settings, Bell, Search, TrendingUp, LogOut, User, FileText,
   Award, CreditCard, Building2, Wallet, Crown,
   ChevronDown, ChevronRight, RefreshCw, Plus, Building,
-  BarChart3, Menu, X, Home, Folder
+  BarChart3, Menu, X, Home, Folder, HelpCircle, BookOpen, Type, GitBranch, FileCheck, MapPin, RotateCcw
 } from 'lucide-react';
 import GoalsWidget from '../components/GoalsWidget';
+import BrandLogo from '../components/BrandLogo';
 import { apiListNotifications, apiListPayments, apiListProposals, hasApi } from '../lib/api';
 import { calculateFreelancerProfileCompletion } from '../lib/profileCompletion';
 
@@ -36,7 +37,7 @@ export default function FreelancerDashboard() {
   const navigate = useNavigate();
   const { user, logout, switchAccountType, createSecondaryAccount } = useAuth();
   const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [expandedSections, setExpandedSections] = useState<string[]>(['projects']);
+  const [expandedSections, setExpandedSections] = useState<string[]>(['projetos', 'perfil', 'conta', 'ferramentas', 'ajuda']);
   const [showSwitchModal, setShowSwitchModal] = useState(false);
   const [switchLoading, setSwitchLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -133,7 +134,22 @@ export default function FreelancerDashboard() {
     { label: 'Ganhos', value: earnings, icon: DollarSign, color: 'bg-purple-500' },
     { label: 'Avaliação', value: (user.rating != null ? user.rating : 0).toFixed(1), icon: Star, color: 'bg-yellow-500' },
   ];
-  const profileCompletion = calculateFreelancerProfileCompletion(user);
+  const savedProfile = (() => {
+    try {
+      const raw = localStorage.getItem(`profile_${user.id}`);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  })();
+  const profileCompletion = calculateFreelancerProfileCompletion({
+    ...user,
+    bio: user.bio || savedProfile.bio,
+    skills: (Array.isArray(savedProfile.skills) ? savedProfile.skills.map((s: any) => (typeof s === 'string' ? s : s?.name)).filter(Boolean) : user.skills) || [],
+    hourlyRate: user.hourlyRate || savedProfile.hourlyRate,
+    phone: user.phone || savedProfile.phone,
+    location: user.location || savedProfile.location,
+  });
   const badges = [
     user.isVerified ? 'Perfil Verificado' : null,
     user.isPremium ? 'Premium' : null,
@@ -142,7 +158,7 @@ export default function FreelancerDashboard() {
   ].filter(Boolean) as string[];
 
   const quickLinks: MenuItem[] = [
-    { icon: MessageSquare, label: 'Mensagens', href: '/messages' },
+    { icon: MessageSquare, label: 'Mensagens', href: '/messages', badge: notifications },
     { icon: DollarSign, label: 'Pagamentos', href: '/payments' },
     { icon: Settings, label: 'Configurações', href: '/settings' },
   ];
@@ -170,6 +186,7 @@ export default function FreelancerDashboard() {
         { icon: CreditCard, label: 'Cartões', href: '/account?tab=cards' },
         { icon: Building2, label: 'Conta bancária', href: '/account?tab=bank' },
         { icon: Wallet, label: 'Pagamentos', href: '/account?tab=payments' },
+        { icon: FileCheck, label: 'Verificações', href: '/account?tab=verification' },
         { icon: Crown, label: 'Assinatura', href: '/premium' },
       ]
     },
@@ -178,6 +195,18 @@ export default function FreelancerDashboard() {
       items: [
         { icon: TrendingUp, label: 'Calculadora', href: '/tools' },
         { icon: BarChart3, label: 'Análise', href: '/analytics' },
+        { icon: RotateCcw, label: 'Histórico de reembolsos', href: '/payments?tab=refunds' },
+        { icon: MapPin, label: 'Informações de localização', href: '/account?tab=location' },
+      ]
+    },
+    {
+      title: 'Ajuda',
+      items: [
+        { icon: GitBranch, label: 'Fluxo de um projeto', href: '/como-funciona#fluxo' },
+        { icon: HelpCircle, label: 'Como funciona', href: '/como-funciona' },
+        { icon: MessageSquare, label: 'Central de ajuda', href: '/ajuda' },
+        { icon: Type, label: 'Formatação de textos', href: '/formatacao-de-textos' },
+        { icon: BookOpen, label: 'Blog', href: '/blog' },
       ]
     },
   ];
@@ -279,9 +308,7 @@ export default function FreelancerDashboard() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
-              <Link to="/" className="text-2xl font-bold">
-                meu<span className="font-light">freelas</span>
-              </Link>
+              <BrandLogo to="/" darkBg />
             </div>
             <div className="flex items-center space-x-4">
               <button
@@ -292,6 +319,14 @@ export default function FreelancerDashboard() {
                 <RefreshCw className="w-4 h-4 mr-2" />
                 {user.hasClientAccount ? 'Alternar' : 'Criar Cliente'}
               </button>
+              <Link to="/messages" className="relative p-2 text-gray-300 hover:text-white" title="Mensagens">
+                <MessageSquare className="w-5 h-5" />
+                {notifications > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                    {notifications > 99 ? '99+' : notifications}
+                  </span>
+                )}
+              </Link>
               <Link to="/notifications" className="relative p-2 text-gray-300 hover:text-white">
                 <Bell className="w-5 h-5" />
                 {notifications > 0 && (
@@ -316,9 +351,7 @@ export default function FreelancerDashboard() {
           >
             <Menu className="w-6 h-6" />
           </button>
-          <Link to="/" className="text-xl font-bold">
-            meu<span className="font-light">freelas</span>
-          </Link>
+          <BrandLogo to="/" darkBg heightClassName="h-7" />
           <Link to="/notifications" className="relative p-2">
             <Bell className="w-5 h-5" />
             {notifications > 0 && (
@@ -378,6 +411,17 @@ export default function FreelancerDashboard() {
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-semibold text-gray-800">Meu perfil</h2>
+              <Link to="/profile/edit" className="text-99blue text-sm hover:underline">Editar</Link>
+            </div>
+            <p className="text-sm text-gray-500">
+              {user.isPremium ? 'Conta premium ativa.' : 'Membro basico. '}
+              {!user.isPremium && <Link to="/premium" className="text-99blue font-medium hover:underline">Seja premium.</Link>}
+            </p>
           </div>
 
           <div className="bg-white rounded-xl shadow-sm p-4 mb-6">

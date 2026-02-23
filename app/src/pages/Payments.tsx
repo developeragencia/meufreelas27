@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { apiListPayments, apiReleasePayment, hasApi } from '../lib/api';
+import BrandLogo from '../components/BrandLogo';
 import { 
   DollarSign, 
   CreditCard, 
@@ -26,12 +27,15 @@ interface Transaction {
 
 export default function Payments() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'resumo' | 'historico' | 'saque'>('resumo');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') === 'refunds' ? 'reembolsos' : 'resumo';
+  const [activeTab, setActiveTab] = useState<'resumo' | 'historico' | 'saque' | 'reembolsos'>(initialTab);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [balance, setBalance] = useState('R$ 0,00');
   const [pending, setPending] = useState('R$ 0,00');
   const [monthReceived, setMonthReceived] = useState('R$ 0,00');
   const [releasingId, setReleasingId] = useState<string | null>(null);
+  const isFreelancer = user?.type === 'freelancer';
 
   const loadPayments = async () => {
     if (!user?.id || !hasApi()) {
@@ -56,6 +60,13 @@ export default function Payments() {
   useEffect(() => {
     loadPayments();
   }, [user]);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'refunds') {
+      setActiveTab('reembolsos');
+    }
+  }, [searchParams]);
 
   const handleReleasePayment = async (paymentId: string) => {
     if (!user?.id || user.type !== 'client') return;
@@ -95,9 +106,7 @@ export default function Payments() {
       <header className="bg-99dark text-white">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
-            <Link to="/" className="text-2xl font-bold">
-              meu<span className="font-light">freelas</span>
-            </Link>
+            <BrandLogo to="/" darkBg />
             <Link to={user?.type === 'freelancer' ? '/freelancer/dashboard' : '/dashboard'} className="text-gray-300 hover:text-white">
               Voltar ao Dashboard
             </Link>
@@ -110,17 +119,25 @@ export default function Payments() {
 
         {/* Tabs */}
         <div className="flex space-x-2 mb-6">
-          {(['resumo', 'historico', 'saque'] as const).map((tab) => (
+          {([
+            'resumo',
+            'historico',
+            ...(isFreelancer ? (['saque'] as const) : []),
+            'reembolsos',
+          ] as const).map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                setActiveTab(tab);
+                setSearchParams(tab === 'reembolsos' ? { tab: 'refunds' } : {});
+              }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === tab
                   ? 'bg-99blue text-white'
                   : 'bg-white text-gray-600 hover:bg-gray-50'
               }`}
             >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === 'reembolsos' ? 'Reembolsos' : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </div>
@@ -135,7 +152,7 @@ export default function Payments() {
                     <Wallet className="w-6 h-6 text-green-600" />
                   </div>
                 </div>
-                <p className="text-gray-500 text-sm">Saldo disponível</p>
+                <p className="text-gray-500 text-sm">{isFreelancer ? 'Saldo disponível' : 'Total pago'}</p>
                 <p className="text-3xl font-semibold text-gray-800">{balance}</p>
               </div>
 
@@ -145,7 +162,7 @@ export default function Payments() {
                     <Clock className="w-6 h-6 text-yellow-600" />
                   </div>
                 </div>
-                <p className="text-gray-500 text-sm">Valor pendente</p>
+                <p className="text-gray-500 text-sm">{isFreelancer ? 'Valor pendente' : 'Pagamentos pendentes'}</p>
                 <p className="text-3xl font-semibold text-gray-800">{pending}</p>
               </div>
 
@@ -155,7 +172,7 @@ export default function Payments() {
                     <TrendingUp className="w-6 h-6 text-blue-600" />
                   </div>
                 </div>
-                <p className="text-gray-500 text-sm">Total recebido (mês)</p>
+                <p className="text-gray-500 text-sm">{isFreelancer ? 'Total recebido (mês)' : 'Total gasto (mês)'}</p>
                 <p className="text-3xl font-semibold text-gray-800">{monthReceived}</p>
               </div>
             </div>
@@ -164,18 +181,30 @@ export default function Payments() {
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">Ações Rápidas</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button 
-                  onClick={() => setActiveTab('saque')}
-                  className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-99blue hover:bg-sky-50 transition-colors"
-                >
-                  <div className="p-3 bg-99blue rounded-lg mr-4">
-                    <DollarSign className="w-6 h-6 text-white" />
+                {isFreelancer ? (
+                  <button
+                    onClick={() => setActiveTab('saque')}
+                    className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-99blue hover:bg-sky-50 transition-colors"
+                  >
+                    <div className="p-3 bg-99blue rounded-lg mr-4">
+                      <DollarSign className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium text-gray-800">Sacar Dinheiro</p>
+                      <p className="text-sm text-gray-500">Transferir para conta bancária</p>
+                    </div>
+                  </button>
+                ) : (
+                  <div className="flex items-center p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <div className="p-3 bg-gray-300 rounded-lg mr-4">
+                      <DollarSign className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium text-gray-700">Saque indisponível para cliente</p>
+                      <p className="text-sm text-gray-500">Clientes fazem pagamentos, freelancers realizam saques.</p>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <p className="font-medium text-gray-800">Sacar Dinheiro</p>
-                    <p className="text-sm text-gray-500">Transferir para conta bancária</p>
-                  </div>
-                </button>
+                )}
 
                 <button className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-99blue hover:bg-sky-50 transition-colors">
                   <div className="p-3 bg-purple-500 rounded-lg mr-4">
@@ -259,7 +288,7 @@ export default function Payments() {
           </div>
         )}
 
-        {activeTab === 'saque' && (
+        {activeTab === 'saque' && isFreelancer && (
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-6">Solicitar Saque</h2>
             
@@ -309,6 +338,21 @@ export default function Payments() {
                 O saque será processado em até 2 dias úteis.
               </p>
             </form>
+          </div>
+        )}
+
+        {activeTab === 'reembolsos' && (
+          <div className="bg-white rounded-lg shadow-sm">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-800">Histórico de Reembolsos</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Lista de estornos e reembolsos processados na plataforma.
+              </p>
+            </div>
+            <div className="p-10 text-center">
+              <AlertCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500">Nenhum reembolso encontrado no momento.</p>
+            </div>
           </div>
         )}
       </div>

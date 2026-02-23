@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { 
   MapPin, Mail, Phone, Globe, Linkedin, Github, 
   Edit, Star, CheckCircle, Award, Briefcase, Clock,
-  DollarSign, FileText, ArrowLeft
+  DollarSign, FileText, ArrowLeft, Shield, Crown
 } from 'lucide-react';
 
 interface ProfileData {
@@ -75,6 +75,30 @@ export default function MyProfile() {
     };
     return labels[avail] || avail;
   };
+
+  const completionScore = (() => {
+    let score = 0;
+    if (user?.name?.trim()) score += 15;
+    if (user?.email?.trim()) score += 15;
+    if (user?.avatar?.trim()) score += 10;
+    if (profile?.bio?.trim()) score += 20;
+    if (profile?.location?.trim()) score += 10;
+    if (profile?.phone?.trim()) score += 10;
+    if (isFreelancer) {
+      if (profile?.hourlyRate?.trim()) score += 10;
+      if ((profile?.skills?.length || 0) >= 3) score += 10;
+    } else {
+      score += 10;
+    }
+    return Math.min(100, score);
+  })();
+
+  const reputationBadges = [
+    user?.isVerified ? 'Perfil Verificado' : null,
+    user?.isPremium ? 'Premium' : null,
+    (stats.rating || 0) >= 4.5 ? 'Alta Avaliação' : null,
+    stats.projectsCompleted > 0 ? 'Projetos Concluídos' : null,
+  ].filter(Boolean) as string[];
 
   return (
     <div className="min-h-screen bg-gray-100 overflow-x-hidden">
@@ -218,6 +242,40 @@ export default function MyProfile() {
                   <span className="text-gray-500">Membro desde</span>
                   <span className="font-medium">{stats.memberSince}</span>
                 </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h3 className="font-semibold text-gray-900 mb-4">Completude do Perfil</h3>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-500">Nível atual</span>
+                <span className="text-sm font-semibold text-99blue">{completionScore}%</span>
+              </div>
+              <div className="w-full h-2 bg-gray-200 rounded-full">
+                <div className="h-full rounded-full bg-99blue transition-all" style={{ width: `${completionScore}%` }} />
+              </div>
+              <p className="text-xs text-gray-500 mt-3">
+                {completionScore >= 80 ? 'Perfil quase completo.' : 'Complete os dados para melhorar sua visibilidade.'}
+              </p>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h3 className="font-semibold text-gray-900 mb-4">Selos e Reputação</h3>
+              {reputationBadges.length === 0 ? (
+                <p className="text-sm text-gray-500">Sem selos ainda. Complete perfil e ganhe avaliações.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {reputationBadges.map((badge) => (
+                    <span key={badge} className="px-3 py-1 text-xs font-medium rounded-full bg-99blue/10 text-99blue">
+                      {badge}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
+                {user?.isVerified ? <Shield className="w-4 h-4 text-green-600" /> : <Shield className="w-4 h-4 text-gray-400" />}
+                {user?.isPremium ? <Crown className="w-4 h-4 text-yellow-500" /> : <Crown className="w-4 h-4 text-gray-400" />}
+                <span>Verificação e plano premium impactam sua reputação.</span>
               </div>
             </div>
 

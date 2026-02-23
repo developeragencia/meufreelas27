@@ -138,8 +138,8 @@ function AppRoutes() {
       <Route path="/blog" element={<Blog />} />
       <Route path="/project/:id" element={<ProjectDetail />} />
       <Route path="/freelancer/:id" element={<FreelancerProfile />} />
-      <Route path="/premium" element={<Premium />} />
-      <Route path="/plans" element={<PremiumPlans />} />
+      <Route path="/premium" element={<ProtectedRoute allowedType="freelancer"><Premium /></ProtectedRoute>} />
+      <Route path="/plans" element={<ProtectedRoute allowedType="freelancer"><PremiumPlans /></ProtectedRoute>} />
       <Route path="/user/:username" element={<UserProfile />} />
       <Route 
         path="/notifications" 

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Star, Heart, MessageSquare, Briefcase, Calendar, CheckCircle, Shield } from 'lucide-react';
+import { Star, Heart, MessageSquare, Briefcase, Calendar, CheckCircle, Shield, Crown } from 'lucide-react';
+import BrandLogo from '../components/BrandLogo';
 
 interface ProfileModel {
   id: string;
@@ -82,6 +83,29 @@ export default function UserProfile() {
     return Array.from({ length: full });
   }, [profile?.rating]);
 
+  const completionScore = useMemo(() => {
+    if (!profile) return 0;
+    let score = 0;
+    if (profile.name.trim()) score += 10;
+    if (profile.title.trim()) score += 20;
+    if (profile.bio.trim() && profile.bio !== 'Sem biografia cadastrada.') score += 20;
+    if (profile.avatar.trim()) score += 10;
+    if ((profile.skills?.length || 0) >= 3) score += 15;
+    if ((profile.completedProjects || 0) > 0) score += 15;
+    if (profile.isVerified) score += 10;
+    return Math.min(100, score);
+  }, [profile]);
+
+  const reputationBadges = useMemo(() => {
+    if (!profile) return [];
+    return [
+      profile.isVerified ? 'Perfil Verificado' : null,
+      profile.isPremium ? 'Premium' : null,
+      profile.rating >= 4.5 ? 'Alta Avaliação' : null,
+      profile.completedProjects >= 3 ? 'Projetos Entregues' : null,
+    ].filter(Boolean) as string[];
+  }, [profile]);
+
   if (!profile) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
@@ -97,7 +121,7 @@ export default function UserProfile() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-99dark text-white">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="text-2xl font-bold">meu<span className="font-light">freelas</span></Link>
+          <BrandLogo to="/" darkBg />
           <div className="flex items-center gap-4">
             <Link to="/freelancers" className="text-gray-300 hover:text-white">Freelancers</Link>
             <Link to="/projects" className="text-gray-300 hover:text-white">Projetos</Link>
@@ -121,6 +145,12 @@ export default function UserProfile() {
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-2xl font-bold text-gray-900">{profile.name}</h1>
                 {profile.isVerified && <Shield className="w-5 h-5 text-sky-500" />}
+                {profile.isPremium && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                    <Crown className="w-3.5 h-3.5" />
+                    Premium
+                  </span>
+                )}
               </div>
               <p className="text-gray-600 mt-1">{profile.title}</p>
               <div className="flex items-center gap-2 mt-3 text-sm text-gray-600">
@@ -158,6 +188,30 @@ export default function UserProfile() {
         <section className="bg-white rounded-2xl shadow-sm p-6 md:p-8 mt-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-3">Sobre</h2>
           <p className="text-gray-700 whitespace-pre-line">{profile.bio}</p>
+        </section>
+
+        <section className="bg-white rounded-2xl shadow-sm p-6 md:p-8 mt-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">Completude, Selo e Reputação</h2>
+          <div className="mb-4">
+            <div className="flex items-center justify-between text-sm mb-2">
+              <span className="text-gray-500">Completude do perfil</span>
+              <span className="font-semibold text-99blue">{completionScore}%</span>
+            </div>
+            <div className="w-full h-2 bg-gray-200 rounded-full">
+              <div className="h-full rounded-full bg-99blue transition-all" style={{ width: `${completionScore}%` }} />
+            </div>
+          </div>
+          {reputationBadges.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {reputationBadges.map((badge) => (
+                <span key={badge} className="px-3 py-1.5 rounded-full text-xs font-medium bg-99blue/10 text-99blue">
+                  {badge}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">Sem selos no momento.</p>
+          )}
         </section>
 
         <section className="bg-white rounded-2xl shadow-sm p-6 md:p-8 mt-6">

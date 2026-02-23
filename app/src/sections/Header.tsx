@@ -22,7 +22,7 @@ export default function Header() {
             {/* Logo */}
             <div className="flex items-center">
               <a href="/" className="flex items-center">
-                <img src="/logo-original.png" alt="MeuFreelas" className="h-8 w-auto" />
+                <img src="/logo-original.png" alt="MeuFreelas" className="h-8 w-auto mix-blend-lighten" />
               </a>
             </div>
 
