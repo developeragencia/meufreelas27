@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Search, ChevronDown, ChevronUp, Clock, Users, FileText, Menu, X, Home, Briefcase, User, MessageSquare, LogOut } from 'lucide-react';
+import { apiListProjects, hasApi } from '../lib/api';
+import { Search, ChevronDown, ChevronUp, Clock, FileText, Menu, X, Home, Briefcase, User, MessageSquare, LogOut, Loader2 } from 'lucide-react';
 
 interface Project {
   id: string;
@@ -20,6 +21,9 @@ interface Project {
   clientReviews?: number;
   isUrgent?: boolean;
   isFeatured?: boolean;
+  budget?: string;
+  status: string;
+  createdAt?: string;
 }
 
 const categories = [
@@ -69,6 +73,30 @@ const sortOptions = [
   { value: 'interested_low', label: 'Menos interessados' }
 ];
 
+function mapExperienceLevel(level?: string): Project['level'] {
+  if (!level) return 'Intermediário';
+  const l = String(level).toLowerCase();
+  if (l === 'beginner' || l === 'iniciante') return 'Iniciante';
+  if (l === 'expert' || l === 'especialista') return 'Especialista';
+  return 'Intermediário';
+}
+
+function formatPublishedAt(createdAt?: string): string {
+  if (!createdAt) return '';
+  try {
+    const d = new Date(createdAt);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+    if (diffDays === 0) return 'Publicado hoje';
+    if (diffDays === 1) return 'Publicado ontem';
+    if (diffDays < 7) return `Publicado há ${diffDays} dias`;
+    return d.toLocaleDateString('pt-BR');
+  } catch {
+    return 'Publicado';
+  }
+}
+
 function loadProjectsFromStorage(): Project[] {
   try {
     const raw = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]');
@@ -77,8 +105,8 @@ function loadProjectsFromStorage(): Project[] {
       title: p.title || '',
       category: p.category || 'Outra Categoria',
       subcategory: p.subcategory,
-      level: (p.experienceLevel === 'expert' ? 'Especialista' : p.experienceLevel === 'beginner' ? 'Iniciante' : 'Intermediário') as Project['level'],
-      publishedAt: p.createdAt ? 'Publicado' : '',
+      level: mapExperienceLevel(p.experienceLevel),
+      publishedAt: p.createdAt ? formatPublishedAt(p.createdAt) : '',
       timeRemaining: '',
       proposals: 0,
       interested: 0,
@@ -87,6 +115,9 @@ function loadProjectsFromStorage(): Project[] {
       clientUsername: p.clientUsername || '',
       isFeatured: false,
       isUrgent: false,
+      budget: p.budget,
+      status: 'Aberto',
+      createdAt: p.createdAt,
     }));
   } catch {
     return [];
@@ -103,11 +134,9 @@ const menuItems = [
 export default function Projects() {
   const { user, isAuthenticated, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [projects, setProjects] = useState<Project[]>(() => loadProjectsFromStorage());
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
   const [keywords, setKeywords] = useState('');
-  useEffect(() => {
-    setProjects(loadProjectsFromStorage());
-  }, []);
   const [selectedCategory, setSelectedCategory] = useState('Todas as categorias');
   const [featuredOnly, setFeaturedOnly] = useState(false);
   const [urgentOnly, setUrgentOnly] = useState(false);
@@ -118,6 +147,53 @@ export default function Projects() {
   const [expandedProjects, setExpandedProjects] = useState<string[]>([]);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      if (hasApi()) {
+        const res = await apiListProjects({
+          status: 'Aberto',
+          search: keywords.trim() || undefined,
+          category: selectedCategory !== 'Todas as categorias' ? selectedCategory : undefined,
+          sortBy: sortBy === 'newest' ? 'recent' : 'relevance',
+        });
+        if (cancelled) return;
+        if (res.ok && res.projects) {
+          const list: Project[] = res.projects
+            .filter((p) => p.status === 'Aberto')
+            .map((p) => ({
+              id: p.id,
+              title: p.title,
+              category: p.category || 'Outra Categoria',
+              subcategory: undefined,
+              level: mapExperienceLevel(p.experienceLevel),
+              publishedAt: formatPublishedAt(p.createdAt),
+              timeRemaining: p.proposalDays ? `Prazo: ${p.proposalDays} dias` : '',
+              proposals: p.proposals ?? 0,
+              interested: 0,
+              description: p.description || '',
+              clientName: p.clientName || 'Cliente',
+              clientUsername: p.clientId,
+              isFeatured: false,
+              isUrgent: false,
+              budget: p.budget,
+              status: p.status,
+              createdAt: p.createdAt,
+            }));
+          setProjects(list);
+        } else {
+          setProjects(loadProjectsFromStorage());
+        }
+      } else {
+        setProjects(loadProjectsFromStorage());
+      }
+      setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [keywords, selectedCategory, sortBy]);
 
   const publishProjectHref = !isAuthenticated
     ? '/login'
@@ -133,18 +209,23 @@ export default function Projects() {
     );
   };
 
-  const filteredProjects = projects.filter(project => {
-    const matchesKeywords = !keywords || 
-      project.title.toLowerCase().includes(keywords.toLowerCase()) ||
-      project.description.toLowerCase().includes(keywords.toLowerCase());
-    
-    const matchesCategory = selectedCategory === 'Todas as categorias' || project.category === selectedCategory;
-    const matchesFeatured = !featuredOnly || project.isFeatured;
-    const matchesUrgent = !urgentOnly || project.isUrgent;
-    const matchesLevel = selectedLevel === 'all' || project.level === selectedLevel;
-    
-    return matchesKeywords && matchesCategory && matchesFeatured && matchesUrgent && matchesLevel;
-  });
+  const filteredProjects = useMemo(() => {
+    let list = projects.filter((project) => {
+      const matchesCategory = selectedCategory === 'Todas as categorias' || project.category === selectedCategory;
+      const matchesFeatured = !featuredOnly || project.isFeatured;
+      const matchesUrgent = !urgentOnly || project.isUrgent;
+      const matchesLevel = selectedLevel === 'all' || project.level === selectedLevel;
+      return matchesCategory && matchesFeatured && matchesUrgent && matchesLevel;
+    });
+    if (sortBy === 'oldest' && list.length > 0) {
+      list = [...list].sort((a, b) => {
+        const t1 = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const t2 = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return t1 - t2;
+      });
+    }
+    return list;
+  }, [projects, selectedCategory, featuredOnly, urgentOnly, selectedLevel, sortBy]);
 
   const renderStars = (rating: number) => {
     return '★'.repeat(Math.round(rating)) + '☆'.repeat(5 - Math.round(rating));
@@ -335,11 +416,16 @@ export default function Projects() {
 
             {/* Projects List */}
             <div className="space-y-4">
-              {filteredProjects.length === 0 ? (
+              {loading ? (
+                <div className="bg-white rounded-lg shadow-sm p-8 md:p-12 flex flex-col items-center justify-center text-gray-500">
+                  <Loader2 className="w-10 h-10 animate-spin text-99blue mb-4" />
+                  <p className="font-medium">Carregando projetos...</p>
+                </div>
+              ) : filteredProjects.length === 0 ? (
                 <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-500">
                   <Briefcase className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                   <p className="font-medium">Nenhum projeto encontrado</p>
-                  <p className="text-sm mt-1">Os projetos publicados aparecerão aqui.</p>
+                  <p className="text-sm mt-1">Ajuste os filtros ou publique um projeto.</p>
                 </div>
               ) : filteredProjects.map((project) => (
                 <div key={project.id} className="bg-white rounded-lg shadow-sm p-4 md:p-6">
@@ -351,14 +437,12 @@ export default function Projects() {
                     {project.subcategory && <><span className="hidden sm:inline">|</span><span>{project.subcategory}</span></>}
                     <span className="hidden sm:inline">|</span>
                     <span className="text-gray-700">{project.level}</span>
+                    {project.budget && <><span className="hidden sm:inline">|</span><span className="text-green-700 font-medium">{project.budget}</span></>}
                     <span className="hidden sm:inline">|</span>
                     <span>{project.publishedAt}</span>
-                    <span className="hidden sm:inline">|</span>
-                    <span className="flex items-center"><Clock className="w-3 h-3 mr-1" />{project.timeRemaining}</span>
+                    {project.timeRemaining && <><span className="hidden sm:inline">|</span><span className="flex items-center"><Clock className="w-3 h-3 mr-1" />{project.timeRemaining}</span></>}
                     <span className="hidden sm:inline">|</span>
                     <span className="flex items-center"><FileText className="w-3 h-3 mr-1" />{project.proposals} propostas</span>
-                    <span className="hidden sm:inline">|</span>
-                    <span className="flex items-center"><Users className="w-3 h-3 mr-1" />{project.interested} interessados</span>
                   </div>
 
                   {/* Description */}
@@ -384,15 +468,6 @@ export default function Projects() {
                 </div>
               ))}
             </div>
-
-            {/* Empty State */}
-            {filteredProjects.length === 0 && (
-              <div className="bg-white rounded-lg shadow-sm p-8 md:p-12 text-center">
-                <FileText className="w-12 h-12 md:w-16 md:h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-base md:text-lg font-medium text-gray-800 mb-2">Nenhum projeto encontrado</h3>
-                <p className="text-gray-500 text-sm">Tente ajustar os filtros ou buscar por outros termos.</p>
-              </div>
-            )}
 
             {/* Pagination */}
             {filteredProjects.length > 0 && (

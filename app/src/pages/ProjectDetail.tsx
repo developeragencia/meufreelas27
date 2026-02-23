@@ -164,6 +164,7 @@ export default function ProjectDetail() {
   const [deliveryActionLoadingId, setDeliveryActionLoadingId] = useState<string | null>(null);
   const [deliveryFeedbackById, setDeliveryFeedbackById] = useState<Record<string, string>>({});
   const [deliveryRatingById, setDeliveryRatingById] = useState<Record<string, number>>({});
+  const [loadingProject, setLoadingProject] = useState(true);
 
   const menuItems = [
     { icon: Home, label: 'Início', href: '/' },
@@ -181,10 +182,56 @@ export default function ProjectDetail() {
   ];
 
   const loadProject = async () => {
-    if (!id || !hasApi()) return;
+    setLoadingProject(true);
+    if (!id) {
+      setProject(null);
+      setLoadingProject(false);
+      return;
+    }
+    if (!hasApi()) {
+      try {
+        const raw = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]');
+        const found = raw.find((p: { id: string }) => p.id === id);
+        if (found) {
+          setProject({
+            id: found.id,
+            title: found.title || '',
+            category: found.category || 'Outra',
+            subcategory: '',
+            description: found.description || '',
+            budget: found.budget || 'A combinar',
+            budgetType: 'range',
+            deadline: found.proposalDays ? `${found.proposalDays} dias` : '-',
+            requiredSkills: Array.isArray(found.skills) ? found.skills : [],
+            clientId: found.clientId || '',
+            clientName: found.clientName || 'Cliente',
+            clientAvatar: '',
+            clientRating: 0,
+            clientJobs: 0,
+            clientMemberSince: found.createdAt ? new Date(found.createdAt).toLocaleDateString('pt-BR') : '-',
+            clientLocation: '',
+            proposals: 0,
+            interested: 0,
+            status: 'Aberto',
+            createdAt: found.createdAt || '',
+            experienceLevel: found.experienceLevel || 'Intermediário',
+            projectType: 'Proj único',
+            views: 0,
+            attachments: [],
+          });
+        } else {
+          setProject(null);
+        }
+      } catch {
+        setProject(null);
+      }
+      setLoadingProject(false);
+      return;
+    }
     const res = await apiGetProject(id);
     if (!res.ok || !res.project) {
       setProject(null);
+      setLoadingProject(false);
       return;
     }
     const p = res.project;
@@ -215,6 +262,7 @@ export default function ProjectDetail() {
       views: 0,
       attachments: [],
     });
+    setLoadingProject(false);
   };
 
   const loadProposals = async () => {
@@ -482,16 +530,28 @@ export default function ProjectDetail() {
     showToast('Você demonstrou interesse no projeto!');
   };
 
-  if (!project) {
+  if (loadingProject) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
+          <div className="w-12 h-12 border-4 border-99blue border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500">Carregando projeto...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center px-4">
           <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
             <Briefcase className="w-8 h-8 text-gray-400" />
           </div>
           <p className="text-gray-500 text-lg">Projeto não encontrado</p>
-          <Link to="/projects" className="text-99blue hover:underline mt-2 inline-block">
-            Voltar para projetos
+          <p className="text-gray-400 text-sm mt-1">O link pode estar incorreto ou o projeto foi removido.</p>
+          <Link to="/projects" className="mt-4 inline-block px-4 py-2 bg-99blue text-white rounded-lg hover:bg-sky-600 transition-colors">
+            Ver todos os projetos
           </Link>
         </div>
       </div>
