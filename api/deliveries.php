@@ -237,9 +237,13 @@ if ($action === 'approve_delivery') {
     $deliveryId = trim((string)($input['deliveryId'] ?? ''));
     $clientId = trim((string)($input['clientId'] ?? ''));
     $feedback = trim((string)($input['feedback'] ?? ''));
+    $rating = isset($input['rating']) ? (int) $input['rating'] : null;
     if ($deliveryId === '' || $clientId === '') {
         echo json_encode(['ok' => false, 'error' => 'deliveryId e clientId são obrigatórios.']);
         exit;
+    }
+    if ($rating !== null && ($rating < 1 || $rating > 5)) {
+        $rating = null;
     }
 
     $check = $pdo->prepare('SELECT id, project_id, proposal_id, freelancer_id, client_id, status FROM project_deliveries WHERE id = ? LIMIT 1');
@@ -256,8 +260,8 @@ if ($action === 'approve_delivery') {
 
     $pdo->beginTransaction();
     try {
-        $upd = $pdo->prepare("UPDATE project_deliveries SET status = 'approved', client_feedback = ?, reviewed_at = NOW() WHERE id = ?");
-        $upd->execute([$feedback !== '' ? $feedback : null, $deliveryId]);
+        $upd = $pdo->prepare("UPDATE project_deliveries SET status = 'approved', client_feedback = ?, rating = ?, reviewed_at = NOW() WHERE id = ?");
+        $upd->execute([$feedback !== '' ? $feedback : null, $rating, $deliveryId]);
 
         $projectUpd = $pdo->prepare("UPDATE projects SET status = 'completed' WHERE id = ?");
         $projectUpd->execute([(string)$delivery['project_id']]);
@@ -283,6 +287,15 @@ if ($action === 'approve_delivery') {
             'payment',
             '/payments'
         );
+
+        // Recalcular rating e completed_projects do freelancer
+        $freelancerId = (string) $delivery['freelancer_id'];
+        $avg = $pdo->prepare("SELECT COALESCE(AVG(rating), 0) AS avg_rating, COUNT(*) AS total FROM project_deliveries WHERE freelancer_id = ? AND status = 'approved' AND rating IS NOT NULL");
+        $avg->execute([$freelancerId]);
+        $row = $avg->fetch();
+        $newRating = round((float) ($row['avg_rating'] ?? 0), 2);
+        $completed = (int) ($row['total'] ?? 0);
+        $pdo->prepare("UPDATE users SET rating = ?, completed_projects = ? WHERE id = ?")->execute([$newRating, $completed, $freelancerId]);
 
         $pdo->commit();
     } catch (Throwable $e) {

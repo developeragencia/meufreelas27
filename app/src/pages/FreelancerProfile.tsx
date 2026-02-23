@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { apiEnsureConversation, apiSendMessage } from '../lib/api';
+import { apiEnsureConversation, apiListReviews, apiSendMessage, hasApi } from '../lib/api';
 import { 
   ArrowLeft, 
   Star, 
@@ -62,6 +62,15 @@ export default function FreelancerProfile() {
   useEffect(() => {
     loadFreelancer();
   }, [id]);
+
+  useEffect(() => {
+    if (!id || !freelancer || !hasApi()) return;
+    apiListReviews(id).then((res) => {
+      if (res.ok && res.reviews?.length) {
+        setFreelancer((prev) => (prev ? { ...prev, reviews: res.reviews! } : null));
+      }
+    });
+  }, [id, freelancer?.id]);
 
   const loadFreelancer = () => {
     setLoading(true);

@@ -35,4 +35,8 @@ foreach ($envKeys as $k) {
     if ($v !== false && $v !== '') {
         $_ENV[$k] = $v;
     }
+    // Alguns ambientes (ex.: Hostinger) expõem variáveis em $_SERVER
+    if (empty($_ENV[$k]) && isset($_SERVER[$k]) && $_SERVER[$k] !== '') {
+        $_ENV[$k] = (string) $_SERVER[$k];
+    }
 }

@@ -152,6 +152,7 @@ CREATE TABLE IF NOT EXISTS project_deliveries (
     delivery_url TEXT DEFAULT NULL,
     status VARCHAR(50) DEFAULT 'submitted',
     client_feedback TEXT DEFAULT NULL,
+    rating TINYINT NULL COMMENT '1-5, preenchido ao aprovar entrega',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     reviewed_at TIMESTAMP NULL DEFAULT NULL,
     INDEX idx_project (project_id),

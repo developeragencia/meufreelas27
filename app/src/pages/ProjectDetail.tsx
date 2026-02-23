@@ -163,6 +163,7 @@ export default function ProjectDetail() {
   const [deliveryUrl, setDeliveryUrl] = useState('');
   const [deliveryActionLoadingId, setDeliveryActionLoadingId] = useState<string | null>(null);
   const [deliveryFeedbackById, setDeliveryFeedbackById] = useState<Record<string, string>>({});
+  const [deliveryRatingById, setDeliveryRatingById] = useState<Record<string, number>>({});
 
   const menuItems = [
     { icon: Home, label: 'Início', href: '/' },
@@ -413,8 +414,9 @@ export default function ProjectDetail() {
   const handleApproveDelivery = async (deliveryId: string) => {
     if (!user?.id || !canClientReview) return;
     const feedback = (deliveryFeedbackById[deliveryId] || '').trim();
+    const rating = deliveryRatingById[deliveryId] ?? 5;
     setDeliveryActionLoadingId(deliveryId);
-    const res = await apiApproveDelivery({ deliveryId, clientId: user.id, feedback: feedback || undefined });
+    const res = await apiApproveDelivery({ deliveryId, clientId: user.id, feedback: feedback || undefined, rating });
     setDeliveryActionLoadingId(null);
     if (!res.ok) {
       showToast(res.error || 'Não foi possível aprovar entrega.');
@@ -974,6 +976,22 @@ export default function ProjectDetail() {
 
                         {canClientReview && delivery.status !== 'Aprovada' && (
                           <div className="mt-3">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Avaliação (1–5 estrelas)</label>
+                            <div className="flex gap-1 mb-2">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                  key={star}
+                                  type="button"
+                                  onClick={() =>
+                                    setDeliveryRatingById((prev) => ({ ...prev, [delivery.id]: star }))
+                                  }
+                                  className={`text-lg ${(deliveryRatingById[delivery.id] ?? 5) >= star ? 'text-yellow-500' : 'text-gray-300'}`}
+                                  aria-label={`${star} estrela(s)`}
+                                >
+                                  ★
+                                </button>
+                              ))}
+                            </div>
                             <textarea
                               value={deliveryFeedbackById[delivery.id] || ''}
                               onChange={(e) =>

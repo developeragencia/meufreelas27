@@ -693,6 +693,7 @@ export async function apiApproveDelivery(payload: {
   deliveryId: string;
   clientId: string;
   feedback?: string;
+  rating?: number;
 }): Promise<{ ok: boolean; message?: string; error?: string }> {
   try {
     const data = await callDeliveriesApi({ action: 'approve_delivery', ...payload });
@@ -700,5 +701,31 @@ export async function apiApproveDelivery(payload: {
   } catch (e) {
     console.error('apiApproveDelivery', e);
     return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiListReviews(freelancerId: string): Promise<{
+  ok: boolean;
+  reviews?: { author: string; rating: number; comment: string; date: string; project: string }[];
+  error?: string;
+}> {
+  if (!API_URL) return { ok: false, reviews: [], error: 'API não configurada' };
+  try {
+    const url = `${API_URL.replace(/\/$/, '')}/reviews.php`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ freelancerId }),
+      credentials: 'omit',
+    });
+    const data = await res.json().catch(() => ({}));
+    return {
+      ok: !!data.ok,
+      reviews: Array.isArray(data.reviews) ? data.reviews : [],
+      error: data.error as string | undefined,
+    };
+  } catch (e) {
+    console.error('apiListReviews', e);
+    return { ok: false, reviews: [], error: 'Falha de conexão' };
   }
 }

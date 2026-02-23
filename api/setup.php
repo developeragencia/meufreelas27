@@ -279,6 +279,7 @@ $deliveryColumnsToAdd = [
     'status' => "ALTER TABLE project_deliveries ADD COLUMN status VARCHAR(50) DEFAULT 'submitted'",
     'client_feedback' => "ALTER TABLE project_deliveries ADD COLUMN client_feedback TEXT DEFAULT NULL",
     'reviewed_at' => "ALTER TABLE project_deliveries ADD COLUMN reviewed_at TIMESTAMP NULL DEFAULT NULL",
+    'rating' => "ALTER TABLE project_deliveries ADD COLUMN rating TINYINT NULL COMMENT '1-5'",
 ];
 foreach ($deliveryColumnsToAdd as $col => $sql) {
     try {
