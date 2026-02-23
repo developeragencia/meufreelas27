@@ -11,7 +11,12 @@ export default function Proposals() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!user?.id || !hasApi()) return;
+    if (!user?.id) return;
+    if (!hasApi()) {
+      setIsLoading(false);
+      setProposals([]);
+      return;
+    }
     async function load() {
       setIsLoading(true);
       const res = await apiListProposals({ freelancerId: user.id });

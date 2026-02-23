@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   CreditCard, Building2, Wallet, Receipt, TrendingUp,
   Crown, Bell, Shield, Save, ArrowLeft, Plus, Trash2,
-  CheckCircle, AlertCircle, Mail
+  CheckCircle, AlertCircle, Mail, MapPin, FileCheck
 } from 'lucide-react';
 
 interface Card {
@@ -26,11 +26,22 @@ interface BankAccount {
   isDefault: boolean;
 }
 
+type AccountTab = 'cards' | 'bank' | 'payments' | 'earnings' | 'subscription' | 'notifications' | 'security' | 'location' | 'verification';
+const VALID_TABS: AccountTab[] = ['cards', 'bank', 'payments', 'earnings', 'subscription', 'notifications', 'security', 'location', 'verification'];
+
 export default function Account() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'cards' | 'bank' | 'payments' | 'earnings' | 'subscription' | 'notifications' | 'security'>('cards');
+  const tabFromUrl = searchParams.get('tab') as AccountTab | null;
+  const [activeTab, setActiveTab] = useState<AccountTab>(VALID_TABS.includes(tabFromUrl as any) ? tabFromUrl! : 'cards');
   const [successMessage, setSuccessMessage] = useState('');
+
+  useEffect(() => {
+    if (tabFromUrl && VALID_TABS.includes(tabFromUrl as any)) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
 
   // Cards
   const [cards, setCards] = useState<Card[]>([]);
@@ -663,6 +674,69 @@ export default function Account() {
     </div>
   );
 
+  const renderLocationTab = () => (
+    <div className="space-y-6">
+      <h3 className="font-semibold text-gray-900">Informações de localização</h3>
+      <div className="bg-gray-50 p-6 rounded-lg">
+        <p className="text-gray-600 mb-4">
+          Mantenha seu endereço e localização atualizados para receber propostas e projetos da sua região quando aplicável.
+        </p>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">País</label>
+            <input type="text" defaultValue="Brasil" className="w-full px-4 py-3 border border-gray-300 rounded-lg" readOnly />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Cidade (opcional)</label>
+            <input type="text" placeholder="Ex: São Paulo" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Estado (opcional)</label>
+            <input type="text" placeholder="Ex: SP" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-99blue" />
+          </div>
+        </div>
+        <button className="mt-4 px-6 py-3 bg-99blue text-white rounded-lg hover:bg-99blue-light transition-colors">
+          Salvar localização
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderVerificationTab = () => (
+    <div className="space-y-6">
+      <h3 className="font-semibold text-gray-900">Verificações de documentos</h3>
+      <div className="bg-gray-50 p-6 rounded-lg space-y-4">
+        <p className="text-gray-600">
+          Envie seus documentos para verificação e ganhe mais confiança na plataforma. Dados são processados de forma segura.
+        </p>
+        <div className="flex items-center justify-between p-4 bg-white border rounded-lg">
+          <div className="flex items-center">
+            <FileCheck className="w-8 h-8 text-99blue mr-4" />
+            <div>
+              <p className="font-medium text-gray-900">Documento de identidade (CPF/RG)</p>
+              <p className="text-sm text-gray-500">Status: Não enviado</p>
+            </div>
+          </div>
+          <button className="px-4 py-2 bg-99blue text-white rounded-lg hover:bg-99blue-light transition-colors">
+            Enviar documento
+          </button>
+        </div>
+        <div className="flex items-center justify-between p-4 bg-white border rounded-lg">
+          <div className="flex items-center">
+            <Building2 className="w-8 h-8 text-gray-400 mr-4" />
+            <div>
+              <p className="font-medium text-gray-900">Comprovante de endereço</p>
+              <p className="text-sm text-gray-500">Status: Opcional</p>
+            </div>
+          </div>
+          <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+            Enviar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   const tabs = [
     { id: 'cards', label: 'Cartões', icon: CreditCard },
     { id: 'bank', label: 'Conta Bancária', icon: Building2 },
@@ -673,6 +747,8 @@ export default function Account() {
     ] : []),
     { id: 'notifications', label: 'Notificações', icon: Bell },
     { id: 'security', label: 'Segurança', icon: Shield },
+    { id: 'location', label: 'Localização', icon: MapPin },
+    { id: 'verification', label: 'Verificações de documentos', icon: FileCheck },
   ];
 
   return (
@@ -709,7 +785,10 @@ export default function Account() {
                 {tabs.map((tab) => (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
+                    onClick={() => {
+                      setActiveTab(tab.id as AccountTab);
+                      setSearchParams({ tab: tab.id });
+                    }}
                     className={`flex items-center px-4 py-3 text-left transition-colors ${
                       activeTab === tab.id
                         ? 'bg-99blue/10 text-99blue border-r-2 border-99blue'
@@ -734,6 +813,8 @@ export default function Account() {
               {activeTab === 'subscription' && renderSubscriptionTab()}
               {activeTab === 'notifications' && renderNotificationsTab()}
               {activeTab === 'security' && renderSecurityTab()}
+              {activeTab === 'location' && renderLocationTab()}
+              {activeTab === 'verification' && renderVerificationTab()}
             </div>
           </div>
         </div>

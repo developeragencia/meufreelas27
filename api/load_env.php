@@ -21,8 +21,17 @@ $loadEnvFile = function (string $path): void {
     }
 };
 
-$loadEnvFile(__DIR__ . '/../.env');
-$loadEnvFile(__DIR__ . '/.env');
+$paths = [
+    __DIR__ . '/.env',
+    __DIR__ . '/../.env',
+];
+if (!empty($_SERVER['DOCUMENT_ROOT'])) {
+    $paths[] = $_SERVER['DOCUMENT_ROOT'] . '/api/.env';
+    $paths[] = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/.env';
+}
+foreach (array_unique($paths) as $p) {
+    $loadEnvFile($p);
+}
 
 $envKeys = [
     'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASS',

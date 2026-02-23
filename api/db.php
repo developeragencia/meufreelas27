@@ -58,13 +58,18 @@ function mf_db_config(): array
 function mf_pdo(): PDO
 {
     $cfg = mf_db_config();
-    return new PDO(
-        "mysql:host={$cfg['host']};port={$cfg['port']};dbname={$cfg['name']};charset=utf8mb4",
-        $cfg['user'],
-        $cfg['pass'],
-        [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        ]
-    );
+    $dsn = "mysql:host={$cfg['host']};port={$cfg['port']};dbname={$cfg['name']};charset=utf8mb4";
+    $opts = [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    ];
+    try {
+        return new PDO($dsn, $cfg['user'], $cfg['pass'], $opts);
+    } catch (PDOException $e) {
+        if (($cfg['host'] === 'localhost' || $cfg['host'] === '') && strpos($e->getMessage(), 'Connection') !== false) {
+            $dsn = "mysql:host=127.0.0.1;port={$cfg['port']};dbname={$cfg['name']};charset=utf8mb4";
+            return new PDO($dsn, $cfg['user'], $cfg['pass'], $opts);
+        }
+        throw $e;
+    }
 }

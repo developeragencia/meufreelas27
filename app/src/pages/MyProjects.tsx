@@ -14,11 +14,41 @@ export default function MyProjects() {
 
   const loadProjects = async () => {
     if (!user?.id) return;
+    setIsLoading(true);
     if (!hasApi()) {
-      setProjects([]);
+      if (user.type === 'client') {
+        try {
+          const raw = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]');
+          const list: ApiProject[] = raw
+            .filter((p: { client_id?: string; clientId?: string }) => (p.client_id || p.clientId) === user.id)
+            .map((p: Record<string, unknown>) => ({
+              id: String(p.id ?? ''),
+              clientId: String(p.client_id ?? p.clientId ?? ''),
+              clientName: String(p.clientName ?? 'Cliente'),
+              title: String(p.title ?? ''),
+              description: String(p.description ?? ''),
+              budget: String(p.budget ?? ''),
+              category: String(p.category ?? ''),
+              skills: Array.isArray(p.skills) ? p.skills : [],
+              experienceLevel: String(p.experienceLevel ?? 'intermediate'),
+              proposalDays: String(p.proposalDays ?? ''),
+              visibility: 'public',
+              status: (p.status === 'in_progress' ? 'Em andamento' : p.status === 'completed' ? 'Concluído' : p.status === 'cancelled' ? 'Cancelado' : 'Aberto') as ApiProject['status'],
+              proposals: 0,
+              createdAt: String(p.createdAt ?? ''),
+              updatedAt: String(p.updatedAt ?? p.createdAt ?? ''),
+            }));
+          setProjects(list);
+        } catch {
+          setProjects([]);
+        }
+      } else {
+        setProjects([]);
+        setFreelancerProjects([]);
+      }
+      setIsLoading(false);
       return;
     }
-    setIsLoading(true);
     if (user.type === 'client') {
       const res = await apiListProjects({ clientId: user.id, sortBy: 'recent' });
       setIsLoading(false);
@@ -90,7 +120,7 @@ export default function MyProjects() {
             <Link to="/" className="text-2xl font-bold">
               meu<span className="font-light">freelas</span>
             </Link>
-            <Link to="/dashboard" className="text-gray-300 hover:text-white">
+            <Link to={user?.type === 'freelancer' ? '/freelancer/dashboard' : '/dashboard'} className="text-gray-300 hover:text-white">
               Voltar ao Dashboard
             </Link>
           </div>

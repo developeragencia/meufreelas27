@@ -23,6 +23,7 @@ export default function Notifications() {
   const { isAuthenticated, user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [noApi, setNoApi] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -31,10 +32,13 @@ export default function Notifications() {
     }
 
     const load = async () => {
-      if (!user?.id || !hasApi()) {
+      if (!user?.id) return;
+      if (!hasApi()) {
+        setNoApi(true);
         setNotifications([]);
         return;
       }
+      setNoApi(false);
       const res = await apiListNotifications(user.id);
       if (!res.ok) {
         setNotifications([]);
@@ -198,12 +202,14 @@ export default function Notifications() {
             <div className="p-12 text-center">
               <Bell className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {filter === 'unread' ? 'Nenhuma notificação não lida' : 'Nenhuma notificação'}
+                {noApi ? 'API não configurada' : filter === 'unread' ? 'Nenhuma notificação não lida' : 'Nenhuma notificação'}
               </h3>
               <p className="text-gray-500">
-                {filter === 'unread' 
-                  ? 'Você já leu todas as suas notificações!' 
-                  : 'Você não tem notificações no momento.'}
+                {noApi
+                  ? 'Configure a API (VITE_API_URL) para receber notificações.'
+                  : filter === 'unread'
+                    ? 'Você já leu todas as suas notificações!'
+                    : 'Você não tem notificações no momento.'}
               </p>
             </div>
           ) : (

@@ -38,6 +38,8 @@ import Checkout from './pages/Checkout';
 import AdminUsers from './pages/AdminUsers';
 import AdminSanctions from './pages/AdminSanctions';
 import PremiumPlans from './pages/PremiumPlans';
+import FormatoTextos from './pages/FormatoTextos';
+import Blog from './pages/Blog';
 import ErrorBoundary from './components/ErrorBoundary';
 
 let storageSanitized = false;
@@ -132,6 +134,8 @@ function AppRoutes() {
       <Route path="/privacidade" element={<PrivacyPolicy />} />
       <Route path="/termos" element={<TermsOfUse />} />
       <Route path="/ajuda" element={<HelpCenter />} />
+      <Route path="/formatacao-de-textos" element={<FormatoTextos />} />
+      <Route path="/blog" element={<Blog />} />
       <Route path="/project/:id" element={<ProjectDetail />} />
       <Route path="/freelancer/:id" element={<FreelancerProfile />} />
       <Route path="/premium" element={<Premium />} />

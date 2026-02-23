@@ -119,7 +119,8 @@ CREATE TABLE IF NOT EXISTS favorites (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================================
--- PAGAMENTOS (projetos / escrow)
+-- PAGAMENTOS (projetos / escrow - Stripe ou Mercado Pago)
+-- provider = 'stripe' | 'mercadopago', external_id = id da sessão/checkout
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS payments (
     id VARCHAR(36) PRIMARY KEY,
@@ -136,6 +137,7 @@ CREATE TABLE IF NOT EXISTS payments (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_client (client_id),
     INDEX idx_freelancer (freelancer_id),
+    INDEX idx_external_id (external_id),
     FOREIGN KEY (proposal_id) REFERENCES proposals(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -164,7 +166,8 @@ CREATE TABLE IF NOT EXISTS project_deliveries (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================================
--- ASSINATURAS (planos Pro / Premium)
+-- ASSINATURAS (planos Pro / Premium - Stripe ou Mercado Pago)
+-- provider = 'stripe' | 'mercadopago', external_id = id do checkout/sessão
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS user_subscriptions (
     id VARCHAR(36) PRIMARY KEY,

@@ -24,6 +24,13 @@ import {
   Home,
   Folder,
   FileText,
+  FileCheck,
+  MapPin,
+  RotateCcw,
+  HelpCircle,
+  BookOpen,
+  Type,
+  GitBranch,
 } from 'lucide-react';
 import GoalsWidget from '../components/GoalsWidget';
 import { apiListNotifications, apiListPayments, apiListProjects, hasApi } from '../lib/api';
@@ -53,11 +60,12 @@ export default function ClientDashboard() {
   const navigate = useNavigate();
   const { user, logout, switchAccountType, createSecondaryAccount } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [expandedSections, setExpandedSections] = useState<string[]>(['projetos', 'conta']);
+  const [expandedSections, setExpandedSections] = useState<string[]>(['projetos', 'conta', 'ferramentas', 'ajuda']);
   const [showSwitchModal, setShowSwitchModal] = useState(false);
   const [switchLoading, setSwitchLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const [totalSpent, setTotalSpent] = useState('R$ 0,00');
   const [loading, setLoading] = useState(true);
 
@@ -178,6 +186,29 @@ export default function ClientDashboard() {
         { icon: Crown, label: 'Assinatura', href: '/premium' },
       ],
     },
+    {
+      title: 'Ferramentas',
+      items: [
+        { icon: CreditCard, label: 'Cartões de crédito', href: '/account?tab=cards' },
+        { icon: Settings, label: 'Configurações de acesso', href: '/settings' },
+        { icon: Wallet, label: 'Conta bancária', href: '/account?tab=bank' },
+        { icon: DollarSign, label: 'Histórico de pagamentos', href: '/payments' },
+        { icon: RotateCcw, label: 'Histórico de reembolsos', href: '/payments?tab=refunds' },
+        { icon: MapPin, label: 'Informações de localização', href: '/account?tab=location' },
+        { icon: Bell, label: 'Notificações e alertas', href: '/notifications' },
+        { icon: FileCheck, label: 'Verificações de documentos', href: '/account?tab=verification' },
+      ],
+    },
+    {
+      title: 'Ajuda',
+      items: [
+        { icon: GitBranch, label: 'Fluxo de um projeto', href: '/como-funciona#fluxo' },
+        { icon: HelpCircle, label: 'Como funciona', href: '/como-funciona' },
+        { icon: MessageSquare, label: 'Central de ajuda', href: '/ajuda' },
+        { icon: Type, label: 'Formatação de textos', href: '/formatacao-de-textos' },
+        { icon: BookOpen, label: 'Blog', href: '/blog' },
+      ],
+    },
   ];
 
   const bottomNavItems = [
@@ -291,7 +322,15 @@ export default function ClientDashboard() {
                 <RefreshCw className="w-4 h-4 mr-2" />
                 {user.hasFreelancerAccount ? 'Alternar para Freelancer' : 'Criar conta Freelancer'}
               </button>
-              <Link to="/notifications" className="relative p-2 text-gray-300 hover:text-white">
+              <Link to="/messages" className="relative p-2 text-gray-300 hover:text-white" title="Mensagens">
+                <MessageSquare className="w-5 h-5" />
+                {unreadMessages > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                    {unreadMessages > 99 ? '99+' : unreadMessages}
+                  </span>
+                )}
+              </Link>
+              <Link to="/notifications" className="relative p-2 text-gray-300 hover:text-white" title="Notificações">
                 <Bell className="w-5 h-5" />
                 {notifications > 0 && (
                   <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
