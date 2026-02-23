@@ -129,6 +129,67 @@ export async function apiResetPassword(token: string, password: string): Promise
   }
 }
 
+export type ApiFreelancerPublic = {
+  id: string;
+  name: string;
+  username: string;
+  avatar: string;
+  title: string;
+  bio: string;
+  skills: string[];
+  rating: number;
+  totalReviews: number;
+  completedProjects: number;
+  recommendations: number;
+  memberSince: string;
+  ranking?: number;
+  isPremium: boolean;
+  isPro: boolean;
+  planTier: 'free' | 'pro' | 'premium';
+  hasPhoto: boolean;
+  profileCompletion: number;
+  rankingScore: number;
+  isVerified?: boolean;
+  registeredAt?: string;
+};
+
+export async function apiListFreelancersPublic(): Promise<{ ok: boolean; freelancers?: ApiFreelancerPublic[]; total?: number; error?: string }> {
+  if (!API_URL) return { ok: false, error: 'API não configurada' };
+  try {
+    const url = `${API_URL.replace(/\/$/, '')}/freelancers.php?action=list`;
+    const res = await fetch(url, { credentials: 'omit' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: (data?.error as string) || `Erro ${res.status}` };
+    return {
+      ok: !!data.ok,
+      freelancers: (data.freelancers as ApiFreelancerPublic[] | undefined) || [],
+      total: typeof data.total === 'number' ? data.total : undefined,
+      error: data.error as string | undefined,
+    };
+  } catch (e) {
+    console.error('apiListFreelancersPublic', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiGetFreelancerPublicByUsername(username: string): Promise<{ ok: boolean; freelancer?: ApiFreelancerPublic; error?: string }> {
+  if (!API_URL) return { ok: false, error: 'API não configurada' };
+  try {
+    const url = `${API_URL.replace(/\/$/, '')}/freelancers.php?action=get&username=${encodeURIComponent(username)}`;
+    const res = await fetch(url, { credentials: 'omit' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: (data?.error as string) || `Erro ${res.status}` };
+    return {
+      ok: !!data.ok,
+      freelancer: data.freelancer as ApiFreelancerPublic | undefined,
+      error: data.error as string | undefined,
+    };
+  } catch (e) {
+    console.error('apiGetFreelancerPublicByUsername', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
 export type ApiConversation = {
   id: string;
   participantId: string;

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import BrandLogo from '../components/BrandLogo';
+import { apiListFreelancersPublic, hasApi, type ApiFreelancerPublic } from '../lib/api';
 import { Search, ChevronDown, ChevronUp, Briefcase, ThumbsUp, Calendar, Crown, Star, Menu, X, User, LogOut } from 'lucide-react';
 
 interface Freelancer {
@@ -155,28 +157,59 @@ function loadFreelancersFromStorage(): Freelancer[] {
 export default function Freelancers() {
   const { user, isAuthenticated, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [freelancers, setFreelancers] = useState<Freelancer[]>(() => {
-    try {
-      return loadFreelancersFromStorage();
-    } catch {
-      return [];
-    }
-  });
+  const [freelancers, setFreelancers] = useState<Freelancer[]>([]);
   const [keywords, setKeywords] = useState('');
+  const [isLoadingFreelancers, setIsLoadingFreelancers] = useState(true);
   useEffect(() => {
-    const refreshFreelancers = () => {
+    const mapApiFreelancer = (f: ApiFreelancerPublic): Freelancer => ({
+      id: f.id,
+      name: f.name,
+      username: f.username,
+      avatar: f.avatar,
+      title: f.title,
+      bio: f.bio,
+      skills: Array.isArray(f.skills) ? f.skills : [],
+      rating: Number(f.rating) || 0,
+      totalReviews: Number(f.totalReviews) || 0,
+      completedProjects: Number(f.completedProjects) || 0,
+      recommendations: Number(f.recommendations) || 0,
+      memberSince: f.memberSince || '-',
+      ranking: f.ranking,
+      isPremium: !!f.isPremium,
+      isPro: !!f.isPro,
+      planTier: f.planTier || 'free',
+      hasPhoto: !!f.hasPhoto,
+      profileCompletion: Number(f.profileCompletion) || 0,
+      rankingScore: Number(f.rankingScore) || 0,
+    });
+
+    const refreshFreelancers = async () => {
       try {
+        setIsLoadingFreelancers(true);
+        if (hasApi()) {
+          const res = await apiListFreelancersPublic();
+          if (res.ok && Array.isArray(res.freelancers)) {
+            setFreelancers(res.freelancers.map(mapApiFreelancer));
+            setIsLoadingFreelancers(false);
+            return;
+          }
+        }
         setFreelancers(loadFreelancersFromStorage());
       } catch {
         setFreelancers([]);
+      } finally {
+        setIsLoadingFreelancers(false);
       }
     };
+    const handleRefresh = () => {
+      void refreshFreelancers();
+    };
     refreshFreelancers();
-    window.addEventListener('storage', refreshFreelancers);
-    window.addEventListener('meufreelas:profile-updated', refreshFreelancers as EventListener);
+    window.addEventListener('storage', handleRefresh);
+    window.addEventListener('meufreelas:profile-updated', handleRefresh as EventListener);
     return () => {
-      window.removeEventListener('storage', refreshFreelancers);
-      window.removeEventListener('meufreelas:profile-updated', refreshFreelancers as EventListener);
+      window.removeEventListener('storage', handleRefresh);
+      window.removeEventListener('meufreelas:profile-updated', handleRefresh as EventListener);
     };
   }, []);
   const [selectedArea, setSelectedArea] = useState('Todas as áreas');
@@ -187,6 +220,8 @@ export default function Freelancers() {
   const [expandedFreelancers, setExpandedFreelancers] = useState<string[]>([]);
   const [expandedSkills, setExpandedSkills] = useState<string[]>([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const toggleExpandBio = (id: string) => {
     setExpandedFreelancers(prev => 
@@ -235,6 +270,11 @@ export default function Freelancers() {
     if (sortBy === 'rec_low') return a.recommendations - b.recommendations;
     return b.rankingScore - a.rankingScore;
   });
+  const totalPages = Math.max(1, Math.ceil(sortedFreelancers.length / pageSize));
+  const paginatedFreelancers = sortedFreelancers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(1);
+  }, [currentPage, totalPages]);
 
   const renderStars = (rating: number) => {
     const fullStars = Math.floor(rating);
@@ -357,9 +397,7 @@ export default function Freelancers() {
       <header className="bg-99dark text-white">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
-            <Link to="/" className="text-2xl font-bold">
-              meu<span className="font-light">freelas</span>
-            </Link>
+            <BrandLogo to="/" darkBg />
             <div className="flex items-center space-x-4">
               <div className="hidden md:flex items-center bg-white/10 rounded-lg px-4 py-2">
                 <Search className="w-4 h-4 mr-2 text-gray-400" />
@@ -480,12 +518,18 @@ export default function Freelancers() {
             {/* Freelancers List */}
             <div className="space-y-4">
               {sortedFreelancers.length === 0 ? (
+              isLoadingFreelancers ? (
+                <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-500">
+                  <Briefcase className="w-12 h-12 mx-auto mb-3 text-gray-300 animate-pulse" />
+                  <p className="font-medium">Carregando freelancers...</p>
+                </div>
+              ) : sortedFreelancers.length === 0 ? (
                 <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-500">
                   <Briefcase className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                   <p className="font-medium">Nenhum freelancer encontrado</p>
                   <p className="text-sm mt-1">Os freelancers cadastrados aparecerão aqui.</p>
                 </div>
-              ) : sortedFreelancers.map((freelancer) => (
+              ) : paginatedFreelancers.map((freelancer) => (
                 <div key={freelancer.id} className="bg-white rounded-lg shadow-sm p-4 md:p-6">
                   {/* Header Row - Foto + dados + ação */}
                   <div className="flex flex-col md:flex-row md:items-start gap-4 mb-3">
@@ -541,6 +585,12 @@ export default function Freelancers() {
                           <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1" />
                           Registrado desde: <strong className="ml-1 text-gray-700">{freelancer.memberSince}</strong>
                         </span>
+                        <span>
+                          Plano: <strong className="ml-1 text-gray-700 uppercase">{freelancer.planTier}</strong>
+                        </span>
+                        <span>
+                          Completude: <strong className="ml-1 text-gray-700">{freelancer.profileCompletion}%</strong>
+                        </span>
                       </div>
 
                       <p className="text-gray-800 font-medium text-sm md:text-base mb-2">{freelancer.title}</p>
@@ -548,7 +598,7 @@ export default function Freelancers() {
 
                     <div className="flex md:flex-col gap-2 md:min-w-[120px]">
                       <Link
-                        to="/register/client"
+                        to={isAuthenticated ? '/project/new' : '/login'}
                         className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors font-medium text-sm text-center whitespace-nowrap"
                       >
                         Convidar
@@ -598,7 +648,7 @@ export default function Freelancers() {
             </div>
 
             {/* Empty State */}
-            {sortedFreelancers.length === 0 && (
+            {!isLoadingFreelancers && sortedFreelancers.length === 0 && (
               <div className="bg-white rounded-lg shadow-sm p-8 md:p-12 text-center">
                 <Briefcase className="w-12 h-12 md:w-16 md:h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-base md:text-lg font-medium text-gray-800 mb-2">
@@ -613,11 +663,27 @@ export default function Freelancers() {
             {/* Pagination */}
             {sortedFreelancers.length > 0 && (
               <div className="flex items-center justify-center gap-2 mt-6 md:mt-8">
-                <button className="px-2 md:px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 bg-99blue text-white text-sm">1</button>
-                <button className="px-2 md:px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-sm">2</button>
-                <button className="px-2 md:px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-sm">3</button>
-                <span className="px-2 text-sm">...</span>
-                <button className="px-2 md:px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-sm">Última</button>
+                {Array.from({ length: Math.min(totalPages, 5) }).map((_, i) => {
+                  const page = i + 1;
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`px-2 md:px-3 py-2 border rounded-lg text-sm ${currentPage === page ? 'bg-99blue text-white border-99blue' : 'border-gray-300 hover:bg-gray-100'}`}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+                {totalPages > 5 && <span className="px-2 text-sm">...</span>}
+                {totalPages > 1 && (
+                  <button
+                    onClick={() => setCurrentPage(totalPages)}
+                    className="px-2 md:px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-sm"
+                  >
+                    Última
+                  </button>
+                )}
               </div>
             )}
           </div>

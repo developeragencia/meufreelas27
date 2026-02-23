@@ -335,7 +335,7 @@ export default function FreelancerDashboard() {
               </Link>
               <div className="flex items-center space-x-2">
                 <img src={avatarUrl} alt={user.name} className="w-8 h-8 rounded-full object-cover" />
-                <span className="text-sm">{user.name.split(' ')[0]}</span>
+                <span className="text-sm max-w-[120px] truncate" title={user.name}>{user.name.split(' ')[0]}</span>
               </div>
             </div>
           </div>

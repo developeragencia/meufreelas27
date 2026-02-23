@@ -586,7 +586,7 @@ export default function ProjectDetail() {
             <nav className="hidden md:flex items-center space-x-6">
               <Link to="/projects" className="text-gray-300 hover:text-white transition-colors">Projetos</Link>
               <Link to="/freelancers" className="text-gray-300 hover:text-white transition-colors">Freelancers</Link>
-              <Link to="/how-it-works" className="text-gray-300 hover:text-white transition-colors">Como Funciona</Link>
+              <Link to="/como-funciona" className="text-gray-300 hover:text-white transition-colors">Como Funciona</Link>
               {isAuthenticated ? (
                 <div className="flex items-center space-x-4">
                   <Link to={user?.type === 'freelancer' ? '/freelancer/dashboard' : '/dashboard'} 
@@ -1308,6 +1308,44 @@ export default function ProjectDetail() {
                   Use o sistema de garantia de pagamento
                 </li>
               </ul>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Informações adicionais</h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between gap-3">
+                  <span className="text-gray-500">Categoria:</span>
+                  <span className="text-gray-800 font-medium text-right">{project.category}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-gray-500">Subcategoria:</span>
+                  <span className="text-gray-800 font-medium text-right">{project.subcategory || `Outra - ${project.category}`}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-gray-500">Orçamento:</span>
+                  <span className="text-gray-800 font-medium text-right">{project.budget}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-gray-500">Nível de experiência:</span>
+                  <span className="text-gray-800 font-medium text-right">{project.experienceLevel}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-gray-500">Visibilidade:</span>
+                  <span className="text-gray-800 font-medium text-right">Público</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-gray-500">Propostas:</span>
+                  <span className="text-gray-800 font-medium text-right">{project.proposals}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-gray-500">Interessados:</span>
+                  <span className="text-gray-800 font-medium text-right">{project.interested}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-gray-500">Valor mínimo:</span>
+                  <span className="text-gray-800 font-medium text-right">R$ 50,00</span>
+                </div>
+              </div>
             </div>
 
             {/* Similar Projects */}

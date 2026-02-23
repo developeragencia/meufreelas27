@@ -339,7 +339,7 @@ export default function ClientDashboard() {
                 <div className="w-8 h-8 bg-99blue rounded-full flex items-center justify-center">
                   <User className="w-5 h-5" />
                 </div>
-                <span className="text-sm">{user.name.split(' ')[0]}</span>
+                <span className="text-sm max-w-[120px] truncate" title={user.name}>{user.name.split(' ')[0]}</span>
               </div>
             </div>
           </div>

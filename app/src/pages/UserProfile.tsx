@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Star, Heart, MessageSquare, Briefcase, Calendar, CheckCircle, Shield, Crown, ArrowLeft, Ban, Flag } from 'lucide-react';
 import BrandLogo from '../components/BrandLogo';
+import { apiGetFreelancerPublicByUsername, hasApi } from '../lib/api';
 
 interface ProfileModel {
   id: string;
@@ -17,6 +18,10 @@ interface ProfileModel {
   isPremium: boolean;
   isVerified: boolean;
   skills: string[];
+  recommendations: number;
+  ranking: number;
+  profileCompletion: number;
+  planTier: 'free' | 'pro' | 'premium';
 }
 
 function toUsername(value: string): string {
@@ -37,18 +42,46 @@ export default function UserProfile() {
   const { isAuthenticated } = useAuth();
   const [isFavorite, setIsFavorite] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
+  const [reportSent, setReportSent] = useState(false);
   const [profile, setProfile] = useState<ProfileModel | null>(null);
 
   useEffect(() => {
-    const blocked = JSON.parse(localStorage.getItem('meufreelas_blocked_profiles') || '[]');
-    setIsBlocked(Array.isArray(blocked) && blocked.includes(username));
+    const load = async () => {
+      const blocked = JSON.parse(localStorage.getItem('meufreelas_blocked_profiles') || '[]');
+      setIsBlocked(Array.isArray(blocked) && blocked.includes(username));
 
-    const users = loadUsers().filter((u) => u?.type === 'freelancer' || u?.hasFreelancerAccount);
-    const found = users.find((u) => toUsername(String(u?.name || u?.id || '')) === username);
-    if (!found) {
-      setProfile(null);
-      return;
-    }
+      if (username && hasApi()) {
+        const res = await apiGetFreelancerPublicByUsername(username);
+        if (res.ok && res.freelancer) {
+          const f = res.freelancer;
+          setProfile({
+            id: f.id,
+            name: f.name,
+            username: f.username,
+            title: f.title || 'Freelancer',
+            bio: f.bio || 'Sem biografia cadastrada.',
+            avatar: f.avatar,
+            rating: Number(f.rating) || 0,
+            completedProjects: Number(f.completedProjects) || 0,
+            memberSince: f.memberSince || '-',
+            isPremium: !!f.isPremium,
+            isVerified: !!f.isVerified,
+            skills: Array.isArray(f.skills) ? f.skills : [],
+            recommendations: Number(f.recommendations) || 0,
+            ranking: Number(f.ranking) || 0,
+            profileCompletion: Number(f.profileCompletion) || 0,
+            planTier: (f.planTier || 'free') as 'free' | 'pro' | 'premium',
+          });
+          return;
+        }
+      }
+
+      const users = loadUsers().filter((u) => u?.type === 'freelancer' || u?.hasFreelancerAccount);
+      const found = users.find((u) => toUsername(String(u?.name || u?.id || '')) === username);
+      if (!found) {
+        setProfile(null);
+        return;
+      }
 
     const savedProfileRaw = localStorage.getItem(`profile_${found.id}`);
     let savedProfile: any = {};
@@ -62,24 +95,30 @@ export default function UserProfile() {
     const safeName = String(found?.name || 'Freelancer');
     const safeAvatar = found?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(safeName)}&background=003366&color=fff`;
 
-    setProfile({
-      id: String(found.id),
-      name: safeName,
-      username: toUsername(safeName),
-      title: String(savedProfile?.title || found?.title || 'Freelancer'),
-      bio: String(savedProfile?.bio || found?.bio || 'Sem biografia cadastrada.'),
-      avatar: safeAvatar,
-      rating: Number(found?.rating || 0),
-      completedProjects: Number(found?.completedProjects || 0),
-      memberSince: new Date(createdAt).toLocaleDateString('pt-BR'),
-      isPremium: !!found?.isPremium,
-      isVerified: !!found?.isVerified,
-      skills: Array.isArray(savedProfile?.skills)
-        ? savedProfile.skills.map((s: any) => (typeof s === 'string' ? s : s?.name)).filter(Boolean)
-        : Array.isArray(found?.skills)
-          ? found.skills
-          : [],
-    });
+      setProfile({
+        id: String(found.id),
+        name: safeName,
+        username: toUsername(safeName),
+        title: String(savedProfile?.title || found?.title || 'Freelancer'),
+        bio: String(savedProfile?.bio || found?.bio || 'Sem biografia cadastrada.'),
+        avatar: safeAvatar,
+        rating: Number(found?.rating || 0),
+        completedProjects: Number(found?.completedProjects || 0),
+        memberSince: new Date(createdAt).toLocaleDateString('pt-BR'),
+        isPremium: !!found?.isPremium,
+        isVerified: !!found?.isVerified,
+        skills: Array.isArray(savedProfile?.skills)
+          ? savedProfile.skills.map((s: any) => (typeof s === 'string' ? s : s?.name)).filter(Boolean)
+          : Array.isArray(found?.skills)
+            ? found.skills
+            : [],
+        recommendations: Number(found?.recommendations || found?.completedProjects || 0),
+        ranking: Number(found?.ranking || 0),
+        profileCompletion: Number(found?.profileCompletion || 0),
+        planTier: ((found?.planType || found?.plan || 'free') as 'free' | 'pro' | 'premium'),
+      });
+    };
+    void load();
   }, [username]);
 
   const handleBlock = () => {
@@ -100,7 +139,8 @@ export default function UserProfile() {
     const safe = Array.isArray(reports) ? reports : [];
     safe.push({ username, createdAt: new Date().toISOString() });
     localStorage.setItem('meufreelas_profile_reports', JSON.stringify(safe));
-    alert('Perfil denunciado. Obrigado pelo reporte.');
+    setReportSent(true);
+    setTimeout(() => setReportSent(false), 2500);
   };
 
   const stars = useMemo(() => {
@@ -110,6 +150,7 @@ export default function UserProfile() {
 
   const completionScore = useMemo(() => {
     if (!profile) return 0;
+    if (profile.profileCompletion > 0) return profile.profileCompletion;
     let score = 0;
     if (profile.name.trim()) score += 10;
     if (profile.title.trim()) score += 20;
@@ -185,6 +226,9 @@ export default function UserProfile() {
                 )}
               </div>
               <p className="text-gray-600 mt-1">{profile.title}</p>
+              <div className="mt-2 text-sm text-gray-600">
+                Ranking: <strong>{profile.ranking || '-'}</strong> | Projetos concluídos: <strong>{profile.completedProjects}</strong> | Recomendações: <strong>{profile.recommendations}</strong> | Registrado desde: <strong>{profile.memberSince}</strong>
+              </div>
               <div className="flex items-center gap-2 mt-3 text-sm text-gray-600">
                 <div className="flex items-center">
                   {stars.map((_, i) => <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />)}
@@ -244,6 +288,13 @@ export default function UserProfile() {
         </section>
 
         <section className="bg-white rounded-2xl shadow-sm p-6 md:p-8 mt-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">Histórico de projetos & Avaliações</h2>
+          <p className="text-gray-700">Avaliação média: {profile.rating.toFixed(2)}.</p>
+          <p className="text-gray-700">Projetos concluídos: {profile.completedProjects}.</p>
+          <p className="text-gray-700">Recomendações: {profile.recommendations}.</p>
+        </section>
+
+        <section className="bg-white rounded-2xl shadow-sm p-6 md:p-8 mt-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-3">Completude, Selo e Reputação</h2>
           <div className="mb-4">
             <div className="flex items-center justify-between text-sm mb-2">
@@ -278,6 +329,11 @@ export default function UserProfile() {
           </div>
         </section>
       </main>
+      {reportSent && (
+        <div className="fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm">
+          Perfil denunciado. Obrigado pelo reporte.
+        </div>
+      )}
     </div>
   );
 }
