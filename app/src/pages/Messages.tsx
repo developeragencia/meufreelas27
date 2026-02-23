@@ -24,10 +24,13 @@ import { getBanMessage, getPenaltyMessage, getUserSanctionStatus } from '../util
 import {
   apiGetMessages,
   apiListConversations,
+  apiListProposals,
   apiSendMessage,
+  apiUpdateProposalStatus,
   hasApi,
   type ApiChatMessage,
   type ApiConversation,
+  type ApiProposal,
 } from '../lib/api';
 
 function formatMessageTime(value?: string | null): string {
@@ -56,6 +59,9 @@ export default function Messages() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isLoadingProposal, setIsLoadingProposal] = useState(false);
+  const [proposalActionLoading, setProposalActionLoading] = useState<'Aceita' | 'Recusada' | null>(null);
+  const [proposalInConversation, setProposalInConversation] = useState<ApiProposal | null>(null);
   const [error, setError] = useState('');
 
   const [moderationWarning, setModerationWarning] = useState<string | null>(null);
@@ -79,6 +85,7 @@ export default function Messages() {
     if (!found) return;
     setSelectedConversation(found);
     setShowMobileChat(true);
+    loadConversationProposal(found);
     loadMessages(found.id);
   }, [location.search, conversations]);
 
@@ -122,9 +129,26 @@ export default function Messages() {
     setMessages(res.messages || []);
   }
 
+  async function loadConversationProposal(conv: ApiConversation) {
+    if (!user?.id || !conv.projectId || !hasApi()) {
+      setProposalInConversation(null);
+      return;
+    }
+    setIsLoadingProposal(true);
+    const res = await apiListProposals({ projectId: conv.projectId, clientId: user.id });
+    setIsLoadingProposal(false);
+    if (!res.ok) {
+      setProposalInConversation(null);
+      return;
+    }
+    const match = (res.proposals || []).find((p) => p.freelancerId === conv.participantId) || null;
+    setProposalInConversation(match);
+  }
+
   async function handleConversationSelect(conv: ApiConversation) {
     setSelectedConversation(conv);
     setShowMobileChat(true);
+    await loadConversationProposal(conv);
     await loadMessages(conv.id);
   }
 
@@ -132,6 +156,7 @@ export default function Messages() {
     setShowMobileChat(false);
     setSelectedConversation(null);
     setMessages([]);
+    setProposalInConversation(null);
   }
 
   async function handleSendMessage(e: React.FormEvent) {
@@ -172,6 +197,32 @@ export default function Messages() {
       )
     );
     setNewMessage('');
+  }
+
+  async function handleProposalAction(status: 'Aceita' | 'Recusada') {
+    if (!proposalInConversation?.id || !user?.id) return;
+    setProposalActionLoading(status);
+    const res = await apiUpdateProposalStatus({
+      proposalId: proposalInConversation.id,
+      clientId: user.id,
+      status,
+    });
+    setProposalActionLoading(null);
+    if (!res.ok) {
+      setError(res.error || `Não foi possível ${status === 'Aceita' ? 'aceitar' : 'recusar'} a proposta.`);
+      return;
+    }
+    setProposalInConversation((prev) => (prev ? { ...prev, status } : prev));
+    if (selectedConversation?.id) {
+      const infoMessage =
+        status === 'Aceita'
+          ? 'Sua proposta foi aceita pelo cliente. Vamos iniciar o projeto!'
+          : 'Sua proposta foi recusada pelo cliente.';
+      const sent = await apiSendMessage(user.id, selectedConversation.id, infoMessage);
+      if (sent.ok && sent.message) {
+        setMessages((prev) => [...prev, sent.message as ApiChatMessage]);
+      }
+    }
   }
 
   const filteredConversations = conversations.filter(
@@ -352,6 +403,71 @@ export default function Messages() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {selectedConversation?.projectTitle && (
+                  <div className="bg-white border border-gray-200 rounded-xl p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-gray-500">Projeto da conversa</p>
+                        <p className="text-sm font-semibold text-gray-800">{selectedConversation.projectTitle}</p>
+                      </div>
+                      {selectedConversation.projectValue && (
+                        <span className="text-sm font-semibold text-99blue">{selectedConversation.projectValue}</span>
+                      )}
+                    </div>
+                    {user?.type === 'client' && (
+                      <div className="mt-3 border-t border-gray-100 pt-3">
+                        {isLoadingProposal ? (
+                          <p className="text-sm text-gray-500">Carregando proposta...</p>
+                        ) : proposalInConversation ? (
+                          <div className="space-y-3">
+                            <div className="text-sm text-gray-700">
+                              <p>
+                                <span className="font-medium">Oferta:</span> {proposalInConversation.value} |{' '}
+                                <span className="font-medium">Prazo:</span> {proposalInConversation.deliveryDays}
+                              </p>
+                              <p className="mt-1">
+                                <span className="font-medium">Status:</span>{' '}
+                                <span
+                                  className={
+                                    proposalInConversation.status === 'Aceita'
+                                      ? 'text-green-600 font-medium'
+                                      : proposalInConversation.status === 'Recusada'
+                                      ? 'text-red-600 font-medium'
+                                      : 'text-amber-600 font-medium'
+                                  }
+                                >
+                                  {proposalInConversation.status}
+                                </span>
+                              </p>
+                            </div>
+                            {proposalInConversation.status === 'Pendente' && (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleProposalAction('Aceita')}
+                                  disabled={proposalActionLoading !== null}
+                                  className="px-4 py-2 text-sm rounded-lg bg-green-500 text-white hover:bg-green-600 disabled:opacity-60"
+                                >
+                                  {proposalActionLoading === 'Aceita' ? 'Aceitando...' : 'Aceitar proposta'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleProposalAction('Recusada')}
+                                  disabled={proposalActionLoading !== null}
+                                  className="px-4 py-2 text-sm rounded-lg border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-60"
+                                >
+                                  {proposalActionLoading === 'Recusada' ? 'Recusando...' : 'Recusar proposta'}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-500">Nenhuma proposta encontrada para este projeto nesta conversa.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {isLoadingMessages ? (
                   <div className="p-8 text-center text-gray-500 text-sm">Carregando mensagens...</div>
                 ) : messages.length > 0 ? (

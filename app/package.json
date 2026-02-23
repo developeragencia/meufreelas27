@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm install --include=dev && vite build && node scripts/copy-api.js",
+    "build": "vite build && node scripts/copy-api.js",
+    "build:ci": "npm install --include=dev && npm run build",
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "preview": "vite preview"

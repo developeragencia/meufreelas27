@@ -111,6 +111,7 @@ if ($action === 'list_conversations') {
     $conversations = array_map(function ($r) {
         return [
             'id' => $r['id'],
+            'projectId' => $r['project_id'],
             'participantId' => $r['participant_id'],
             'participantName' => $r['participant_name'],
             'participantAvatar' => $r['participant_avatar'],

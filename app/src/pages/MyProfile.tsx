@@ -6,7 +6,7 @@ import {
   Edit, Star, CheckCircle, Award, Briefcase, Clock,
   DollarSign, FileText, ArrowLeft, Shield, Crown
 } from 'lucide-react';
-
+import { apiListProjects, apiListProposals, apiListReviews, hasApi } from '../lib/api';
 interface ProfileData {
   phone: string;
   location: string;
@@ -35,25 +35,74 @@ export default function MyProfile() {
   });
 
   useEffect(() => {
-    // Load profile data
-    const savedProfile = localStorage.getItem(`profile_${user?.id}`);
+    if (!user?.id) return;
+
+    const savedProfile = localStorage.getItem(`profile_${user.id}`);
     if (savedProfile) {
       setProfile(JSON.parse(savedProfile));
     }
 
-    // Load stats
-    const savedStats = localStorage.getItem(`stats_${user?.id}`);
-    if (savedStats) {
-      setStats(JSON.parse(savedStats));
-    } else {
-      setStats({
-        projectsCompleted: Math.floor(Math.random() * 50) + 5,
-        proposalsSent: Math.floor(Math.random() * 100) + 20,
-        rating: 4.5 + Math.random() * 0.5,
-        memberSince: new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-      });
-    }
-  }, [user]);
+    const loadStats = async () => {
+      try {
+        if (hasApi()) {
+          if (isFreelancer) {
+            const [proposalsRes, reviewsRes] = await Promise.all([
+              apiListProposals({ freelancerId: user.id }),
+              apiListReviews(user.id),
+            ]);
+            const proposals = proposalsRes.ok && proposalsRes.proposals ? proposalsRes.proposals : [];
+            const projectsCompleted = proposals.filter((p) => p.status === 'Aceita').length;
+            const proposalsSent = proposals.length;
+            let rating = user.rating || 0;
+            if (reviewsRes.ok && reviewsRes.reviews && reviewsRes.reviews.length > 0) {
+              const total = reviewsRes.reviews.reduce((sum, r) => sum + r.rating, 0);
+              rating = total / reviewsRes.reviews.length;
+            }
+            const memberSince = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+            const nextStats = { projectsCompleted, proposalsSent, rating, memberSince };
+            setStats(nextStats);
+            localStorage.setItem(`stats_${user.id}`, JSON.stringify(nextStats));
+            return;
+          }
+          const [projectsRes, proposalsRes] = await Promise.all([
+            apiListProjects({ clientId: user.id }),
+            apiListProposals({ clientId: user.id }),
+          ]);
+          const projects = projectsRes.ok && projectsRes.projects ? projectsRes.projects : [];
+          const proposals = proposalsRes.ok && proposalsRes.proposals ? proposalsRes.proposals : [];
+          const nextStats = {
+            projectsCompleted: projects.length,
+            proposalsSent: proposals.length,
+            rating: 0,
+            memberSince: new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+          };
+          setStats(nextStats);
+          localStorage.setItem(`stats_${user.id}`, JSON.stringify(nextStats));
+          return;
+        }
+        const savedStats = localStorage.getItem(`stats_${user.id}`);
+        if (savedStats) {
+          setStats(JSON.parse(savedStats));
+        } else {
+          const fallbackStats = {
+            projectsCompleted: Math.floor(Math.random() * 50) + 5,
+            proposalsSent: Math.floor(Math.random() * 100) + 20,
+            rating: 4.5 + Math.random() * 0.5,
+            memberSince: new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+          };
+          setStats(fallbackStats);
+          localStorage.setItem(`stats_${user.id}`, JSON.stringify(fallbackStats));
+        }
+      } catch {
+        const savedStats = localStorage.getItem(`stats_${user.id}`);
+        if (savedStats) {
+          setStats(JSON.parse(savedStats));
+        }
+      }
+    };
+
+    void loadStats();
+  }, [user, isFreelancer]);
 
   const getExperienceLabel = (exp: string) => {
     const labels: Record<string, string> = {

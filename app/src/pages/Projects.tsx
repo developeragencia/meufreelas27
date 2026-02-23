@@ -147,6 +147,8 @@ export default function Projects() {
   const [expandedProjects, setExpandedProjects] = useState<string[]>([]);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   useEffect(() => {
     let cancelled = false;
@@ -215,17 +217,56 @@ export default function Projects() {
       const matchesFeatured = !featuredOnly || project.isFeatured;
       const matchesUrgent = !urgentOnly || project.isUrgent;
       const matchesLevel = selectedLevel === 'all' || project.level === selectedLevel;
-      return matchesCategory && matchesFeatured && matchesUrgent && matchesLevel;
+      const ranking = Number(project.clientRating ?? 0);
+      const matchesRanking =
+        selectedClientRanking === 'any' ||
+        (selectedClientRanking === 'none' && !project.clientRating) ||
+        (selectedClientRanking === '5' && ranking >= 5) ||
+        (selectedClientRanking === '4.5' && ranking >= 4.5) ||
+        (selectedClientRanking === '4' && ranking >= 4);
+
+      let matchesDate = true;
+      if (selectedDate !== 'any' && project.createdAt) {
+        const createdTime = new Date(project.createdAt).getTime();
+        const now = Date.now();
+        const diff = now - createdTime;
+        if (selectedDate === '24h') matchesDate = diff <= 24 * 60 * 60 * 1000;
+        if (selectedDate === '3d') matchesDate = diff <= 3 * 24 * 60 * 60 * 1000;
+      }
+
+      return matchesCategory && matchesFeatured && matchesUrgent && matchesLevel && matchesRanking && matchesDate;
     });
-    if (sortBy === 'oldest' && list.length > 0) {
-      list = [...list].sort((a, b) => {
-        const t1 = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const t2 = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return t1 - t2;
-      });
-    }
+    list = [...list].sort((a, b) => {
+      const t1 = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const t2 = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      const p1 = a.proposals ?? 0;
+      const p2 = b.proposals ?? 0;
+      const i1 = a.interested ?? 0;
+      const i2 = b.interested ?? 0;
+      if (sortBy === 'newest' || sortBy === 'relevance') return t2 - t1;
+      if (sortBy === 'oldest') return t1 - t2;
+      if (sortBy === 'proposals_high') return p2 - p1;
+      if (sortBy === 'proposals_low') return p1 - p2;
+      if (sortBy === 'interested_high') return i2 - i1;
+      if (sortBy === 'interested_low') return i1 - i2;
+      return 0;
+    });
     return list;
-  }, [projects, selectedCategory, featuredOnly, urgentOnly, selectedLevel, sortBy]);
+  }, [projects, selectedCategory, featuredOnly, urgentOnly, selectedLevel, selectedClientRanking, selectedDate, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredProjects.length / pageSize));
+  const paginatedProjects = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredProjects.slice(start, start + pageSize);
+  }, [filteredProjects, currentPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(1);
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [keywords, selectedCategory, featuredOnly, urgentOnly, selectedDate, selectedClientRanking, selectedLevel, sortBy]);
 
   const renderStars = (rating: number) => {
     return '★'.repeat(Math.round(rating)) + '☆'.repeat(5 - Math.round(rating));
@@ -293,7 +334,7 @@ export default function Projects() {
         </select>
       </div>
 
-      <button onClick={() => { setKeywords(''); setSelectedCategory('Todas as categorias'); setFeaturedOnly(false); setUrgentOnly(false); setSelectedDate('any'); setSelectedClientRanking('any'); setSelectedLevel('all'); setSortBy('relevance'); }} className="w-full py-2 text-99blue hover:underline text-sm">Resetar Filtros</button>
+      <button onClick={() => { setKeywords(''); setSelectedCategory('Todas as categorias'); setFeaturedOnly(false); setUrgentOnly(false); setSelectedDate('any'); setSelectedClientRanking('any'); setSelectedLevel('all'); setSortBy('relevance'); setCurrentPage(1); }} className="w-full py-2 text-99blue hover:underline text-sm">Resetar Filtros</button>
     </>
   );
 
@@ -427,7 +468,7 @@ export default function Projects() {
                   <p className="font-medium">Nenhum projeto encontrado</p>
                   <p className="text-sm mt-1">Ajuste os filtros ou publique um projeto.</p>
                 </div>
-              ) : filteredProjects.map((project) => (
+              ) : paginatedProjects.map((project) => (
                 <div key={project.id} className="bg-white rounded-lg shadow-sm p-4 md:p-6">
                   <Link to={`/project/${project.id}`} className="text-base md:text-lg font-semibold text-99blue hover:underline block mb-2">{project.title}</Link>
                   
@@ -472,11 +513,36 @@ export default function Projects() {
             {/* Pagination */}
             {filteredProjects.length > 0 && (
               <div className="flex items-center justify-center gap-2 mt-6 md:mt-8">
-                <button className="px-2 md:px-3 py-2 border border-gray-300 rounded-lg bg-99blue text-white text-sm">1</button>
-                <button className="px-2 md:px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-sm">2</button>
-                <button className="px-2 md:px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-sm">3</button>
-                <span className="px-2 text-sm">...</span>
-                <button className="px-2 md:px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-sm">Última</button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="px-2 md:px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Anterior
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .slice(Math.max(0, currentPage - 3), Math.min(totalPages, currentPage + 2))
+                  .map((page) => (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      className={`px-2 md:px-3 py-2 border border-gray-300 rounded-lg text-sm ${
+                        currentPage === page ? 'bg-99blue text-white' : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-2 md:px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Próxima
+                </button>
               </div>
             )}
           </div>

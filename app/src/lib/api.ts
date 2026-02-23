@@ -192,6 +192,7 @@ export async function apiGetFreelancerPublicByUsername(username: string): Promis
 
 export type ApiConversation = {
   id: string;
+  projectId?: string;
   participantId: string;
   participantName: string;
   participantAvatar?: string;

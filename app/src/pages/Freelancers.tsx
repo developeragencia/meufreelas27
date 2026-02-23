@@ -222,6 +222,11 @@ export default function Freelancers() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
+  const publishProjectHref = !isAuthenticated
+    ? '/login'
+    : user?.type === 'client'
+      ? '/project/new'
+      : '/freelancer/dashboard';
 
   const toggleExpandBio = (id: string) => {
     setExpandedFreelancers(prev => 
@@ -241,7 +246,12 @@ export default function Freelancers() {
       freelancer.title.toLowerCase().includes(keywords.toLowerCase()) ||
       freelancer.skills.some(s => s.toLowerCase().includes(keywords.toLowerCase()));
     
-    const matchesArea = selectedArea === 'Todas as áreas';
+    const normalizedArea = selectedArea.toLowerCase();
+    const matchesArea =
+      selectedArea === 'Todas as áreas' ||
+      freelancer.title.toLowerCase().includes(normalizedArea) ||
+      freelancer.bio.toLowerCase().includes(normalizedArea) ||
+      freelancer.skills.some((s) => s.toLowerCase().includes(normalizedArea));
     
     let matchesRanking = true;
     if (selectedRanking === '5') matchesRanking = freelancer.rating >= 5;
@@ -275,6 +285,10 @@ export default function Freelancers() {
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(1);
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [keywords, selectedArea, selectedRanking, selectedRecommendations, onlyWithPhoto, sortBy]);
 
   const renderStars = (rating: number) => {
     const fullStars = Math.floor(rating);
@@ -445,7 +459,7 @@ export default function Freelancers() {
                   <Link to="/register" className="text-gray-300 hover:text-white hidden sm:block">Cadastre-se</Link>
                 </>
               )}
-              <Link to="/project/new" className="px-4 py-2 bg-99blue rounded-lg hover:bg-sky-400 text-sm md:text-base">
+              <Link to={publishProjectHref} className="px-4 py-2 bg-99blue rounded-lg hover:bg-sky-400 text-sm md:text-base">
                 Publicar
               </Link>
             </div>
@@ -464,7 +478,7 @@ export default function Freelancers() {
               </p>
             </div>
             <Link 
-              to="/project/new" 
+              to={publishProjectHref}
               className="px-4 md:px-6 py-2 md:py-3 bg-99blue text-white rounded-lg hover:bg-99blue-light transition-colors font-medium text-sm md:text-base text-center"
             >
               Publique um projeto
@@ -517,8 +531,7 @@ export default function Freelancers() {
 
             {/* Freelancers List */}
             <div className="space-y-4">
-              {sortedFreelancers.length === 0 ? (
-              isLoadingFreelancers ? (
+              {isLoadingFreelancers ? (
                 <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-500">
                   <Briefcase className="w-12 h-12 mx-auto mb-3 text-gray-300 animate-pulse" />
                   <p className="font-medium">Carregando freelancers...</p>
@@ -598,7 +611,7 @@ export default function Freelancers() {
 
                     <div className="flex md:flex-col gap-2 md:min-w-[120px]">
                       <Link
-                        to={isAuthenticated ? '/project/new' : '/login'}
+                        to={publishProjectHref}
                         className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors font-medium text-sm text-center whitespace-nowrap"
                       >
                         Convidar
@@ -663,8 +676,9 @@ export default function Freelancers() {
             {/* Pagination */}
             {sortedFreelancers.length > 0 && (
               <div className="flex items-center justify-center gap-2 mt-6 md:mt-8">
-                {Array.from({ length: Math.min(totalPages, 5) }).map((_, i) => {
-                  const page = i + 1;
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .slice(Math.max(0, currentPage - 3), Math.min(totalPages, currentPage + 2))
+                  .map((page) => {
                   return (
                     <button
                       key={page}
@@ -675,7 +689,6 @@ export default function Freelancers() {
                     </button>
                   );
                 })}
-                {totalPages > 5 && <span className="px-2 text-sm">...</span>}
                 {totalPages > 1 && (
                   <button
                     onClick={() => setCurrentPage(totalPages)}

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Star, Heart, MessageSquare, Briefcase, Calendar, CheckCircle, Shield, Crown, ArrowLeft, Ban, Flag } from 'lucide-react';
 import BrandLogo from '../components/BrandLogo';
-import { apiGetFreelancerPublicByUsername, hasApi } from '../lib/api';
+import { apiEnsureConversation, apiGetFreelancerPublicByUsername, hasApi } from '../lib/api';
 
 interface ProfileModel {
   id: string;
@@ -39,10 +39,12 @@ function loadUsers(): any[] {
 
 export default function UserProfile() {
   const { username } = useParams();
-  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
   const [isFavorite, setIsFavorite] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [reportSent, setReportSent] = useState(false);
+  const [messageLoading, setMessageLoading] = useState(false);
   const [profile, setProfile] = useState<ProfileModel | null>(null);
 
   useEffect(() => {
@@ -143,9 +145,32 @@ export default function UserProfile() {
     setTimeout(() => setReportSent(false), 2500);
   };
 
+  const handleOpenMessage = async () => {
+    if (!isAuthenticated || !user?.id) {
+      navigate('/login');
+      return;
+    }
+    if (!profile?.id || profile.id === user.id) {
+      navigate('/messages');
+      return;
+    }
+    if (!hasApi()) {
+      navigate('/messages');
+      return;
+    }
+    setMessageLoading(true);
+    const res = await apiEnsureConversation(user.id, profile.id);
+    setMessageLoading(false);
+    if (res.ok && res.conversationId) {
+      navigate(`/messages?conversation=${res.conversationId}`);
+      return;
+    }
+    navigate('/messages');
+  };
+
   const stars = useMemo(() => {
-    const full = Math.max(0, Math.min(5, Math.floor(profile?.rating || 0)));
-    return Array.from({ length: full });
+    const rating = Math.max(0, Math.min(5, profile?.rating || 0));
+    return Array.from({ length: 5 }, (_, i) => i < Math.floor(rating));
   }, [profile?.rating]);
 
   const completionScore = useMemo(() => {
@@ -161,6 +186,8 @@ export default function UserProfile() {
     if (profile.isVerified) score += 10;
     return Math.min(100, score);
   }, [profile]);
+
+  const inviteHref = !isAuthenticated ? '/register' : user?.type === 'client' ? '/project/new' : '/projects';
 
   const reputationBadges = useMemo(() => {
     if (!profile) return [];
@@ -231,7 +258,12 @@ export default function UserProfile() {
               </div>
               <div className="flex items-center gap-2 mt-3 text-sm text-gray-600">
                 <div className="flex items-center">
-                  {stars.map((_, i) => <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />)}
+                  {stars.map((filled, i) => (
+                    <Star
+                      key={i}
+                      className={`w-4 h-4 ${filled ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
+                    />
+                  ))}
                 </div>
                 <span>{profile.rating.toFixed(1)} de 5</span>
               </div>
@@ -243,7 +275,7 @@ export default function UserProfile() {
 
             <div className="flex flex-col gap-2 w-full md:w-auto">
               <Link
-                to={isAuthenticated ? '/project/new' : '/register'}
+                to={inviteHref}
                 className="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-center text-sm"
               >
                 Convidar
@@ -266,9 +298,17 @@ export default function UserProfile() {
               >
                 <span className="inline-flex items-center gap-2"><Flag className="w-4 h-4" />Denunciar</span>
               </button>
-              <Link to="/messages" className="px-5 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 text-center">
-                <span className="inline-flex items-center gap-2"><MessageSquare className="w-4 h-4" />Mensagem</span>
-              </Link>
+              <button
+                type="button"
+                onClick={handleOpenMessage}
+                disabled={messageLoading}
+                className="px-5 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 text-center disabled:opacity-60"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4" />
+                  {messageLoading ? 'Abrindo...' : 'Mensagem'}
+                </span>
+              </button>
             </div>
           </div>
         </div>
