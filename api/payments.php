@@ -24,6 +24,14 @@ $stripeSecret = trim((string)(mf_first_env(['STRIPE_SECRET_KEY', 'STRIPE_SECRET'
 $mpAccessToken = trim((string)(mf_first_env(['MERCADOPAGO_ACCESS_TOKEN', 'MP_ACCESS_TOKEN'], '')));
 $mpWebhookUrl = trim((string)(mf_first_env(['MERCADOPAGO_WEBHOOK_URL'], $apiOrigin . '/api/webhooks/mercadopago.php')));
 
+function env_key_configured(string $value): bool {
+    if ($value === '') return false;
+    if (preg_match('/COLOQUE|substitua|SUBSTITUA|placeholder|example/i', $value)) return false;
+    if (preg_match('/^sk_live_[a-zA-Z0-9]{20,}$/', $value)) return true;
+    if (preg_match('/^APP_USR-[a-zA-Z0-9\-]{30,}$/', $value)) return true;
+    return false;
+}
+
 try {
     $pdo = mf_pdo();
 } catch (PDOException $e) {
@@ -229,8 +237,8 @@ if ($action === 'create_checkout') {
     $projectTitle = (string)($payment['project_title'] ?? 'Projeto MeuFreelas');
 
     if ($provider === 'stripe') {
-        if ($stripeSecret === '') {
-            echo json_encode(['ok' => false, 'error' => 'Stripe não configurado no servidor.']);
+        if (!env_key_configured($stripeSecret)) {
+            echo json_encode(['ok' => false, 'error' => 'Stripe não configurado no servidor. Coloque STRIPE_SECRET_KEY (sk_live_...) em api/.env ou variáveis Hostinger.']);
             exit;
         }
         $res = http_post_form(
@@ -263,8 +271,8 @@ if ($action === 'create_checkout') {
         exit;
     }
 
-    if ($mpAccessToken === '') {
-        echo json_encode(['ok' => false, 'error' => 'Mercado Pago não configurado no servidor.']);
+    if (!env_key_configured($mpAccessToken)) {
+        echo json_encode(['ok' => false, 'error' => 'Mercado Pago não configurado no servidor. Coloque MERCADOPAGO_ACCESS_TOKEN (APP_USR_...) em api/.env ou variáveis Hostinger.']);
         exit;
     }
     $res = http_post_json(
