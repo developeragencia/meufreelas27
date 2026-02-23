@@ -2,6 +2,7 @@
 /**
  * MeuFreelas - API de autenticação (registro e login)
  * POST: register | login
+ * Opcional: verificação Cloudflare Turnstile (turnstileToken) quando TURNSTILE_SECRET_KEY está definida.
  */
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
@@ -19,6 +20,29 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 require_once __DIR__ . '/db.php';
+
+/**
+ * Verifica o token do Cloudflare Turnstile.
+ * Retorna true se válido, false caso contrário.
+ */
+function mf_verify_turnstile(string $secretKey, string $token): bool {
+    if ($token === '') return false;
+    $url = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+    $data = ['secret' => $secretKey, 'response' => $token];
+    $opts = [
+        'http' => [
+            'method'  => 'POST',
+            'header'  => 'Content-Type: application/x-www-form-urlencoded',
+            'content' => http_build_query($data),
+            'timeout' => 10,
+        ],
+    ];
+    $ctx = stream_context_create($opts);
+    $raw = @file_get_contents($url, false, $ctx);
+    if ($raw === false) return false;
+    $json = json_decode($raw, true);
+    return isset($json['success']) && $json['success'] === true;
+}
 
 try {
     $pdo = mf_pdo();
@@ -53,6 +77,19 @@ $buildUserById = function (string $id) use ($pdo) {
 };
 
 if ($action === 'register') {
+    $turnstileSecret = mf_env('TURNSTILE_SECRET_KEY');
+    if ($turnstileSecret !== null && $turnstileSecret !== '') {
+        $turnstileToken = trim((string)($input['turnstileToken'] ?? ''));
+        if ($turnstileToken === '') {
+            echo json_encode(['ok' => false, 'error' => 'Verificação de segurança obrigatória. Atualize a página e tente novamente.']);
+            exit;
+        }
+        if (!mf_verify_turnstile($turnstileSecret, $turnstileToken)) {
+            echo json_encode(['ok' => false, 'error' => 'Verificação de segurança falhou. Tente novamente.']);
+            exit;
+        }
+    }
+
     $name = trim($input['name'] ?? '');
     $email = trim($input['email'] ?? '');
     $password = $input['password'] ?? '';
@@ -144,6 +181,19 @@ if ($action === 'register') {
 }
 
 if ($action === 'login') {
+    $turnstileSecret = mf_env('TURNSTILE_SECRET_KEY');
+    if ($turnstileSecret !== null && $turnstileSecret !== '') {
+        $turnstileToken = trim((string)($input['turnstileToken'] ?? ''));
+        if ($turnstileToken === '') {
+            echo json_encode(['ok' => false, 'error' => 'Verificação de segurança obrigatória. Atualize a página e tente novamente.']);
+            exit;
+        }
+        if (!mf_verify_turnstile($turnstileSecret, $turnstileToken)) {
+            echo json_encode(['ok' => false, 'error' => 'Verificação de segurança falhou. Tente novamente.']);
+            exit;
+        }
+    }
+
     $email = trim($input['email'] ?? '');
     $password = $input['password'] ?? '';
 

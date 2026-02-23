@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { apiResendActivation, hasApi } from '../lib/api';
+import { TurnstileWidget, hasTurnstile } from '../components/TurnstileWidget';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 
 export default function Login() {
@@ -15,6 +16,10 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [isResendLoading, setIsResendLoading] = useState(false);
   const [notVerifiedEmail, setNotVerifiedEmail] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState('');
+
+  const handleTurnstileVerify = useCallback((token: string) => setTurnstileToken(token), []);
+  const handleTurnstileExpire = useCallback(() => setTurnstileToken(''), []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,10 +31,14 @@ export default function Login() {
       setError('Preencha email e senha.');
       return;
     }
+    if (hasTurnstile() && !turnstileToken.trim()) {
+      setError('Complete a verificação de segurança antes de continuar.');
+      return;
+    }
     setIsLoading(true);
 
     try {
-      const result = await login(trimmedEmail, password);
+      const result = await login(trimmedEmail, password, turnstileToken.trim() || undefined);
       if (result.success) {
         const stored = localStorage.getItem('meufreelas_user');
         const u = stored ? (JSON.parse(stored) as { type?: string }) : null;
@@ -202,6 +211,13 @@ export default function Login() {
                 Esqueceu a senha?
               </Link>
             </div>
+
+            <TurnstileWidget
+              onVerify={handleTurnstileVerify}
+              onExpire={handleTurnstileExpire}
+              theme="light"
+              className="my-4"
+            />
 
             <button
               type="submit"

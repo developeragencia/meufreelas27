@@ -28,8 +28,8 @@ export type RegisterResult = { success: boolean; requiresActivation?: boolean; m
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<LoginResult>;
-  register: (name: string, email: string, password: string, type: Exclude<UserType, 'admin' | null>) => Promise<RegisterResult>;
+  login: (email: string, password: string, turnstileToken?: string) => Promise<LoginResult>;
+  register: (name: string, email: string, password: string, type: Exclude<UserType, 'admin' | null>, turnstileToken?: string) => Promise<RegisterResult>;
   logout: () => void;
   updateUser: (data: Partial<User>) => void;
   switchAccountType: () => Promise<boolean>;
@@ -104,10 +104,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   });
 
-  const login = async (email: string, password: string): Promise<LoginResult> => {
+  const login = async (email: string, password: string, turnstileToken?: string): Promise<LoginResult> => {
     try {
       if (hasApi()) {
-        const res = await apiAuth('login', { email, password });
+        const body: Record<string, string> = { email, password };
+        if (turnstileToken) body.turnstileToken = turnstileToken;
+        const res = await apiAuth('login', body);
         if (res.ok && res.user) {
           const normalizedUser = normalizeUser(res.user);
           if (!normalizedUser) return { success: false, error: 'Resposta inválida' };
@@ -137,11 +139,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     name: string,
     email: string,
     password: string,
-    type: Exclude<UserType, 'admin' | null>
+    type: Exclude<UserType, 'admin' | null>,
+    turnstileToken?: string
   ): Promise<RegisterResult> => {
     try {
       if (hasApi()) {
-        const res = await apiAuth('register', { name, email, password, type });
+        const body: Record<string, string> = { name, email, password, type };
+        if (turnstileToken) body.turnstileToken = turnstileToken;
+        const res = await apiAuth('register', body);
         if (res.ok && res.requiresActivation) {
           return { success: true, requiresActivation: true, message: res.message };
         }
