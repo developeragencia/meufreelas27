@@ -28,7 +28,9 @@ try {
     $result['steps'][] = 'Conexão MySQL (sem database) OK';
 } catch (PDOException $e) {
     $result['errors'][] = 'Conexão falhou: ' . $e->getMessage();
-    $result['steps'][] = 'Configure o banco: crie api/.env com DB_HOST, DB_PORT, DB_NAME, DB_USER e DB_PASS (ou use variáveis de ambiente: MYSQLPASSWORD, etc.). Na Hostinger, defina DB_PASS nas variáveis da implantação.';
+    $result['steps'][] = 'No servidor: copie api/.env.example para api/.env (ou crie api/.env com as mesmas linhas). O PHP precisa do arquivo .env para ler a senha do banco.';
+    $result['envExample'] = "DB_HOST=localhost\nDB_PORT=3306\nDB_NAME=u892594395_meufreelas\nDB_USER=u892594395_meufreelas27\nDB_PASS=SUA_SENHA_MYSQL";
+    $result['envPath'] = 'api/.env (pasta api, arquivo .env). Alternativa: .env na raiz do projeto também é lido.';
     echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     exit;
 }
@@ -270,6 +272,14 @@ foreach ($paymentColumnsToAdd as $col => $sql) {
         if (strpos($e->getMessage(), 'Duplicate column') === false) {
             $result['errors'][] = "payments.$col: " . $e->getMessage();
         }
+    }
+}
+try {
+    $pdo->exec("CREATE INDEX idx_external_id ON payments (external_id)");
+    $result['steps'][] = "Índice payments.idx_external_id criado";
+} catch (PDOException $e) {
+    if (strpos($e->getMessage(), 'Duplicate key') === false && strpos($e->getMessage(), 'already exists') === false) {
+        $result['errors'][] = "payments.idx_external_id: " . $e->getMessage();
     }
 }
 

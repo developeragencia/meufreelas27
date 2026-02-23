@@ -1,12 +1,13 @@
 <?php
 /**
- * Carrega variáveis de ambiente: primeiro do arquivo .env, depois do ambiente (painel Hostinger).
- * Assim as variáveis definidas em "Implantações" na Hostinger têm prioridade.
+ * Carrega variáveis de ambiente: arquivo .env (raiz ou api/) e depois getenv/$_SERVER.
+ * Na Hostinger, se as variáveis do painel não chegarem ao PHP, crie api/.env no servidor.
  */
-$envFile = __DIR__ . '/.env';
 $_ENV = [];
-if (file_exists($envFile)) {
-    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+
+$loadEnvFile = function (string $path): void {
+    if (!file_exists($path) || !is_readable($path)) return;
+    foreach (file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
         $line = trim($line);
         if ($line === '' || $line[0] === '#') continue;
         if (strpos($line, '=') !== false) {
@@ -18,7 +19,11 @@ if (file_exists($envFile)) {
             $_ENV[trim($k)] = $v;
         }
     }
-}
+};
+
+$loadEnvFile(__DIR__ . '/../.env');
+$loadEnvFile(__DIR__ . '/.env');
+
 $envKeys = [
     'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASS',
     'MYSQLHOST', 'MYSQLPORT', 'MYSQLDATABASE', 'MYSQLUSER', 'MYSQLPASSWORD',
@@ -35,8 +40,16 @@ foreach ($envKeys as $k) {
     if ($v !== false && $v !== '') {
         $_ENV[$k] = is_string($v) ? trim($v) : $v;
     }
-    // Alguns ambientes (ex.: Hostinger) expõem variáveis em $_SERVER
-    if (empty($_ENV[$k]) && isset($_SERVER[$k]) && $_SERVER[$k] !== '') {
+    if (!empty($_ENV[$k])) continue;
+    if (isset($_SERVER[$k]) && $_SERVER[$k] !== '') {
         $_ENV[$k] = trim((string) $_SERVER[$k]);
+    }
+    $kLower = strtolower($k);
+    if (empty($_ENV[$k]) && isset($_SERVER[$kLower]) && $_SERVER[$kLower] !== '') {
+        $_ENV[$k] = trim((string) $_SERVER[$kLower]);
+    }
+    if (empty($_ENV[$k])) {
+        $v = getenv($kLower);
+        if ($v !== false && $v !== '') $_ENV[$k] = trim((string) $v);
     }
 }
