@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Check, User, Briefcase, MessageSquare, Star, Users, Award, Gift } from 'lucide-react';
+import { Check, User, Briefcase, MessageSquare, Star, Users, Award, Gift, DollarSign } from 'lucide-react';
 
 interface Goal {
   id: string;
@@ -13,74 +13,28 @@ interface Goal {
   link: string;
 }
 
-const GOAL_TEMPLATES: Goal[] = [
-  {
-    id: 'complete_profile',
-    icon: User,
-    title: 'Completar Perfil',
-    description: 'Preencha todas as informações do seu perfil',
-    points: 50,
-    completed: false,
-    link: '/profile/edit'
-  },
-  {
-    id: 'publish_project',
-    icon: Briefcase,
-    title: 'Publicar Projeto',
-    description: 'Publique seu primeiro projeto',
-    points: 100,
-    completed: false,
-    link: '/project/new'
-  },
-  {
-    id: 'send_proposal',
-    icon: MessageSquare,
-    title: 'Enviar Proposta',
-    description: 'Envie sua primeira proposta',
-    points: 50,
-    completed: false,
-    link: '/projects'
-  },
-  {
-    id: 'receive_review',
-    icon: Star,
-    title: 'Receber Avaliação',
-    description: 'Receba sua primeira avaliação positiva',
-    points: 100,
-    completed: false,
-    link: '/profile'
-  },
-  {
-    id: 'invite_friend',
-    icon: Users,
-    title: 'Convidar Amigo',
-    description: 'Convide um amigo para a plataforma',
-    points: 50,
-    completed: false,
-    link: '#'
-  },
-  {
-    id: 'complete_project',
-    icon: Award,
-    title: 'Completar Projeto',
-    description: 'Complete seu primeiro projeto',
-    points: 150,
-    completed: false,
-    link: '/my-projects'
-  },
-  {
-    id: 'premium_member',
-    icon: Gift,
-    title: 'Tornar-se Premium',
-    description: 'Assine o plano Premium',
-    points: 200,
-    completed: false,
-    link: '/premium'
-  }
+const GOAL_TEMPLATES_FREELANCER: Goal[] = [
+  { id: 'complete_profile', icon: User, title: 'Completar Perfil', description: 'Preencha todas as informações do seu perfil', points: 50, completed: false, link: '/profile/edit' },
+  { id: 'publish_project', icon: Briefcase, title: 'Publicar Projeto', description: 'Publique seu primeiro projeto', points: 100, completed: false, link: '/project/new' },
+  { id: 'send_proposal', icon: MessageSquare, title: 'Enviar Proposta', description: 'Envie sua primeira proposta', points: 50, completed: false, link: '/projects' },
+  { id: 'receive_review', icon: Star, title: 'Receber Avaliação', description: 'Receba sua primeira avaliação positiva', points: 100, completed: false, link: '/profile' },
+  { id: 'invite_friend', icon: Users, title: 'Convidar Amigo', description: 'Convide um amigo para a plataforma', points: 50, completed: false, link: '#' },
+  { id: 'complete_project', icon: Award, title: 'Completar Projeto', description: 'Complete seu primeiro projeto', points: 150, completed: false, link: '/my-projects' },
+  { id: 'premium_member', icon: Gift, title: 'Tornar-se Premium', description: 'Assine o plano Premium', points: 200, completed: false, link: '/premium' },
 ];
 
-function cloneGoalsTemplate(): Goal[] {
-  return GOAL_TEMPLATES.map((g) => ({ ...g }));
+const GOAL_TEMPLATES_CLIENT: Goal[] = [
+  { id: 'complete_profile', icon: User, title: 'Completar Perfil', description: 'Preencha seus dados pessoais', points: 50, completed: false, link: '/profile/edit' },
+  { id: 'publish_project', icon: Briefcase, title: 'Publicar Projeto', description: 'Publique seu primeiro projeto', points: 100, completed: false, link: '/project/new' },
+  { id: 'hire_freelancer', icon: Users, title: 'Contratar Freelancer', description: 'Aceite uma proposta e contrate', points: 150, completed: false, link: '/my-projects' },
+  { id: 'complete_payment', icon: DollarSign, title: 'Concluir Pagamento', description: 'Pague e conclua um projeto', points: 100, completed: false, link: '/payments' },
+  { id: 'invite_friend', icon: Users, title: 'Convidar Amigo', description: 'Convide um amigo para a plataforma', points: 50, completed: false, link: '#' },
+  { id: 'premium_member', icon: Gift, title: 'Tornar-se Premium', description: 'Assine o plano Premium', points: 200, completed: false, link: '/premium' },
+];
+
+function cloneGoalsTemplate(isClient: boolean): Goal[] {
+  const templates = isClient ? GOAL_TEMPLATES_CLIENT : GOAL_TEMPLATES_FREELANCER;
+  return templates.map((g) => ({ ...g }));
 }
 
 function safeParseArray<T = unknown>(raw: string | null): T[] {
@@ -103,12 +57,13 @@ function safeParseObject<T = Record<string, unknown>>(raw: string | null): T | n
   }
 }
 
-function isProfileComplete(profile: Record<string, unknown> | null, hasAvatar: boolean): boolean {
+function isProfileComplete(profile: Record<string, unknown> | null, hasAvatar: boolean, isClient: boolean): boolean {
   if (!profile) return false;
   const phone = String(profile.phone || '').trim();
   const bio = String(profile.bio || '').trim();
   const stateUf = String(profile.stateUf || '').trim();
   const city = String(profile.city || '').trim();
+  if (isClient) return Boolean(hasAvatar && phone && bio && stateUf && city);
   const title = String(profile.title || '').trim();
   const skills = Array.isArray(profile.skills) ? profile.skills : [];
   return Boolean(hasAvatar && phone && bio && stateUf && city && (title || skills.length > 0));
@@ -116,6 +71,7 @@ function isProfileComplete(profile: Record<string, unknown> | null, hasAvatar: b
 
 export default function GoalsWidget() {
   const { user } = useAuth();
+  const isClient = user?.type === 'client';
   const [goals, setGoals] = useState<Goal[]>([]);
   const [progress, setProgress] = useState(0);
 
@@ -144,16 +100,25 @@ export default function GoalsWidget() {
             String(p.status || '').toLowerCase() === 'completed'
         );
 
-      const autoCompletedById: Record<string, boolean> = {
-        complete_profile: isProfileComplete(profile, Boolean(user.avatar)),
-        publish_project: hasProject,
-        send_proposal: hasProposal,
-        receive_review: Number(user.rating || 0) > 0,
-        complete_project: hasCompletedProject,
-        premium_member: Boolean(user.isPremium),
-      };
+      const autoCompletedById: Record<string, boolean> = isClient
+        ? {
+            complete_profile: isProfileComplete(profile, Boolean(user.avatar), true),
+            publish_project: hasProject,
+            hire_freelancer: hasProposal || hasCompletedProject,
+            complete_payment: hasCompletedProject,
+            invite_friend: completedById.get('invite_friend') ?? false,
+            premium_member: Boolean(user.isPremium),
+          }
+        : {
+            complete_profile: isProfileComplete(profile, Boolean(user.avatar), false),
+            publish_project: hasProject,
+            send_proposal: hasProposal,
+            receive_review: Number(user.rating || 0) > 0,
+            complete_project: hasCompletedProject,
+            premium_member: Boolean(user.isPremium),
+          };
 
-      const nextGoals = cloneGoalsTemplate().map((goal) => {
+      const nextGoals = cloneGoalsTemplate(isClient).map((goal) => {
         if (goal.id in autoCompletedById) {
           return { ...goal, completed: autoCompletedById[goal.id] };
         }
@@ -173,10 +138,10 @@ export default function GoalsWidget() {
     window.addEventListener('storage', onStorage);
     window.addEventListener('meufreelas:profile-updated', onProfileUpdated as EventListener);
     return () => {
-      window.removeEventListener('storage', onStorage);
-      window.removeEventListener('meufreelas:profile-updated', onProfileUpdated as EventListener);
+    window.removeEventListener('storage', onStorage);
+    window.removeEventListener('meufreelas:profile-updated', onProfileUpdated as EventListener);
     };
-  }, [user]);
+  }, [user, isClient]);
 
   useEffect(() => {
     const completed = goals.filter(g => g.completed).length;

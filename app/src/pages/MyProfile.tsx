@@ -25,6 +25,7 @@ interface ProfileData {
 export default function MyProfile() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isFreelancer = user?.type === 'freelancer' || Boolean((user as { hasFreelancerAccount?: boolean })?.hasFreelancerAccount);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [stats, setStats] = useState({
     projectsCompleted: 0,
@@ -116,7 +117,9 @@ export default function MyProfile() {
             {/* Info */}
             <div className="flex-1">
               <h2 className="text-2xl font-bold text-gray-900">{user?.name}</h2>
-              <p className="text-lg text-gray-600 mt-1">{profile?.title || 'Profissional Freelancer'}</p>
+              <p className="text-lg text-gray-600 mt-1">
+                {isFreelancer ? (profile?.title || 'Profissional Freelancer') : 'Cliente'}
+              </p>
               
               <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-500">
                 {profile?.location && (
@@ -137,39 +140,41 @@ export default function MyProfile() {
                 )}
               </div>
 
-              {/* Rating */}
-              <div className="flex items-center mt-4">
-                <div className="flex items-center">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                      key={star}
-                      className={`w-5 h-5 ${
-                        star <= Math.floor(stats.rating)
-                          ? 'text-yellow-400 fill-yellow-400'
-                          : 'text-gray-300'
-                      }`}
-                    />
-                  ))}
+              {isFreelancer && (
+                <div className="flex items-center mt-4">
+                  <div className="flex items-center">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        className={`w-5 h-5 ${
+                          star <= Math.floor(stats.rating)
+                            ? 'text-yellow-400 fill-yellow-400'
+                            : 'text-gray-300'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="ml-2 text-gray-600">
+                    {stats.rating.toFixed(1)} ({stats.projectsCompleted} projetos)
+                  </span>
                 </div>
-                <span className="ml-2 text-gray-600">
-                  {stats.rating.toFixed(1)} ({stats.projectsCompleted} projetos)
-                </span>
-              </div>
+              )}
             </div>
 
-            {/* Actions */}
-            <div className="flex flex-col gap-2">
-              <div className="text-right">
-                <p className="text-sm text-gray-500">Valor hora</p>
-                <p className="text-2xl font-bold text-99blue">
-                  R$ {profile?.hourlyRate || '0'}
-                </p>
+            {isFreelancer && (
+              <div className="flex flex-col gap-2">
+                <div className="text-right">
+                  <p className="text-sm text-gray-500">Valor hora</p>
+                  <p className="text-2xl font-bold text-99blue">
+                    R$ {profile?.hourlyRate || '0'}
+                  </p>
+                </div>
+                <span className="px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-medium text-center">
+                  <CheckCircle className="w-4 h-4 inline mr-1" />
+                  Disponível
+                </span>
               </div>
-              <span className="px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-medium text-center">
-                <CheckCircle className="w-4 h-4 inline mr-1" />
-                Disponível
-              </span>
-            </div>
+            )}
           </div>
         </div>
 
@@ -180,20 +185,35 @@ export default function MyProfile() {
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h3 className="font-semibold text-gray-900 mb-4">Estatísticas</h3>
               <div className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Projetos concluídos</span>
-                  <span className="font-medium">{stats.projectsCompleted}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Propostas enviadas</span>
-                  <span className="font-medium">{stats.proposalsSent}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Taxa de aceitação</span>
-                  <span className="font-medium">
-                    {((stats.projectsCompleted / stats.proposalsSent) * 100).toFixed(0)}%
-                  </span>
-                </div>
+                {isFreelancer ? (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Projetos concluídos</span>
+                      <span className="font-medium">{stats.projectsCompleted}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Propostas enviadas</span>
+                      <span className="font-medium">{stats.proposalsSent}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Taxa de aceitação</span>
+                      <span className="font-medium">
+                        {stats.proposalsSent > 0 ? ((stats.projectsCompleted / stats.proposalsSent) * 100).toFixed(0) : 0}%
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Projetos publicados</span>
+                      <span className="font-medium">{stats.projectsCompleted}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Propostas recebidas</span>
+                      <span className="font-medium">{stats.proposalsSent}</span>
+                    </div>
+                  </>
+                )}
                 <div className="flex justify-between">
                   <span className="text-gray-500">Membro desde</span>
                   <span className="font-medium">{stats.memberSince}</span>
@@ -201,8 +221,8 @@ export default function MyProfile() {
               </div>
             </div>
 
-            {/* Links */}
-            {(profile?.website || profile?.linkedin || profile?.github) && (
+            {/* Links - só freelancer */}
+            {isFreelancer && (profile?.website || profile?.linkedin || profile?.github) && (
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h3 className="font-semibold text-gray-900 mb-4">Links</h3>
                 <div className="space-y-3">
@@ -243,7 +263,8 @@ export default function MyProfile() {
               </div>
             )}
 
-            {/* Professional Info */}
+            {/* Professional Info - só freelancer */}
+            {isFreelancer && (
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h3 className="font-semibold text-gray-900 mb-4">Informações Profissionais</h3>
               <div className="space-y-4">
@@ -276,6 +297,7 @@ export default function MyProfile() {
                 )}
               </div>
             </div>
+            )}
           </div>
 
           {/* Right Column */}
@@ -288,8 +310,8 @@ export default function MyProfile() {
               </div>
             )}
 
-            {/* Skills */}
-            {profile?.skills && profile.skills.length > 0 && (
+            {/* Skills - só freelancer */}
+            {isFreelancer && profile?.skills && profile.skills.length > 0 && (
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h3 className="font-semibold text-gray-900 mb-4">Habilidades</h3>
                 <div className="flex flex-wrap gap-2">
@@ -306,7 +328,8 @@ export default function MyProfile() {
               </div>
             )}
 
-            {/* Portfolio */}
+            {/* Portfolio - só freelancer; cliente não tem portfólio */}
+            {isFreelancer && (
             <div className="bg-white rounded-lg shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-gray-900">Portfólio</h3>
@@ -347,6 +370,7 @@ export default function MyProfile() {
                 </div>
               )}
             </div>
+            )}
           </div>
         </div>
       </div>

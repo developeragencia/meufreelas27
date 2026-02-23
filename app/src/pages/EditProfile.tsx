@@ -27,6 +27,7 @@ export default function EditProfile() {
   const { user, updateUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const portfolioFileInputRef = useRef<HTMLInputElement>(null);
+  const isFreelancer = user?.type === 'freelancer' || Boolean((user as { hasFreelancerAccount?: boolean })?.hasFreelancerAccount);
   
   const [activeTab, setActiveTab] = useState<'personal' | 'professional' | 'skills' | 'portfolio'>('personal');
   const [isLoading, setIsLoading] = useState(false);
@@ -99,6 +100,10 @@ export default function EditProfile() {
       setPortfolioItems(profile.portfolioItems || []);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!isFreelancer && activeTab !== 'personal') setActiveTab('personal');
+  }, [isFreelancer, activeTab]);
 
   useEffect(() => {
     let mounted = true;
@@ -256,7 +261,8 @@ export default function EditProfile() {
     setTimeout(() => setSuccessMessage(''), 3000);
   };
 
-  const completionChecks = [
+  const completionChecksClient = [Boolean(avatar), Boolean(name.trim()), Boolean(phone.trim()), Boolean(stateUf), Boolean(city), Boolean(bio.trim())];
+  const completionChecksFreelancer = [
     Boolean(avatar),
     Boolean(name.trim()),
     Boolean(phone.trim()),
@@ -266,6 +272,7 @@ export default function EditProfile() {
     skills.length > 0,
     Boolean(title.trim()),
   ];
+  const completionChecks = isFreelancer ? completionChecksFreelancer : completionChecksClient;
   const completionPercent = Math.round((completionChecks.filter(Boolean).length / completionChecks.length) * 100);
 
   const renderPersonalTab = () => (
@@ -747,15 +754,19 @@ export default function EditProfile() {
           <p className="text-xs text-gray-500">Preencha os passos para concluir o perfil e ganhar mais destaque.</p>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs: cliente só vê Pessoal; freelancer vê Pessoal, Profissional, Habilidades, Portfólio */}
         <div className="bg-white rounded-lg shadow-sm mb-6">
           <div className="border-b overflow-x-auto">
             <nav className="flex min-w-max">
               {[
-                { id: 'personal', label: '1. Pessoal', icon: User },
-                { id: 'professional', label: '2. Profissional', icon: Briefcase },
-                { id: 'skills', label: '3. Habilidades', icon: Award },
-                { id: 'portfolio', label: '4. Portfólio', icon: FileText },
+                { id: 'personal', label: isFreelancer ? '1. Pessoal' : 'Dados pessoais', icon: User },
+                ...(isFreelancer
+                  ? [
+                      { id: 'professional', label: '2. Profissional', icon: Briefcase },
+                      { id: 'skills', label: '3. Habilidades', icon: Award },
+                      { id: 'portfolio', label: '4. Portfólio', icon: FileText },
+                    ]
+                  : []),
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -777,7 +788,7 @@ export default function EditProfile() {
             {activeTab === 'personal' && renderPersonalTab()}
             {activeTab === 'professional' && renderProfessionalTab()}
             {activeTab === 'skills' && renderSkillsTab()}
-            {activeTab === 'portfolio' && renderPortfolioTab()}
+            {activeTab === 'portfolio' && isFreelancer && renderPortfolioTab()}
           </div>
         </div>
 
@@ -794,8 +805,8 @@ export default function EditProfile() {
         </div>
       </div>
 
-      {/* Portfolio Modal */}
-      {showPortfolioModal && (
+      {/* Portfolio Modal - apenas para freelancer */}
+      {showPortfolioModal && isFreelancer && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
