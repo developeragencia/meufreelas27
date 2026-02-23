@@ -226,8 +226,8 @@ export default function FreelancerDashboard() {
       <div className="flex items-center mb-6 pb-4 border-b border-gray-200">
         <img src={avatarUrl} alt={user.name} className="w-12 h-12 rounded-full object-cover" />
         <div className="ml-3">
-          <p className="font-semibold text-gray-800">{user.name}</p>
-          <p className="text-sm text-gray-500">{user.email}</p>
+          <p className="font-semibold text-gray-800 truncate max-w-[150px]" title={user.name}>{user.name}</p>
+          <p className="text-sm text-gray-500 truncate max-w-[150px]" title={user.email}>{user.email}</p>
         </div>
       </div>
 

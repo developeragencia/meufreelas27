@@ -7,6 +7,7 @@ interface Freelancer {
   id: string;
   name: string;
   username: string;
+  avatar: string;
   title: string;
   bio: string;
   skills: string[];
@@ -70,7 +71,13 @@ const sortOptions = [
 function loadFreelancersFromStorage(): Freelancer[] {
   try {
     const users = JSON.parse(localStorage.getItem('meufreelas_users') || '[]');
-    return users
+    const currentUserRaw = localStorage.getItem('meufreelas_user');
+    const currentUser = currentUserRaw ? JSON.parse(currentUserRaw) : null;
+    const mergedUsers = Array.isArray(users) ? [...users] : [];
+    if (currentUser?.id && !mergedUsers.some((u: any) => u?.id === currentUser.id)) {
+      mergedUsers.push(currentUser);
+    }
+    return mergedUsers
       .filter((u: any) => u.type === 'freelancer' || u.hasFreelancerAccount)
       .map((u: any) => {
         const profileRaw = localStorage.getItem(`profile_${u.id}`);
@@ -120,6 +127,7 @@ function loadFreelancersFromStorage(): Freelancer[] {
           id: u.id,
           name: u.name || '',
           username: (u.name || u.id).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || u.id,
+          avatar: u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || 'F')}&background=003366&color=fff`,
           title: profile.title || '',
           bio: u.bio || profile.bio || '',
           skills,
@@ -156,11 +164,20 @@ export default function Freelancers() {
   });
   const [keywords, setKeywords] = useState('');
   useEffect(() => {
-    try {
-      setFreelancers(loadFreelancersFromStorage());
-    } catch {
-      setFreelancers([]);
-    }
+    const refreshFreelancers = () => {
+      try {
+        setFreelancers(loadFreelancersFromStorage());
+      } catch {
+        setFreelancers([]);
+      }
+    };
+    refreshFreelancers();
+    window.addEventListener('storage', refreshFreelancers);
+    window.addEventListener('meufreelas:profile-updated', refreshFreelancers as EventListener);
+    return () => {
+      window.removeEventListener('storage', refreshFreelancers);
+      window.removeEventListener('meufreelas:profile-updated', refreshFreelancers as EventListener);
+    };
   }, []);
   const [selectedArea, setSelectedArea] = useState('Todas as áreas');
   const [selectedRanking, setSelectedRanking] = useState('any');
@@ -470,10 +487,15 @@ export default function Freelancers() {
                 </div>
               ) : sortedFreelancers.map((freelancer) => (
                 <div key={freelancer.id} className="bg-white rounded-lg shadow-sm p-4 md:p-6">
-                  {/* Header Row - Name + Badge + Invite */}
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
-                    <div className="flex-1">
-                      {/* PREMIUM BADGE FIRST (onde estava o nome) */}
+                  {/* Header Row - Foto + dados + ação */}
+                  <div className="flex flex-col md:flex-row md:items-start gap-4 mb-3">
+                    <img
+                      src={freelancer.avatar}
+                      alt={freelancer.name}
+                      className="w-20 h-20 md:w-24 md:h-24 rounded-lg object-cover border border-gray-200"
+                    />
+
+                    <div className="flex-1 min-w-0">
                       {freelancer.isPremium && (
                         <div className="mb-2">
                           <span className="inline-flex items-center px-2 py-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs font-bold rounded">
@@ -482,65 +504,57 @@ export default function Freelancers() {
                           </span>
                         </div>
                       )}
-                      
-                      {/* NAME (onde estava o badge) */}
-                      <Link 
+                      <Link
                         to={`/user/${freelancer.username}`}
-                        className="text-lg md:text-xl font-semibold text-99blue hover:underline"
+                        className="text-lg md:text-xl font-semibold text-99blue hover:underline block"
                       >
                         {freelancer.name}
                       </Link>
+
+                      {/* Rating */}
+                      <div className="flex items-center gap-2 mb-2 mt-1">
+                        <div className="flex items-center">
+                          {renderStars(freelancer.rating)}
+                        </div>
+                        <span className="text-sm text-gray-600">
+                          ({freelancer.rating.toFixed(2)} - {freelancer.totalReviews.toLocaleString()} avaliações)
+                        </span>
+                      </div>
+
+                      {/* Stats */}
+                      <div className="flex flex-wrap items-center gap-x-3 md:gap-x-4 gap-y-1 mb-3 text-xs md:text-sm text-gray-500">
+                        {freelancer.ranking && (
+                          <span className="flex items-center">
+                            <Star className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 text-99blue" />
+                            Ranking: <strong className="ml-1 text-gray-700">{freelancer.ranking}</strong>
+                          </span>
+                        )}
+                        <span className="flex items-center">
+                          <Briefcase className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1" />
+                          Projetos concluídos: <strong className="ml-1 text-gray-700">{freelancer.completedProjects.toLocaleString()}</strong>
+                        </span>
+                        <span className="flex items-center">
+                          <ThumbsUp className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1" />
+                          Recomendações: <strong className="ml-1 text-gray-700">{freelancer.recommendations.toLocaleString()}</strong>
+                        </span>
+                        <span className="flex items-center">
+                          <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1" />
+                          Registrado desde: <strong className="ml-1 text-gray-700">{freelancer.memberSince}</strong>
+                        </span>
+                      </div>
+
+                      <p className="text-gray-800 font-medium text-sm md:text-base mb-2">{freelancer.title}</p>
                     </div>
-                    
-                    {/* Invite Button */}
-                    <Link
-                      to="/register/client"
-                      className="px-4 md:px-6 py-2 bg-99blue text-white rounded-lg hover:bg-99blue-light transition-colors font-medium text-sm whitespace-nowrap"
-                    >
-                      Convidar
-                    </Link>
-                  </div>
 
-                  {/* Rating */}
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="flex items-center">
-                      {renderStars(freelancer.rating)}
+                    <div className="flex md:flex-col gap-2 md:min-w-[120px]">
+                      <Link
+                        to="/register/client"
+                        className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors font-medium text-sm text-center whitespace-nowrap"
+                      >
+                        Convidar
+                      </Link>
                     </div>
-                    <span className="text-sm text-gray-600">
-                      ({freelancer.rating.toFixed(2)} - {freelancer.totalReviews.toLocaleString()} avaliações)
-                    </span>
                   </div>
-
-                  {/* Stats */}
-                  <div className="flex flex-wrap items-center gap-x-3 md:gap-x-4 gap-y-1 mb-3 text-xs md:text-sm text-gray-500">
-                    {freelancer.ranking && (
-                      <span className="flex items-center">
-                        <Star className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 text-99blue" />
-                        Ranking: <strong className="ml-1 text-gray-700">{freelancer.ranking}</strong>
-                      </span>
-                    )}
-                    <span className="flex items-center">
-                      <Briefcase className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1" />
-                      Projetos: <strong className="ml-1 text-gray-700">{freelancer.completedProjects.toLocaleString()}</strong>
-                    </span>
-                    <span className="flex items-center">
-                      <ThumbsUp className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1" />
-                      Recomendações: <strong className="ml-1 text-gray-700">{freelancer.recommendations.toLocaleString()}</strong>
-                    </span>
-                    <span className="flex items-center">
-                      <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1" />
-                      Desde: <strong className="ml-1 text-gray-700">{freelancer.memberSince}</strong>
-                    </span>
-                    <span className="flex items-center">
-                      Plano: <strong className="ml-1 text-gray-700 uppercase">{freelancer.planTier}</strong>
-                    </span>
-                    <span className="flex items-center">
-                      Completude: <strong className="ml-1 text-gray-700">{freelancer.profileCompletion}%</strong>
-                    </span>
-                  </div>
-
-                  {/* Title */}
-                  <p className="text-gray-800 font-medium text-sm md:text-base mb-2">{freelancer.title}</p>
 
                   {/* Bio */}
                   <div className="mb-3">

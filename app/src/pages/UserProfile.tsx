@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Star, Heart, MessageSquare, Briefcase, Calendar, CheckCircle, Shield, Crown } from 'lucide-react';
+import { Star, Heart, MessageSquare, Briefcase, Calendar, CheckCircle, Shield, Crown, ArrowLeft, Ban, Flag } from 'lucide-react';
 import BrandLogo from '../components/BrandLogo';
 
 interface ProfileModel {
@@ -36,9 +36,13 @@ export default function UserProfile() {
   const { username } = useParams();
   const { isAuthenticated } = useAuth();
   const [isFavorite, setIsFavorite] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
   const [profile, setProfile] = useState<ProfileModel | null>(null);
 
   useEffect(() => {
+    const blocked = JSON.parse(localStorage.getItem('meufreelas_blocked_profiles') || '[]');
+    setIsBlocked(Array.isArray(blocked) && blocked.includes(username));
+
     const users = loadUsers().filter((u) => u?.type === 'freelancer' || u?.hasFreelancerAccount);
     const found = users.find((u) => toUsername(String(u?.name || u?.id || '')) === username);
     if (!found) {
@@ -77,6 +81,27 @@ export default function UserProfile() {
           : [],
     });
   }, [username]);
+
+  const handleBlock = () => {
+    const blocked = JSON.parse(localStorage.getItem('meufreelas_blocked_profiles') || '[]');
+    const safe = Array.isArray(blocked) ? blocked : [];
+    let next: string[] = [];
+    if (isBlocked) {
+      next = safe.filter((u: string) => u !== username);
+    } else {
+      next = [...safe, String(username)];
+    }
+    localStorage.setItem('meufreelas_blocked_profiles', JSON.stringify(next));
+    setIsBlocked(!isBlocked);
+  };
+
+  const handleReport = () => {
+    const reports = JSON.parse(localStorage.getItem('meufreelas_profile_reports') || '[]');
+    const safe = Array.isArray(reports) ? reports : [];
+    safe.push({ username, createdAt: new Date().toISOString() });
+    localStorage.setItem('meufreelas_profile_reports', JSON.stringify(safe));
+    alert('Perfil denunciado. Obrigado pelo reporte.');
+  };
 
   const stars = useMemo(() => {
     const full = Math.max(0, Math.min(5, Math.floor(profile?.rating || 0)));
@@ -130,8 +155,15 @@ export default function UserProfile() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
+        <div className="bg-white rounded-lg border mb-4 px-4 py-3">
+          <Link to="/freelancers" className="inline-flex items-center text-sm text-99blue hover:underline">
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            Voltar aos resultados da pesquisa
+          </Link>
+        </div>
+
         <div className="bg-white rounded-2xl shadow-sm p-6 md:p-8">
-          <div className="flex flex-col md:flex-row gap-6">
+          <div className="flex flex-col md:flex-row gap-6 items-start">
             <div className="relative">
               <img src={profile.avatar} alt={profile.name} className="w-32 h-32 rounded-xl object-cover" />
               {profile.isVerified && (
@@ -165,18 +197,30 @@ export default function UserProfile() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 w-full md:w-auto">
               <Link
                 to={isAuthenticated ? '/project/new' : '/register'}
-                className="px-5 py-2 bg-99blue text-white rounded-lg hover:bg-99blue-light text-center"
+                className="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-center text-sm"
               >
                 Convidar
               </Link>
               <button
                 onClick={() => setIsFavorite((v) => !v)}
-                className={`px-5 py-2 rounded-lg ${isFavorite ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+                className={`px-5 py-2 rounded text-sm ${isFavorite ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-700'}`}
               >
                 <span className="inline-flex items-center gap-2"><Heart className={`w-4 h-4 ${isFavorite ? 'fill-white' : ''}`} />Favoritar</span>
+              </button>
+              <button
+                onClick={handleBlock}
+                className={`px-5 py-2 rounded text-sm ${isBlocked ? 'bg-gray-700 text-white' : 'bg-red-600 text-white hover:bg-red-700'}`}
+              >
+                <span className="inline-flex items-center gap-2"><Ban className="w-4 h-4" />{isBlocked ? 'Desbloquear' : 'Bloquear'}</span>
+              </button>
+              <button
+                onClick={handleReport}
+                className="px-5 py-2 rounded text-sm bg-red-500 text-white hover:bg-red-600"
+              >
+                <span className="inline-flex items-center gap-2"><Flag className="w-4 h-4" />Denunciar</span>
               </button>
               <Link to="/messages" className="px-5 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 text-center">
                 <span className="inline-flex items-center gap-2"><MessageSquare className="w-4 h-4" />Mensagem</span>
@@ -186,8 +230,17 @@ export default function UserProfile() {
         </div>
 
         <section className="bg-white rounded-2xl shadow-sm p-6 md:p-8 mt-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">Sobre</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">Sobre mim</h2>
           <p className="text-gray-700 whitespace-pre-line">{profile.bio}</p>
+        </section>
+
+        <section className="bg-white rounded-2xl shadow-sm p-6 md:p-8 mt-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">Resumo da experiência profissional</h2>
+          <p className="text-gray-700">
+            {profile.bio && profile.bio !== 'Sem biografia cadastrada.'
+              ? profile.bio
+              : 'Sem resumo de experiência profissional informado.'}
+          </p>
         </section>
 
         <section className="bg-white rounded-2xl shadow-sm p-6 md:p-8 mt-6">

@@ -225,8 +225,8 @@ export default function ClientDashboard() {
           <User className="w-6 h-6" />
         </div>
         <div className="ml-3">
-          <p className="font-semibold text-gray-800">{user.name}</p>
-          <p className="text-sm text-gray-500">{user.email}</p>
+          <p className="font-semibold text-gray-800 truncate max-w-[150px]" title={user.name}>{user.name}</p>
+          <p className="text-sm text-gray-500 truncate max-w-[150px]" title={user.email}>{user.email}</p>
           <span className="inline-block mt-1 px-2 py-0.5 bg-99blue/10 text-99blue text-xs rounded">Cliente</span>
         </div>
       </div>
