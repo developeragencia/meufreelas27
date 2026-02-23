@@ -75,7 +75,7 @@ export default function Register() {
     }
 
     if (hasTurnstile() && !turnstileToken.trim()) {
-      setError('Complete a verificação de segurança antes de continuar.');
+      setError('Complete a verificação de segurança (caixa abaixo) antes de continuar. Se não aparecer, atualize a página.');
       return;
     }
 
