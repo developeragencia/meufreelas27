@@ -24,6 +24,9 @@ export interface User {
   ranking?: number;
   profileCompletion?: number;
   recommendations?: number;
+  title?: string;
+  portfolio?: any[];
+  experiences?: any[];
 }
 
 export type LoginResult = { success: boolean; error?: string; code?: string };
