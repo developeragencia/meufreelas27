@@ -939,9 +939,27 @@ export default function ProjectDetail() {
               </>
             ) : (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">
-                  {user?.type === 'client' && project.clientId === user.id ? 'Propostas Recebidas' : 'Propostas Enviadas'}
-                </h2>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                  <h2 className="text-lg font-semibold text-gray-800">
+                    Propostas ({proposals.length})
+                  </h2>
+                  {user?.type === 'client' && project.clientId === user.id && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600">Ordenar:</span>
+                      <select
+                        value={proposalSort}
+                        onChange={(e) => setProposalSort(e.target.value as typeof proposalSort)}
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      >
+                        <option value="recent">Todas</option>
+                        <option value="value_asc">Menor valor</option>
+                        <option value="value_desc">Maior valor</option>
+                        <option value="days_asc">Menor prazo</option>
+                        <option value="rating_desc">Melhor avaliação</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
 
                 {user?.type === 'client' && project.clientId === user.id && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
@@ -971,17 +989,9 @@ export default function ProjectDetail() {
                       className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
                       placeholder="Avaliação mínima"
                     />
-                    <select
-                      value={proposalSort}
-                      onChange={(e) => setProposalSort(e.target.value as typeof proposalSort)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    >
-                      <option value="recent">Mais recentes</option>
-                      <option value="value_asc">Menor valor</option>
-                      <option value="value_desc">Maior valor</option>
-                      <option value="days_asc">Menor prazo</option>
-                      <option value="rating_desc">Melhor avaliação</option>
-                    </select>
+                    <div className="flex items-center text-sm text-gray-500 px-3">
+                      <span>{sortedProposals.length} proposta{sortedProposals.length !== 1 && 's'} encontrada{sortedProposals.length !== 1 && 's'}</span>
+                    </div>
                   </div>
                 )}
 
