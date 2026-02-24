@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Star } from 'lucide-react';
+import { Menu, Star, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiEnsureConversation, apiGetProject, apiListProposals, apiSendMessage, hasApi, type ApiProject, type ApiProposal } from '../lib/api';
+import BrandLogo from '../components/BrandLogo';
 
 type ProjectView = {
   id: string;
@@ -73,6 +74,7 @@ export default function ProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [proposalFilter, setProposalFilter] = useState<'Todas' | 'Pendente' | 'Aceita' | 'Recusada'>('Todas');
   const [questionLoading, setQuestionLoading] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -138,6 +140,14 @@ export default function ProjectDetail() {
     navigate('/messages');
   };
 
+  const proposalHref = !project
+    ? '/login'
+    : !isAuthenticated
+      ? '/login'
+      : user?.type === 'freelancer'
+        ? `/project/bid/${project.id}`
+        : '/freelancer/dashboard';
+
   if (loading) {
     return <div className="min-h-screen bg-gray-100 flex items-center justify-center text-gray-500">Carregando projeto...</div>;
   }
@@ -154,17 +164,27 @@ export default function ProjectDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f4f4]">
-      <header className="bg-[#2f3237] text-white">
+    <div className="min-h-screen bg-white">
+      <header className="bg-99blue text-white">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="text-2xl font-bold">meu<span className="font-light">freelas</span></Link>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowMobileMenu(true)}
+              className="md:hidden p-2 -ml-2 rounded-lg hover:bg-white/10"
+              aria-label="Abrir menu"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <BrandLogo to="/" heightClassName="h-10" darkBg />
+          </div>
           <nav className="hidden md:flex items-center gap-5 text-sm text-gray-200">
             <Link to="/projects">Projetos</Link>
             <Link to="/freelancers">Freelancers</Link>
             <Link to={isAuthenticated ? (user?.type === 'freelancer' ? '/freelancer/dashboard' : '/dashboard') : '/login'}>{isAuthenticated ? 'Conta' : 'Login'}</Link>
           </nav>
         </div>
-        <div className="bg-[#13a9d8] text-white/95 text-sm">
+        <div className="hidden md:block bg-99accent text-white text-sm">
           <div className="max-w-6xl mx-auto px-4 h-10 flex items-center gap-5">
             <Link to="/">Página inicial</Link>
             <Link to="/projects">Projetos</Link>
@@ -176,6 +196,28 @@ export default function ProjectDetail() {
           </div>
         </div>
       </header>
+      {showMobileMenu && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={() => setShowMobileMenu(false)} />
+          <aside className="fixed left-0 top-0 h-full w-72 bg-white shadow-xl z-50 md:hidden">
+            <div className="px-4 h-14 border-b flex items-center justify-between">
+              <BrandLogo to="/" heightClassName="h-8" className="max-w-[160px]" />
+              <button type="button" onClick={() => setShowMobileMenu(false)} className="p-2 text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <nav className="p-4 space-y-2 text-gray-800">
+              <Link to="/" onClick={() => setShowMobileMenu(false)} className="block px-2 py-2 rounded hover:bg-gray-100">Página inicial</Link>
+              <Link to="/projects" onClick={() => setShowMobileMenu(false)} className="block px-2 py-2 rounded hover:bg-gray-100">Projetos</Link>
+              <Link to="/freelancers" onClick={() => setShowMobileMenu(false)} className="block px-2 py-2 rounded hover:bg-gray-100">Freelancers</Link>
+              <Link to="/profile" onClick={() => setShowMobileMenu(false)} className="block px-2 py-2 rounded hover:bg-gray-100">Perfil</Link>
+              <Link to="/account" onClick={() => setShowMobileMenu(false)} className="block px-2 py-2 rounded hover:bg-gray-100">Conta</Link>
+              <Link to="/tools" onClick={() => setShowMobileMenu(false)} className="block px-2 py-2 rounded hover:bg-gray-100">Ferramentas</Link>
+              <Link to="/ajuda" onClick={() => setShowMobileMenu(false)} className="block px-2 py-2 rounded hover:bg-gray-100">Ajuda</Link>
+            </nav>
+          </aside>
+        </>
+      )}
 
       <main className="max-w-6xl mx-auto px-4 py-6">
         <div className="bg-white border border-gray-200 p-4 text-sm mb-4">
@@ -209,11 +251,7 @@ export default function ProjectDetail() {
                 <span className="px-3 text-xs text-gray-500">ou</span>
                 <div className="h-px bg-gray-300 flex-1" />
               </div>
-              <button
-                type="button"
-                onClick={() => navigate(isAuthenticated ? `/project/bid/${project.id}` : '/login')}
-                className="w-full bg-[#18a8d7] hover:bg-[#1495c1] text-white font-semibold py-3"
-              >
+              <button type="button" onClick={() => navigate(proposalHref)} className="w-full bg-99blue hover:bg-99blue-dark text-white font-semibold py-3">
                 Enviar proposta
               </button>
             </div>
