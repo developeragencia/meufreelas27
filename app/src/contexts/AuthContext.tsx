@@ -83,6 +83,9 @@ function normalizeUser(raw: Record<string, unknown>): User | null {
     isVerified: typeof raw.isVerified === 'boolean' ? raw.isVerified : undefined,
     isPremium: typeof raw.isPremium === 'boolean' ? raw.isPremium : undefined,
     isPro: typeof raw.isPro === 'boolean' ? raw.isPro : undefined,
+    ranking: typeof raw.ranking === 'number' ? raw.ranking : undefined,
+    profileCompletion: typeof raw.profileCompletion === 'number' ? raw.profileCompletion : undefined,
+    recommendations: typeof raw.recommendations === 'number' ? raw.recommendations : undefined,
   };
 }
 
