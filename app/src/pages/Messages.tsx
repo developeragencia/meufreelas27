@@ -672,8 +672,8 @@ export default function Messages() {
               <div className="flex-1 overflow-y-auto p-4 space-y-4 relative">
                 {/* Warning Banner */}
                 <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6 flex items-start gap-3">
-                  <div className="bg-white p-1.5 rounded-full shadow-sm flex-shrink-0">
-                    <img src="/favicon.png" alt="MeuFreelas" className="w-6 h-6 object-contain" />
+                  <div className="bg-white p-1 rounded-full shadow-sm flex-shrink-0 border border-gray-100 flex items-center justify-center w-10 h-10">
+                    <img src="/favicon.png" alt="MeuFreelas" className="w-5 h-5 object-contain" />
                   </div>
                   <div>
                     <h4 className="font-bold text-red-600 text-sm mb-1">Atenção:</h4>

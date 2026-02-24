@@ -14,6 +14,8 @@ interface Badge {
   unlocked: boolean;
 }
 
+import { calculateFreelancerProfileCompletion } from '../lib/profileCompletion';
+
 export default function BadgesWidget() {
   const { user } = useAuth();
   const [badges, setBadges] = useState<Badge[]>([]);
@@ -28,11 +30,28 @@ export default function BadgesWidget() {
     const proposals = JSON.parse(localStorage.getItem('meufreelas_proposals') || '[]');
     const userProposals = proposals.filter((p: any) => p.freelancerId === user.id);
     const profileData = localStorage.getItem(`profile_${user.id}`);
-    const profile = profileData ? JSON.parse(profileData) : null;
+    const profile = profileData ? JSON.parse(profileData) : {};
+
+    // Merge user data with profile data for calculation
+    const mergedUser = {
+      ...user,
+      bio: user.bio || profile.bio,
+      skills: user.skills || profile.skills || [],
+      hourlyRate: user.hourlyRate || profile.hourlyRate,
+      phone: user.phone || profile.phone,
+      location: user.location || profile.location,
+      title: user.title || profile.title,
+      // Ensure we pass portfolio/experiences if they exist in profile but not user
+      portfolio: user.portfolio || profile.portfolioItems || [],
+      experiences: user.experiences || profile.experiences || []
+    };
+
+    const completionResult = calculateFreelancerProfileCompletion(mergedUser as any);
+    const completionScore = completionResult.score;
 
     // Determine unlocks based on real data (or mocks where data is missing)
     const isTop1 = (user.ranking || 0) === 1; // Assuming ranking field exists
-    const isProfileComplete = (user.profileCompletion || 0) >= 100;
+    const isProfileComplete = completionScore >= 100;
     const hasFeedback = false; // Placeholder for now as we don't have feedback tracking yet
     const hasProposals = userProposals.length > 0;
     const isRecommended = (user.recommendations || 0) > 0;

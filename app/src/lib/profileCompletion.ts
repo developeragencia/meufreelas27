@@ -10,29 +10,39 @@ export function calculateFreelancerProfileCompletion(user: User): ProfileComplet
   let score = 0;
   const nextSteps: string[] = [];
 
-  if (user.avatar && user.avatar.trim()) score += 10;
-  else nextSteps.push('Adicionar foto de perfil');
+  // Foto de perfil (15%)
+  if (user.avatar && user.avatar.trim() && !user.avatar.includes('ui-avatars.com')) score += 15;
+  else nextSteps.push('Adicionar foto de perfil personalizada');
 
-  if (user.bio && user.bio.trim().length >= 80) score += 15;
-  else nextSteps.push('Completar bio profissional');
+  // Título profissional (15%)
+  if (user.title && user.title.trim()) score += 15;
+  else nextSteps.push('Adicionar título profissional');
 
-  if (Array.isArray(user.skills) && user.skills.length >= 5) score += 10;
-  else nextSteps.push('Adicionar pelo menos 5 habilidades');
+  // Bio/Sobre (20%)
+  if (user.bio && user.bio.trim().length >= 50) score += 20;
+  else nextSteps.push('Escrever uma bio detalhada (min. 50 caracteres)');
 
-  if (user.hourlyRate && user.hourlyRate.trim()) score += 10;
+  // Habilidades (15%)
+  if (Array.isArray(user.skills) && user.skills.length >= 3) score += 15;
+  else nextSteps.push('Adicionar pelo menos 3 habilidades');
+
+  // Valor por hora (10%)
+  if (user.hourlyRate && user.hourlyRate.trim() && user.hourlyRate !== '0' && user.hourlyRate !== 'R$ 0') score += 10;
   else nextSteps.push('Definir valor por hora');
 
-  if (user.phone && user.phone.trim()) score += 10;
-  else nextSteps.push('Confirmar telefone');
-
-  if (user.location && user.location.trim()) score += 5;
+  // Localização (10%)
+  if (user.location && user.location.trim()) score += 10;
   else nextSteps.push('Informar localização');
 
-  if (user.isVerified) score += 20;
-  else nextSteps.push('Verificar conta/documento');
-
-  if ((user.completedProjects || 0) > 0 || (user.rating || 0) > 0) score += 20;
-  else nextSteps.push('Concluir primeiros projetos para ganhar avaliação');
+  // Portfólio ou Experiência (15%) - Flexibilidade
+  // Como a interface User pode não ter esses campos aninhados detalhados, verificamos se existem no objeto
+  // ou se o usuário marcou como tendo experiência.
+  // Assumindo que user pode ter array de portfolio ou experience se vier do localStorage/API completo
+  const hasPortfolio = (user as any).portfolio?.length > 0;
+  const hasExperience = (user as any).experiences?.length > 0 || (user as any).education?.length > 0;
+  
+  if (hasPortfolio || hasExperience) score += 15;
+  else nextSteps.push('Adicionar item ao portfólio ou experiência');
 
   const clamped = Math.max(0, Math.min(100, score));
   const level: 'baixa' | 'média' | 'alta' = clamped < 60 ? 'baixa' : clamped < 90 ? 'média' : 'alta';

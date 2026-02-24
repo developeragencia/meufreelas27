@@ -109,8 +109,8 @@ export default function FreelancerProfile() {
     // 2. Check registered users
     if (!foundFreelancer) {
       // Allow finding clients too, not just freelancers
-      const users = JSON.parse(localStorage.getItem('meufr
-      const foundUser = users.find((u: any) => u.id === id && u.type === 'freelancer');
+      const users = JSON.parse(localStorage.getItem('meufreelas_users') || '[]');
+      const foundUser = users.find((u: any) => u.id === id);
       if (foundUser) {
         const profileData = localStorage.getItem(`profile_${foundUser.id}`);
         const profile = profileData ? JSON.parse(profileData) : {};
@@ -234,18 +234,13 @@ export default function FreelancerProfile() {
     );
   }
 
-  const completionScore = (() => {
-    let score = 0;
-    if (freelancer.avatar?.trim()) score += 10;
-    if (freelancer.title?.trim() && freelancer.title !== 'Freelancer Profissional') score += 15;
-    if (freelancer.description?.trim() && freelancer.description.length > 40) score += 20;
-    if ((freelancer.skills?.length || 0) >= 3) score += 15;
-    if (freelancer.location?.trim()) score += 10;
-    if (freelancer.hourlyRate && freelancer.hourlyRate !== 'R$ 0') score += 10;
-    if (freelancer.isVerified) score += 10;
-    if ((freelancer.completedProjects || 0) > 0 || freelancer.rating > 0) score += 10;
-    return Math.min(100, score);
-  })();
+  const completionResult = calculateFreelancerProfileCompletion({
+    ...freelancer,
+    // Add missing properties that might be needed by the calculator
+    bio: freelancer.description,
+    phone: '', // Phone is not usually public, might need handling if required for 100%
+  } as any);
+  const completionScore = completionResult.score;
 
   const activeBadges = [
     {
@@ -320,7 +315,7 @@ export default function FreelancerProfile() {
         <div className="max-w-6xl mx-auto px-4 py-8">
           <Link to="/freelancers" className="flex items-center text-gray-500 hover:text-99blue mb-4 text-sm">
             <ArrowLeft className="w-4 h-4 mr-1" />
-            Voltar para {freelancer.type === 'client' ? 'projetos' : 'freelancers'}
+            Voltar para freelancers
           </Link>
           
           <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
@@ -446,32 +441,36 @@ export default function FreelancerProfile() {
                 </div>
 
                 {/* Skills */}
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Habilidades</h2>
-                  <div className="flex flex-wrap gap-2">
-                    {freelancer.skills.map((skill) => (
-                      <span key={skill} className="px-4 py-2 bg-99blue/10 text-99blue rounded-full text-sm font-medium">
-                        {skill}
-                      </span>
-                    ))}
+                {freelancer.type === 'freelancer' && (
+                  <div className="bg-white rounded-lg shadow-sm p-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Habilidades</h2>
+                    <div className="flex flex-wrap gap-2">
+                      {freelancer.skills.map((skill) => (
+                        <span key={skill} className="px-4 py-2 bg-99blue/10 text-99blue rounded-full text-sm font-medium">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Languages */}
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Idiomas</h2>
-                  <div className="flex flex-wrap gap-3">
-                    {freelancer.languages.map((lang) => (
-                      <span key={lang} className="flex items-center px-4 py-2 bg-gray-100 rounded-lg text-gray-700">
-                        <Globe className="w-4 h-4 mr-2 text-gray-400" />
-                        {lang}
-                      </span>
-                    ))}
+                {freelancer.type === 'freelancer' && (
+                  <div className="bg-white rounded-lg shadow-sm p-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Idiomas</h2>
+                    <div className="flex flex-wrap gap-3">
+                      {freelancer.languages.map((lang) => (
+                        <span key={lang} className="flex items-center px-4 py-2 bg-gray-100 rounded-lg text-gray-700">
+                          <Globe className="w-4 h-4 mr-2 text-gray-400" />
+                          {lang}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Certifications */}
-                {freelancer.certifications.length > 0 && (
+                {freelancer.type === 'freelancer' && freelancer.certifications.length > 0 && (
                   <div className="bg-white rounded-lg shadow-sm p-6">
                     <h2 className="text-lg font-semibold text-gray-900 mb-4">Certificações</h2>
                     <div className="space-y-3">
