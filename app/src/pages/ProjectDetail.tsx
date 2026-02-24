@@ -77,6 +77,9 @@ export default function ProjectDetail() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [showSavedToast, setShowSavedToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('Ação concluída com sucesso.');
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -144,22 +147,41 @@ export default function ProjectDetail() {
 
   const handleSaveProject = () => {
     if (!id) return;
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
     const saved = JSON.parse(localStorage.getItem('meufreelas_saved_projects') || '[]');
     const list = Array.isArray(saved) ? saved : [];
     const exists = list.includes(id);
     const next = exists ? list.filter((pid: string) => pid !== id) : [...list, id];
     localStorage.setItem('meufreelas_saved_projects', JSON.stringify(next));
     setIsSaved(!exists);
+    setToastMessage(exists ? 'Projeto removido dos salvos.' : 'Projeto salvo com sucesso.');
     setShowSavedToast(true);
     setTimeout(() => setShowSavedToast(false), 1800);
   };
 
   const handleReportProject = () => {
     if (!id) return;
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    if (!reportReason.trim()) return;
     const reports = JSON.parse(localStorage.getItem('meufreelas_reports') || '[]');
     const list = Array.isArray(reports) ? reports : [];
-    list.push({ id: Date.now().toString(), projectId: id, createdAt: new Date().toISOString() });
+    list.push({
+      id: Date.now().toString(),
+      projectId: id,
+      reason: reportReason.trim(),
+      createdAt: new Date().toISOString(),
+      reportedBy: user?.id || null,
+    });
     localStorage.setItem('meufreelas_reports', JSON.stringify(list));
+    setShowReportModal(false);
+    setReportReason('');
+    setToastMessage('Denúncia enviada. Obrigado pelo feedback.');
     setShowSavedToast(true);
     setTimeout(() => setShowSavedToast(false), 1800);
   };
@@ -170,7 +192,7 @@ export default function ProjectDetail() {
       ? '/login'
       : user?.type === 'freelancer'
         ? `/project/bid/${project.id}`
-        : '/freelancer/dashboard';
+        : '/plans';
 
   useEffect(() => {
     if (!id) return;
@@ -198,7 +220,7 @@ export default function ProjectDetail() {
     <div className="min-h-screen bg-white">
       {showSavedToast && (
         <div className="fixed top-4 right-4 bg-green-600 text-white text-sm px-4 py-2 rounded shadow z-50">
-          Ação concluída com sucesso.
+          {toastMessage}
         </div>
       )}
       <header className="bg-99blue text-white">
@@ -326,7 +348,7 @@ export default function ProjectDetail() {
               <button type="button" onClick={handleSaveProject} className="block text-left text-gray-700 mb-1">
                 {isSaved ? 'Remover dos salvos' : 'Salvar'}
               </button>
-              <button type="button" onClick={handleReportProject} className="block text-left text-gray-700">Denunciar</button>
+              <button type="button" onClick={() => setShowReportModal(true)} className="block text-left text-gray-700">Denunciar</button>
             </div>
           </aside>
         </div>
@@ -355,7 +377,9 @@ export default function ProjectDetail() {
                   <div className="flex items-start gap-3">
                     <div className="w-12 h-12 bg-gray-300 rounded" />
                     <div className="flex-1">
-                      <p className="text-gray-800 font-medium">{p.freelancerName}</p>
+                      <Link to={`/user/${p.freelancerId}`} className="text-gray-800 font-medium hover:text-99blue">
+                        {p.freelancerName}
+                      </Link>
                       <div className="flex text-yellow-400 mt-1 mb-2">
                         <Star className="w-4 h-4 fill-current" />
                         <Star className="w-4 h-4 fill-current" />
@@ -374,6 +398,39 @@ export default function ProjectDetail() {
           </div>
         </section>
       </main>
+
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded shadow p-5">
+            <h3 className="text-gray-800 font-semibold mb-3">Denunciar projeto</h3>
+            <label className="block text-sm text-gray-600 mb-2">Motivo</label>
+            <select
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              className="w-full border border-gray-300 px-3 py-2 text-sm mb-4"
+            >
+              <option value="">Selecione um motivo...</option>
+              <option value="Conteúdo impróprio">Conteúdo impróprio</option>
+              <option value="Conteúdo ofensivo">Conteúdo ofensivo</option>
+              <option value="Spam">Spam</option>
+              <option value="Outro motivo">Outro motivo</option>
+            </select>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setShowReportModal(false)} className="px-4 py-2 border border-gray-300 text-sm">
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleReportProject}
+                disabled={!reportReason}
+                className="px-4 py-2 bg-99accent text-white text-sm disabled:opacity-50"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
