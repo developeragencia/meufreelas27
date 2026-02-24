@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Check, User, Briefcase, MessageSquare, Star, Users, Award, Gift, DollarSign } from 'lucide-react';
+import { Check, User, Briefcase, MessageSquare, Star, Users, Award, Gift, DollarSign, CheckCircle } from 'lucide-react';
 
 interface Goal {
   id: string;
