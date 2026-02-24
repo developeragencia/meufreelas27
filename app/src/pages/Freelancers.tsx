@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, MapPin, Star, ChevronDown, ChevronUp, Filter, CheckCircle, Shield, Menu, X } from 'lucide-react';
+import { Search, MapPin, Star, ChevronDown, ChevronUp, Filter, CheckCircle, Shield, Menu, X, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import BrandLogo from '../components/BrandLogo';
 import { apiListFreelancersPublic, hasApi, type ApiFreelancerPublic } from '../lib/api';
@@ -98,6 +98,22 @@ const FilterSection = ({ title, children, isOpen = true }: { title: string; chil
 };
 
 // --- Main Page ---
+
+const getFreelancerBadge = (completedProjects: number, rating: number) => {
+  if (completedProjects >= 50 && rating >= 4.8) {
+    return { label: 'Top Freelancer', color: 'text-purple-600', icon: Shield };
+  }
+  if (completedProjects >= 20) {
+    return { label: 'Avançado', color: 'text-yellow-600', icon: Star };
+  }
+  if (completedProjects >= 5) {
+    return { label: 'Intermediário', color: 'text-gray-600', icon: Star };
+  }
+  if (completedProjects >= 1) {
+    return { label: 'Iniciante', color: 'text-blue-500', icon: User };
+  }
+  return { label: 'Novo', color: 'text-green-600', icon: User };
+};
 
 export default function Freelancers() {
   const { user, isAuthenticated } = useAuth();
@@ -402,16 +418,21 @@ export default function Freelancers() {
                             </Link>
                             {f.isVerified && <CheckCircle className="w-5 h-5 md:w-4 md:h-4 text-blue-500 fill-white" />}
                             {f.isPremium && <span className="bg-yellow-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm shadow-sm">PREMIUM</span>}
+                            {f.isPro && !f.isPremium && <span className="bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm shadow-sm">PROFISSIONAL</span>}
                           </div>
                         </div>
 
-                        {/* Top Freelancer Badge */}
-                        {f.isPro && (
-                           <div className="flex items-center justify-center md:justify-start gap-1.5 mb-3 md:mb-2">
-                             <Shield className="w-4 h-4 text-blue-600 fill-current" />
-                             <span className="text-xs font-bold text-blue-600 uppercase tracking-wide">TOP FREELANCER PLUS</span>
-                           </div>
-                        )}
+                        {/* Badge de Nível (baseado em metas) */}
+                        {(() => {
+                           const badge = getFreelancerBadge(f.completedProjects, f.rating);
+                           const BadgeIcon = badge.icon;
+                           return (
+                             <div className="flex items-center justify-center md:justify-start gap-1.5 mb-3 md:mb-2">
+                               <BadgeIcon className={`w-4 h-4 ${badge.color}`} />
+                               <span className={`text-xs font-bold ${badge.color} uppercase tracking-wide`}>{badge.label}</span>
+                             </div>
+                           );
+                        })()}
 
                         {/* Rating */}
                         <div className="flex justify-center md:justify-start mb-3 md:mb-2">

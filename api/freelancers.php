@@ -101,7 +101,7 @@ foreach ($rows as $idx => $row) {
         'name' => $name,
         'username' => mf_to_username($name, $id),
         'avatar' => !empty($row['avatar']) ? $row['avatar'] : ('https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=003366&color=fff'),
-        'title' => $hourlyRate !== '' ? ('Freelancer • R$ ' . $hourlyRate . '/h') : 'Freelancer Profissional',
+        'title' => !empty($row['title']) ? $row['title'] : ($hourlyRate !== '' ? ('Freelancer • R$ ' . $hourlyRate . '/h') : ''),
         'bio' => $bio !== '' ? $bio : 'Sem descrição informada.',
         'skills' => $skills,
         'rating' => (float)($row['rating'] ?? 0),

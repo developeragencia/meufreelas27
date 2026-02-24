@@ -40,6 +40,7 @@ interface Freelancer {
   certifications: string[];
   isPremium: boolean;
   isVerified: boolean;
+  isPro: boolean;
   availability: string;
   lastActive: string;
   education: { degree: string; institution: string; year: string }[];
@@ -111,7 +112,7 @@ export default function FreelancerProfile() {
   const createFreelancerFromUser = (userData: any, profile: any): Freelancer => ({
     id: userData.id,
     name: userData.name,
-    title: profile.title || 'Freelancer Profissional',
+    title: profile.title || userData.title || '',
     description: profile.bio || 'Profissional dedicado e experiente, pronto para ajudar no seu projeto.',
     skills: Array.isArray(profile.skills)
       ? profile.skills.map((s: any) => (typeof s === 'string' ? s : s.name)).filter(Boolean)
@@ -130,6 +131,7 @@ export default function FreelancerProfile() {
     certifications: [],
     isPremium: !!userData.isPremium,
     isVerified: !!userData.isVerified,
+    isPro: !!userData.isPro,
     availability: profile.availability || 'full-time',
     lastActive: 'Há poucos minutos',
     education: [],
@@ -285,6 +287,12 @@ export default function FreelancerProfile() {
                   <span className="px-3 py-1 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-sm font-medium rounded-full flex items-center">
                     <Crown className="w-4 h-4 mr-1" />
                     Premium
+                  </span>
+                )}
+                {freelancer.isPro && !freelancer.isPremium && (
+                  <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-full flex items-center">
+                    <Star className="w-4 h-4 mr-1" />
+                    Profissional
                   </span>
                 )}
                 {freelancer.isVerified && (

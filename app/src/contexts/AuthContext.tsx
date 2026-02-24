@@ -81,6 +81,7 @@ function normalizeUser(raw: Record<string, unknown>): User | null {
     hasClientAccount: typeof raw.hasClientAccount === 'boolean' ? raw.hasClientAccount : undefined,
     isVerified: typeof raw.isVerified === 'boolean' ? raw.isVerified : undefined,
     isPremium: typeof raw.isPremium === 'boolean' ? raw.isPremium : undefined,
+    isPro: typeof raw.isPro === 'boolean' ? raw.isPro : undefined,
   };
 }
 

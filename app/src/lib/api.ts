@@ -647,147 +647,20 @@ export async function apiCreateCheckout(payload: {
   }
 }
 
-export async function apiCreateSubscriptionCheckout(payload: {
-  userId: string;
-  planCode: 'pro' | 'premium';
-  billingCycle: 'monthly' | 'yearly';
-  provider: 'stripe' | 'mercadopago';
-  successUrl?: string;
-  cancelUrl?: string;
-}): Promise<{ ok: boolean; checkoutUrl?: string; subscriptionId?: string; error?: string }> {
+export async function apiUpdateProfile(userId: string, data: any): Promise<{ ok: boolean; error?: string }> {
   if (!API_URL) return { ok: false, error: 'API não configurada' };
   try {
-    const url = `${API_URL.replace(/\/$/, '')}/subscriptions.php`;
+    const url = `${API_URL.replace(/\/$/, '')}/update_profile.php`;
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'create_checkout', ...payload }),
+      body: JSON.stringify({ userId, ...data }),
       credentials: 'omit',
     });
-    const data = await res.json().catch(() => ({})) as Record<string, unknown>;
-    return {
-      ok: !!data.ok,
-      checkoutUrl: data.checkoutUrl as string | undefined,
-      subscriptionId: data.subscriptionId as string | undefined,
-      error: data.error as string | undefined,
-    };
+    const result = await res.json().catch(() => ({}));
+    return { ok: !!result.ok, error: result.error as string | undefined };
   } catch (e) {
-    console.error('apiCreateSubscriptionCheckout', e);
+    console.error('apiUpdateProfile', e);
     return { ok: false, error: 'Falha de conexão' };
-  }
-}
-
-export type ApiDelivery = {
-  id: string;
-  projectId: string;
-  proposalId?: string;
-  freelancerId: string;
-  freelancerName: string;
-  message: string;
-  deliveryUrl?: string;
-  status: 'Enviada' | 'Revisão solicitada' | 'Aprovada';
-  clientFeedback?: string;
-  createdAt: string;
-  reviewedAt?: string;
-};
-
-async function callDeliveriesApi(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
-  if (!API_URL) return { ok: false, error: 'API não configurada' };
-  const url = `${API_URL.replace(/\/$/, '')}/deliveries.php`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    credentials: 'omit',
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) return { ok: false, error: (data?.error as string) || `Erro ${res.status}` };
-  return data as Record<string, unknown>;
-}
-
-export async function apiListDeliveries(payload: {
-  projectId: string;
-  userId: string;
-}): Promise<{ ok: boolean; deliveries?: ApiDelivery[]; error?: string }> {
-  try {
-    const data = await callDeliveriesApi({ action: 'list_deliveries', ...payload });
-    return {
-      ok: !!data.ok,
-      deliveries: (data.deliveries as ApiDelivery[] | undefined) || [],
-      error: data.error as string | undefined,
-    };
-  } catch (e) {
-    console.error('apiListDeliveries', e);
-    return { ok: false, error: 'Falha de conexão' };
-  }
-}
-
-export async function apiCreateDelivery(payload: {
-  projectId: string;
-  freelancerId: string;
-  message: string;
-  deliveryUrl?: string;
-}): Promise<{ ok: boolean; message?: string; error?: string }> {
-  try {
-    const data = await callDeliveriesApi({ action: 'create_delivery', ...payload });
-    return { ok: !!data.ok, message: data.message as string | undefined, error: data.error as string | undefined };
-  } catch (e) {
-    console.error('apiCreateDelivery', e);
-    return { ok: false, error: 'Falha de conexão' };
-  }
-}
-
-export async function apiRequestDeliveryRevision(payload: {
-  deliveryId: string;
-  clientId: string;
-  feedback: string;
-}): Promise<{ ok: boolean; message?: string; error?: string }> {
-  try {
-    const data = await callDeliveriesApi({ action: 'request_revision', ...payload });
-    return { ok: !!data.ok, message: data.message as string | undefined, error: data.error as string | undefined };
-  } catch (e) {
-    console.error('apiRequestDeliveryRevision', e);
-    return { ok: false, error: 'Falha de conexão' };
-  }
-}
-
-export async function apiApproveDelivery(payload: {
-  deliveryId: string;
-  clientId: string;
-  feedback?: string;
-  rating?: number;
-}): Promise<{ ok: boolean; message?: string; error?: string }> {
-  try {
-    const data = await callDeliveriesApi({ action: 'approve_delivery', ...payload });
-    return { ok: !!data.ok, message: data.message as string | undefined, error: data.error as string | undefined };
-  } catch (e) {
-    console.error('apiApproveDelivery', e);
-    return { ok: false, error: 'Falha de conexão' };
-  }
-}
-
-export async function apiListReviews(freelancerId: string): Promise<{
-  ok: boolean;
-  reviews?: { author: string; rating: number; comment: string; date: string; project: string }[];
-  error?: string;
-}> {
-  if (!API_URL) return { ok: false, reviews: [], error: 'API não configurada' };
-  try {
-    const url = `${API_URL.replace(/\/$/, '')}/reviews.php`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ freelancerId }),
-      credentials: 'omit',
-    });
-    const data = await res.json().catch(() => ({}));
-    return {
-      ok: !!data.ok,
-      reviews: Array.isArray(data.reviews) ? data.reviews : [],
-      error: data.error as string | undefined,
-    };
-  } catch (e) {
-    console.error('apiListReviews', e);
-    return { ok: false, reviews: [], error: 'Falha de conexão' };
   }
 }
