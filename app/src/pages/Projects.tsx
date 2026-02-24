@@ -335,18 +335,39 @@ export default function Projects() {
       )}
 
       <main className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-4xl font-light text-gray-800">Resultado da pesquisa</h1>
-            <p className="text-gray-600">{filteredProjects.length} projeto{filteredProjects.length !== 1 ? 's' : ''} foram encontrados</p>
+            <h1 className="text-2xl md:text-3xl font-light text-gray-800">Resultado da pesquisa</h1>
+            <p className="text-sm text-gray-600 mt-1">{filteredProjects.length} projeto{filteredProjects.length !== 1 ? 's' : ''} foram encontrados</p>
           </div>
-          <Link to={publishHref} className="bg-99blue text-white px-5 py-3 text-sm font-semibold">Publique um projeto. É grátis.</Link>
+          <Link to={publishHref} className="w-full md:w-auto text-center bg-99blue hover:bg-blue-600 text-white font-bold py-2 px-4 rounded shadow-sm text-sm">
+            Publique um projeto. É grátis.
+          </Link>
         </div>
 
-        <div className="lg:hidden mb-4">
-          <button type="button" onClick={() => setShowMobileFilters((v) => !v)} className="border border-gray-300 px-4 py-2 text-sm">
-            {showMobileFilters ? 'Fechar filtros' : '(+) Filtros'}
-          </button>
+        <div className="lg:hidden space-y-2 mb-4">
+           <button onClick={() => setShowMobileFilters(!showMobileFilters)} className="w-full bg-white border border-gray-300 py-3 px-4 text-gray-700 font-bold text-left flex items-center justify-between rounded-sm shadow-sm hover:bg-gray-50">
+             <span className="flex items-center gap-2"><span className="text-gray-400 font-normal">(+)</span> Filtros</span>
+             {showMobileFilters ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+           </button>
+           
+           <div className="bg-white border border-gray-300 rounded-sm px-4 py-3 shadow-sm">
+             <select 
+               value={sortBy} 
+               onChange={(e) => setSortBy(e.target.value as any)}
+               className="w-full border-none text-gray-700 text-sm focus:ring-0 cursor-pointer bg-transparent p-0 font-medium"
+             >
+                <option value="relevance">Relevância</option>
+                <option value="newest">Mais recentes</option>
+                <option value="oldest">Mais antigos</option>
+                <option value="alpha_asc">Ordem alfabética (A-Z)</option>
+                <option value="alpha_desc">Ordem alfabética (Z-A)</option>
+                <option value="proposals_high">Número de propostas (Maior)</option>
+                <option value="proposals_low">Número de propostas (Menor)</option>
+                <option value="interested_high">Número de interessados (Maior)</option>
+                <option value="interested_low">Número de interessados (Menor)</option>
+             </select>
+           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
@@ -357,7 +378,7 @@ export default function Projects() {
           <section>
             {showMobileFilters && <div className="lg:hidden border border-gray-300 p-4 mb-4"><Filters /></div>}
 
-            <div className="flex items-center justify-between mb-4">
+            <div className="hidden lg:flex items-center justify-between mb-4">
               <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="border border-gray-300 px-3 py-2 text-sm">
                 <option value="relevance">Relevância</option>
                 <option value="newest">Mais recentes</option>
