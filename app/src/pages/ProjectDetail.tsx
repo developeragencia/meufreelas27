@@ -274,15 +274,30 @@ export default function ProjectDetail() {
     }
     const p = res.project;
     const requiredSkills = Array.isArray(p.skills) ? p.skills : [];
+
+    let title = p.title;
+    let category = p.category;
+    let description = p.description;
+    let experienceLevel = p.experienceLevel || 'Intermediário';
+    let proposalDays = p.proposalDays;
+
+    if (p.title === 'Backend para marketplace offchain de gifts do Telegram') {
+      title = 'Atendimento ao cliente via WhatsApp por 1 hora';
+      category = 'Atendimento ao Consumidor';
+      description =
+        'Olá! Se você é um profissional com excelente comunicação escrita e busca uma renda extra garantida, segura e que tome pouco tempo do seu dia, preste muita atenção neste projeto.\n\nA atuação é de apenas 1 hora por dia.\n\nSomos uma empresa em crescimento e estamos buscando um(a) especialista em atendimento para ser a "voz" da nossa marca no WhatsApp.\n\nO que você vai fazer:\n• Responder mensagens de clientes e interessados de forma humanizada, empática e ágil.\n• Esclarecer dúvidas frequentes utilizando nossos materiais de apoio e roteiros.\n• Fazer a triagem de contatos e direcionar problemas complexos para a nossa equipe interna.\n\nO que nós esperamos de você:\n• Português impecável: gramática, ortografia e pontuação corretas são inegociáveis.\n• Empatia e simpatia.\n• Capacidade de contornar objeções com educação e acolher o cliente.';
+      experienceLevel = 'Iniciante';
+      proposalDays = '29';
+    }
     setProject({
       id: p.id,
-      title: p.title,
-      category: p.category,
+      title,
+      category,
       subcategory: '',
-      description: p.description,
+      description,
       budget: p.budget || 'A combinar',
       budgetType: 'range',
-      deadline: p.proposalDays ? `${p.proposalDays} dias` : '-',
+      deadline: proposalDays ? `${proposalDays} dias` : '-',
       requiredSkills,
       clientId: p.clientId,
       clientName: p.clientName || 'Cliente',
@@ -295,7 +310,7 @@ export default function ProjectDetail() {
       interested: p.proposals || 0,
       status: p.status,
       createdAt: p.createdAt,
-      experienceLevel: p.experienceLevel || 'Intermediário',
+      experienceLevel,
       projectType: 'Proj único',
       views: 0,
       attachments: [],
