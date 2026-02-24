@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { apiEnsureConversation, apiListReviews, apiSendMessage, hasApi } from '../lib/api';
 import BrandLogo from '../components/BrandLogo';
+import { calculateFreelancerProfileCompletion } from '../lib/profileCompletion';
 import { 
   ArrowLeft, 
   Star, 

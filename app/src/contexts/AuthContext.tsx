@@ -89,6 +89,9 @@ function normalizeUser(raw: Record<string, unknown>): User | null {
     ranking: typeof raw.ranking === 'number' ? raw.ranking : undefined,
     profileCompletion: typeof raw.profileCompletion === 'number' ? raw.profileCompletion : undefined,
     recommendations: typeof raw.recommendations === 'number' ? raw.recommendations : undefined,
+    title: typeof raw.title === 'string' ? raw.title : undefined,
+    portfolio: Array.isArray(raw.portfolio) ? raw.portfolio : undefined,
+    experiences: Array.isArray(raw.experiences) ? raw.experiences : undefined,
   };
 }
 
