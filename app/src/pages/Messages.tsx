@@ -673,12 +673,12 @@ export default function Messages() {
                 {/* Warning Banner */}
                 <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6 flex items-start gap-3">
                   <div className="bg-white p-1.5 rounded-full shadow-sm flex-shrink-0">
-                    <Shield className="w-6 h-6 text-red-500" />
+                    <img src="/favicon.png" alt="MeuFreelas" className="w-6 h-6 object-contain" />
                   </div>
                   <div>
                     <h4 className="font-bold text-red-600 text-sm mb-1">Atenção:</h4>
                     <p className="text-sm text-red-700 leading-relaxed">
-                      Negocie sempre via chat seguro do 99Freelas. Informações de contato só poderão ser passadas após o pagamento ser feito dentro do 99Freelas.
+                      Negocie sempre via chat seguro do MeuFreelas. Informações de contato só poderão ser passadas após o pagamento ser feito dentro do MeuFreelas.
                     </p>
                     <p className="text-xs text-red-600 mt-1 font-medium">
                       * O descumprimento desta regra poderá acarretar em penalizações e banimentos.
