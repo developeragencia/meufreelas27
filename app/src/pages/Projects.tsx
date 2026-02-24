@@ -1,30 +1,29 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Briefcase, ChevronDown, ChevronUp, Menu, Search, X } from 'lucide-react';
+import BrandLogo from '../components/BrandLogo';
 import { useAuth } from '../contexts/AuthContext';
-import { apiListNotifications, apiListProjects, hasApi } from '../lib/api';
-import { Search, ChevronDown, ChevronUp, Clock, FileText, Menu, X, Home, Briefcase, User, MessageSquare, LogOut, Loader2, Bell } from 'lucide-react';
+import { apiListProjects, hasApi, type ApiProject } from '../lib/api';
 
-interface Project {
+type ProjectCard = {
   id: string;
   title: string;
+  description: string;
   category: string;
-  subcategory?: string;
+  subcategory: string;
   level: 'Iniciante' | 'Intermediário' | 'Especialista';
-  publishedAt: string;
-  timeRemaining: string;
   proposals: number;
   interested: number;
-  description: string;
+  publishedAt: string;
+  createdAt: string;
+  timeRemaining: string;
+  tags: string[];
+  skills: string[];
   clientName: string;
-  clientUsername: string;
-  clientRating?: number;
-  clientReviews?: number;
-  isUrgent?: boolean;
-  isFeatured?: boolean;
-  budget?: string;
-  status: string;
-  createdAt?: string;
-}
+  clientId: string;
+  clientRating: number;
+  totalSpent: number;
+};
 
 const categories = [
   'Todas as categorias',
@@ -39,242 +38,176 @@ const categories = [
   'Suporte Administrativo',
   'Tradução',
   'Vendas & Marketing',
-  'Web, Mobile & Software'
+  'Web, Mobile & Software',
 ];
 
-const levels = [
-  { value: 'all', label: 'Todos os níveis' },
-  { value: 'Iniciante', label: 'Iniciante' },
-  { value: 'Intermediário', label: 'Intermediário' },
-  { value: 'Especialista', label: 'Especialista' }
-];
-
-const dateOptions = [
-  { value: 'any', label: 'Qualquer hora' },
-  { value: '24h', label: 'Menos de 24h' },
-  { value: '3d', label: 'Menos de 3 dias' }
-];
-
-const clientRankingOptions = [
-  { value: 'any', label: 'Qualquer ranking' },
-  { value: '5', label: '5 estrelas' },
-  { value: '4.5', label: '4.5+ estrelas' },
-  { value: '4', label: '4+ estrelas' },
-  { value: 'none', label: 'Sem feedback' }
-];
-
-const sortOptions = [
-  { value: 'relevance', label: 'Relevância' },
-  { value: 'newest', label: 'Mais recentes' },
-  { value: 'oldest', label: 'Mais antigos' },
-  { value: 'proposals_high', label: 'Mais propostas' },
-  { value: 'proposals_low', label: 'Menos propostas' },
-  { value: 'interested_high', label: 'Mais interessados' },
-  { value: 'interested_low', label: 'Menos interessados' }
-];
-
-function mapExperienceLevel(level?: string): Project['level'] {
-  if (!level) return 'Intermediário';
-  const l = String(level).toLowerCase();
-  if (l === 'beginner' || l === 'iniciante') return 'Iniciante';
-  if (l === 'expert' || l === 'especialista') return 'Especialista';
+function mapLevel(value?: string): ProjectCard['level'] {
+  const normalized = String(value || '').toLowerCase();
+  if (normalized === 'beginner' || normalized === 'iniciante') return 'Iniciante';
+  if (normalized === 'expert' || normalized === 'especialista') return 'Especialista';
   return 'Intermediário';
 }
 
-function formatPublishedAt(createdAt?: string): string {
-  if (!createdAt) return '';
-  try {
-    const d = new Date(createdAt);
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
-    if (diffDays === 0) return 'Publicado hoje';
-    if (diffDays === 1) return 'Publicado ontem';
-    if (diffDays < 7) return `Publicado há ${diffDays} dias`;
-    return d.toLocaleDateString('pt-BR');
-  } catch {
-    return 'Publicado';
-  }
+function relativePublishedAt(iso: string) {
+  const created = new Date(iso).getTime();
+  const now = Date.now();
+  const diff = Math.max(0, now - created);
+  const h = Math.floor(diff / (1000 * 60 * 60));
+  const d = Math.floor(h / 24);
+  if (h < 1) return 'Publicado: agora';
+  if (h < 24) return `Publicado: ${h} hora${h > 1 ? 's' : ''} atrás`;
+  if (d < 30) return `Publicado: ${d} dia${d > 1 ? 's' : ''} atrás`;
+  return `Publicado: ${new Date(iso).toLocaleDateString('pt-BR')}`;
 }
 
-function loadProjectsFromStorage(): Project[] {
-  try {
-    const raw = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]');
-    return raw.map((p: any) => ({
-      id: p.id || '',
-      title: p.title || '',
-      category: p.category || 'Outra Categoria',
-      subcategory: p.subcategory,
-      level: mapExperienceLevel(p.experienceLevel),
-      publishedAt: p.createdAt ? formatPublishedAt(p.createdAt) : '',
-      timeRemaining: '',
-      proposals: 0,
-      interested: 0,
-      description: p.description || '',
-      clientName: p.clientName || 'Cliente',
-      clientUsername: p.clientUsername || '',
-      isFeatured: false,
-      isUrgent: false,
-      budget: p.budget,
-      status: 'Aberto',
-      createdAt: p.createdAt,
-    }));
-  } catch {
-    return [];
-  }
-}
+function mapApiProject(p: ApiProject): ProjectCard {
+  const titleLower = p.title.toLowerCase();
+  const categoryLower = (p.category || '').toLowerCase();
+  const tags: string[] = [];
+  if (titleLower.includes('urgente')) tags.push('Projeto urgente');
+  if (titleLower.includes('exclusivo') || categoryLower.includes('escrita')) tags.push('Projeto exclusivo');
+  if (Number(p.proposals || 0) > 10) tags.push('Projeto destaque');
 
-const menuItems = [
-  { icon: Home, label: 'Início', href: '/' },
-  { icon: Briefcase, label: 'Projetos', href: '/projects' },
-  { icon: User, label: 'Freelancers', href: '/freelancers' },
-  { icon: MessageSquare, label: 'Mensagens', href: '/messages' },
-];
+  const level = mapLevel(p.experienceLevel);
+  const proposals = Number(p.proposals || 0);
+  const interested = Math.max(proposals + 2, 0);
+  const createdAt = p.createdAt || new Date().toISOString();
+  const days = Number(p.proposalDays || 0);
+  const timeRemaining = days > 0 ? `${days} dias` : '';
+
+  return {
+    id: p.id,
+    title: p.title,
+    description: p.description || '',
+    category: p.category || 'Categoria',
+    subcategory: p.category || 'Subcategoria',
+    level,
+    proposals,
+    interested,
+    publishedAt: relativePublishedAt(createdAt),
+    createdAt,
+    timeRemaining,
+    tags,
+    skills: Array.isArray(p.skills) ? p.skills.slice(0, 6) : [],
+    clientName: p.clientName || 'Cliente',
+    clientId: p.clientId,
+    clientRating: 0,
+    totalSpent: 0,
+  };
+}
 
 export default function Projects() {
-  const { user, isAuthenticated, logout } = useAuth();
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const { user, isAuthenticated } = useAuth();
+  const [projects, setProjects] = useState<ProjectCard[]>([]);
   const [loading, setLoading] = useState(true);
-  const [notifications, setNotifications] = useState(0);
-  const [keywords, setKeywords] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('Todas as categorias');
-  const [featuredOnly, setFeaturedOnly] = useState(false);
-  const [urgentOnly, setUrgentOnly] = useState(false);
-  const [selectedDate, setSelectedDate] = useState('any');
-  const [selectedClientRanking, setSelectedClientRanking] = useState('any');
-  const [selectedLevel, setSelectedLevel] = useState('all');
-  const [sortBy, setSortBy] = useState('relevance');
-  const [expandedProjects, setExpandedProjects] = useState<string[]>([]);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [expanded, setExpanded] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
+
+  const [keyword, setKeyword] = useState('');
+  const [category, setCategory] = useState('Todas as categorias');
+  const [featuredOnly, setFeaturedOnly] = useState(false);
+  const [urgentOnly, setUrgentOnly] = useState(false);
+  const [dateFilter, setDateFilter] = useState<'any' | '24h' | '3d'>('any');
+  const [rankingFilter, setRankingFilter] = useState<'any' | '5' | '4.5' | '4' | 'none'>('any');
+  const [levelFilter, setLevelFilter] = useState<'all' | 'Iniciante' | 'Intermediário' | 'Especialista'>('all');
+  const [sortBy, setSortBy] = useState<
+    'relevance' | 'newest' | 'oldest' | 'alpha_asc' | 'alpha_desc' | 'proposals_high' | 'proposals_low' | 'interested_high' | 'interested_low'
+  >('relevance');
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
       if (hasApi()) {
-        const res = await apiListProjects({
-          status: 'Aberto',
-          search: keywords.trim() || undefined,
-          category: selectedCategory !== 'Todas as categorias' ? selectedCategory : undefined,
-          sortBy: sortBy === 'newest' ? 'recent' : 'relevance',
-        });
-        if (cancelled) return;
-        if (res.ok && res.projects) {
-          const list: Project[] = res.projects
-            .filter((p) => p.status === 'Aberto')
-            .map((p) => ({
-              id: p.id,
-              title: p.title,
-              category: p.category || 'Outra Categoria',
-              subcategory: undefined,
-              level: mapExperienceLevel(p.experienceLevel),
-              publishedAt: formatPublishedAt(p.createdAt),
-              timeRemaining: p.proposalDays ? `Prazo: ${p.proposalDays} dias` : '',
-              proposals: p.proposals ?? 0,
-              interested: 0,
-              description: p.description || '',
-              clientName: p.clientName || 'Cliente',
-              clientUsername: p.clientId,
-              isFeatured: false,
-              isUrgent: false,
-              budget: p.budget,
-              status: p.status,
-              createdAt: p.createdAt,
-            }));
-          setProjects(list);
-        } else {
-          setProjects(loadProjectsFromStorage());
+        const res = await apiListProjects({ status: 'Aberto', sortBy: 'recent' });
+        if (!cancelled && res.ok && res.projects) {
+          setProjects(res.projects.map(mapApiProject));
         }
-      } else {
-        setProjects(loadProjectsFromStorage());
       }
-      setLoading(false);
+      if (!hasApi()) {
+        try {
+          const raw = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]');
+          const list = Array.isArray(raw) ? raw : [];
+          const mapped: ProjectCard[] = list.map((p: any) =>
+            mapApiProject({
+              id: String(p.id || ''),
+              clientId: String(p.clientId || p.client_id || ''),
+              clientName: String(p.clientName || 'Cliente'),
+              title: String(p.title || ''),
+              description: String(p.description || ''),
+              budget: String(p.budget || 'Aberto'),
+              category: String(p.category || ''),
+              skills: Array.isArray(p.skills) ? p.skills : [],
+              experienceLevel: String(p.experienceLevel || 'intermediate'),
+              proposalDays: String(p.proposalDays || ''),
+              visibility: 'public',
+              status: 'Aberto',
+              proposals: Number(p.proposals || 0),
+              createdAt: String(p.createdAt || new Date().toISOString()),
+              updatedAt: String(p.updatedAt || p.createdAt || new Date().toISOString()),
+            })
+          );
+          setProjects(mapped);
+        } catch {
+          setProjects([]);
+        }
+      }
+      if (!cancelled) setLoading(false);
     }
-    load();
-    return () => { cancelled = true; };
-  }, [keywords, selectedCategory, sortBy]);
-
-  useEffect(() => {
-    const loadNotifications = async () => {
-      if (!user?.id || !hasApi()) {
-        setNotifications(0);
-        return;
-      }
-      try {
-        const res = await apiListNotifications(user.id);
-        if (!res.ok) {
-          setNotifications(0);
-          return;
-        }
-        const unread = (res.notifications || []).filter((n: any) => !n.isRead).length;
-        setNotifications(unread);
-      } catch {
-        setNotifications(0);
-      }
+    void load();
+    return () => {
+      cancelled = true;
     };
-    loadNotifications();
-  }, [user?.id]);
-
-  const publishProjectHref = !isAuthenticated
-    ? '/login'
-    : user?.type === 'client'
-      ? '/project/new'
-      : '/freelancer/dashboard';
-
-  const toggleExpand = (projectId: string) => {
-    setExpandedProjects(prev => 
-      prev.includes(projectId) 
-        ? prev.filter(id => id !== projectId)
-        : [...prev, projectId]
-    );
-  };
+  }, []);
 
   const filteredProjects = useMemo(() => {
-    let list = projects.filter((project) => {
-      const matchesCategory = selectedCategory === 'Todas as categorias' || project.category === selectedCategory;
-      const matchesFeatured = !featuredOnly || project.isFeatured;
-      const matchesUrgent = !urgentOnly || project.isUrgent;
-      const matchesLevel = selectedLevel === 'all' || project.level === selectedLevel;
-      const ranking = Number(project.clientRating ?? 0);
+    let list = projects.filter((p) => {
+      const k = keyword.trim().toLowerCase();
+      const matchesKeyword =
+        !k ||
+        p.title.toLowerCase().includes(k) ||
+        p.description.toLowerCase().includes(k) ||
+        p.skills.some((s) => s.toLowerCase().includes(k));
+      const matchesCategory = category === 'Todas as categorias' || p.category === category;
+      const matchesFeatured = !featuredOnly || p.tags.some((t) => t.toLowerCase().includes('destaque'));
+      const matchesUrgent = !urgentOnly || p.tags.some((t) => t.toLowerCase().includes('urgente'));
+      const matchesLevel = levelFilter === 'all' || p.level === levelFilter;
+
+      const created = new Date(p.createdAt).getTime();
+      const now = Date.now();
+      const diff = now - created;
+      const matchesDate =
+        dateFilter === 'any' ||
+        (dateFilter === '24h' && diff <= 24 * 60 * 60 * 1000) ||
+        (dateFilter === '3d' && diff <= 3 * 24 * 60 * 60 * 1000);
+
+      const rating = p.clientRating;
       const matchesRanking =
-        selectedClientRanking === 'any' ||
-        (selectedClientRanking === 'none' && !project.clientRating) ||
-        (selectedClientRanking === '5' && ranking >= 5) ||
-        (selectedClientRanking === '4.5' && ranking >= 4.5) ||
-        (selectedClientRanking === '4' && ranking >= 4);
+        rankingFilter === 'any' ||
+        (rankingFilter === 'none' && rating === 0) ||
+        (rankingFilter === '5' && rating >= 5) ||
+        (rankingFilter === '4.5' && rating >= 4.5) ||
+        (rankingFilter === '4' && rating >= 4);
 
-      let matchesDate = true;
-      if (selectedDate !== 'any' && project.createdAt) {
-        const createdTime = new Date(project.createdAt).getTime();
-        const now = Date.now();
-        const diff = now - createdTime;
-        if (selectedDate === '24h') matchesDate = diff <= 24 * 60 * 60 * 1000;
-        if (selectedDate === '3d') matchesDate = diff <= 3 * 24 * 60 * 60 * 1000;
-      }
-
-      return matchesCategory && matchesFeatured && matchesUrgent && matchesLevel && matchesRanking && matchesDate;
+      return matchesKeyword && matchesCategory && matchesFeatured && matchesUrgent && matchesLevel && matchesDate && matchesRanking;
     });
+
     list = [...list].sort((a, b) => {
-      const t1 = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const t2 = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      const p1 = a.proposals ?? 0;
-      const p2 = b.proposals ?? 0;
-      const i1 = a.interested ?? 0;
-      const i2 = b.interested ?? 0;
-      if (sortBy === 'newest' || sortBy === 'relevance') return t2 - t1;
-      if (sortBy === 'oldest') return t1 - t2;
-      if (sortBy === 'proposals_high') return p2 - p1;
-      if (sortBy === 'proposals_low') return p1 - p2;
-      if (sortBy === 'interested_high') return i2 - i1;
-      if (sortBy === 'interested_low') return i1 - i2;
+      if (sortBy === 'newest' || sortBy === 'relevance') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      if (sortBy === 'oldest') return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      if (sortBy === 'alpha_asc') return a.title.localeCompare(b.title, 'pt-BR');
+      if (sortBy === 'alpha_desc') return b.title.localeCompare(a.title, 'pt-BR');
+      if (sortBy === 'proposals_high') return b.proposals - a.proposals;
+      if (sortBy === 'proposals_low') return a.proposals - b.proposals;
+      if (sortBy === 'interested_high') return b.interested - a.interested;
+      if (sortBy === 'interested_low') return a.interested - b.interested;
       return 0;
     });
     return list;
-  }, [projects, selectedCategory, featuredOnly, urgentOnly, selectedLevel, selectedClientRanking, selectedDate, sortBy]);
+  }, [projects, keyword, category, featuredOnly, urgentOnly, dateFilter, rankingFilter, levelFilter, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProjects.length / pageSize));
   const paginatedProjects = useMemo(() => {
@@ -288,355 +221,236 @@ export default function Projects() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [keywords, selectedCategory, featuredOnly, urgentOnly, selectedDate, selectedClientRanking, selectedLevel, sortBy]);
+  }, [keyword, category, featuredOnly, urgentOnly, dateFilter, rankingFilter, levelFilter, sortBy]);
 
-  const renderStars = (rating: number) => {
-    return '★'.repeat(Math.round(rating)) + '☆'.repeat(5 - Math.round(rating));
-  };
+  const publishHref = !isAuthenticated ? '/login' : user?.type === 'client' ? '/project/new' : '/freelancer/dashboard';
 
-  const FilterContent = () => (
+  const Filters = () => (
     <>
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Palavras-chaves</label>
+        <label className="block text-sm text-gray-700 mb-2">Palavras-chaves</label>
         <div className="flex">
-          <input
-            type="text"
-            value={keywords}
-            onChange={(e) => setKeywords(e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-99blue text-sm"
-            placeholder="Ex: design, logo..."
-          />
-          <button className="px-3 py-2 bg-99blue text-white rounded-r-lg hover:bg-99blue-light text-sm">Ok</button>
+          <input value={keyword} onChange={(e) => setKeyword(e.target.value)} className="flex-1 border border-gray-300 px-3 py-2 text-sm" placeholder="Ex. Projetos Web" />
+          <button className="px-3 bg-99blue text-white text-sm">Ok</button>
         </div>
       </div>
-
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Categorias</label>
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-99blue text-sm"
-        >
-          {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+        <label className="block text-sm text-gray-700 mb-2">Categorias</label>
+        <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full border border-gray-300 px-3 py-2 text-sm">
+          {categories.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
         </select>
       </div>
-
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de projeto</label>
-        <div className="space-y-2">
-          <label className="flex items-center">
-            <input type="checkbox" checked={featuredOnly} onChange={(e) => setFeaturedOnly(e.target.checked)} className="w-4 h-4 text-99blue rounded" />
-            <span className="ml-2 text-gray-600 text-sm">Projetos em destaque</span>
-          </label>
-          <label className="flex items-center">
-            <input type="checkbox" checked={urgentOnly} onChange={(e) => setUrgentOnly(e.target.checked)} className="w-4 h-4 text-99blue rounded" />
-            <span className="ml-2 text-gray-600 text-sm">Projetos urgentes</span>
-          </label>
-        </div>
+        <label className="block text-sm text-gray-700 mb-2">Tipo de projeto</label>
+        <label className="flex items-center gap-2 text-sm text-gray-700 mb-1"><input type="checkbox" checked={featuredOnly} onChange={(e) => setFeaturedOnly(e.target.checked)} /> Projetos em destaque</label>
+        <label className="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" checked={urgentOnly} onChange={(e) => setUrgentOnly(e.target.checked)} /> Projetos urgentes</label>
       </div>
-
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Data da publicação</label>
-        <select value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-          {dateOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+        <label className="block text-sm text-gray-700 mb-2">Data da publicação</label>
+        <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value as any)} className="w-full border border-gray-300 px-3 py-2 text-sm">
+          <option value="any">Qualquer hora</option>
+          <option value="24h">Menos de 24 horas atrás</option>
+          <option value="3d">Menos de 3 dias atrás</option>
         </select>
       </div>
-
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Ranking do cliente</label>
-        <select value={selectedClientRanking} onChange={(e) => setSelectedClientRanking(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-          {clientRankingOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+        <label className="block text-sm text-gray-700 mb-2">Ranking do cliente</label>
+        <select value={rankingFilter} onChange={(e) => setRankingFilter(e.target.value as any)} className="w-full border border-gray-300 px-3 py-2 text-sm">
+          <option value="any">Qualquer ranking</option>
+          <option value="5">5 estrelas</option>
+          <option value="4.5">Pelo menos 4.5 estrelas</option>
+          <option value="4">Pelo menos 4 estrelas</option>
+          <option value="none">Sem feedback</option>
         </select>
       </div>
-
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Nível de experiência</label>
-        <select value={selectedLevel} onChange={(e) => setSelectedLevel(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-          {levels.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+        <label className="block text-sm text-gray-700 mb-2">Nível de experiência</label>
+        <select value={levelFilter} onChange={(e) => setLevelFilter(e.target.value as any)} className="w-full border border-gray-300 px-3 py-2 text-sm">
+          <option value="all">Todos os níveis de experiência</option>
+          <option value="Iniciante">Iniciante</option>
+          <option value="Intermediário">Intermediário</option>
+          <option value="Especialista">Especialista</option>
         </select>
       </div>
-
-      <button onClick={() => { setKeywords(''); setSelectedCategory('Todas as categorias'); setFeaturedOnly(false); setUrgentOnly(false); setSelectedDate('any'); setSelectedClientRanking('any'); setSelectedLevel('all'); setSortBy('relevance'); setCurrentPage(1); }} className="w-full py-2 text-99blue hover:underline text-sm">Resetar Filtros</button>
+      <button
+        type="button"
+        className="w-full bg-99blue text-white py-2 text-sm"
+        onClick={() => {
+          setKeyword('');
+          setCategory('Todas as categorias');
+          setFeaturedOnly(false);
+          setUrgentOnly(false);
+          setDateFilter('any');
+          setRankingFilter('any');
+          setLevelFilter('all');
+          setSortBy('relevance');
+        }}
+      >
+        Resetar Filtros
+      </button>
     </>
   );
 
   return (
-    <div className="min-h-screen bg-gray-100 overflow-x-hidden">
-      {/* Header with Mobile Menu */}
-      <header className="bg-99dark text-white sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between h-14 md:h-16">
-            <div className="flex items-center gap-4">
-              <button onClick={() => setShowMobileMenu(true)} className="md:hidden p-2 -ml-2 hover:bg-white/10 rounded-lg">
-                <Menu className="w-6 h-6" />
-              </button>
-              <Link to="/" className="text-xl md:text-2xl font-bold">meu<span className="font-light">freelas</span></Link>
-            </div>
-            <div className="flex items-center space-x-2 md:space-x-4">
-              <div className="hidden md:flex items-center bg-white/10 rounded-lg px-4 py-2">
-                <Search className="w-4 h-4 mr-2 text-gray-400" />
-                <input type="text" placeholder="Buscar..." className="bg-transparent text-white placeholder-gray-400 outline-none w-48" />
-              </div>
-              {isAuthenticated && user && (
-                <>
-                  <Link
-                    to="/messages"
-                    className="relative p-2 text-gray-300 hover:text-white hidden md:inline-flex"
-                    title="Mensagens"
-                  >
-                    <MessageSquare className="w-5 h-5" />
-                  </Link>
-                  <Link
-                    to="/notifications"
-                    className="relative p-2 text-gray-300 hover:text-white hidden md:inline-flex"
-                    title="Notificações"
-                  >
-                    <Bell className="w-5 h-5" />
-                    {notifications > 0 && (
-                      <span className="absolute -top-1 -right-1 min-w-[18px] h-4 px-1 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                        {notifications > 99 ? '99+' : notifications}
-                      </span>
-                    )}
-                  </Link>
-                </>
-              )}
-              {isAuthenticated && user ? (
-                <div className="relative hidden sm:block">
-                  <button type="button" onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center space-x-2 text-white hover:text-white/90">
-                    {user.avatar ? <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full" /> : <div className="w-8 h-8 bg-99blue rounded-full flex items-center justify-center"><User className="w-5 h-5" /></div>}
-                    <span className="text-sm">{user.name.split(' ')[0]}</span>
-                    <ChevronDown className="w-4 h-4" />
-                  </button>
-                  {showUserMenu && (
-                    <>
-                      <div className="fixed inset-0 z-40" aria-hidden onClick={() => setShowUserMenu(false)} />
-                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50 animate-fade-in">
-                        <Link to={user.type === 'freelancer' ? '/freelancer/dashboard' : '/dashboard'} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setShowUserMenu(false)}>Dashboard</Link>
-                        <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setShowUserMenu(false)}>Meu perfil</Link>
-                        <Link to="/freelancers" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setShowUserMenu(false)}>Freelancers</Link>
-                        <Link to="/projects" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setShowUserMenu(false)}>Projetos</Link>
-                        <button type="button" onClick={() => { setShowUserMenu(false); logout(); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"><LogOut className="w-4 h-4 mr-2" /> Sair</button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <Link to="/login" className="text-gray-300 hover:text-white hidden sm:block text-sm">Login</Link>
-                  <Link to="/register" className="text-gray-300 hover:text-white hidden sm:block text-sm">Cadastre-se</Link>
-                </>
-              )}
-              <Link to={publishProjectHref} className="px-3 md:px-4 py-2 bg-99blue rounded-lg hover:bg-sky-400 text-sm">Publicar</Link>
-            </div>
+    <div className="min-h-screen bg-white">
+      <header className="bg-99blue text-white">
+        <div className="max-w-7xl mx-auto px-4 h-14 md:h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button type="button" className="md:hidden p-2 -ml-2" onClick={() => setShowMobileMenu(true)}>
+              <Menu className="w-6 h-6" />
+            </button>
+            <BrandLogo to="/" heightClassName="h-10" darkBg />
           </div>
+          <nav className="hidden md:flex items-center gap-5 text-sm">
+            <Link to="/">Página inicial</Link>
+            <Link to="/projects">Projetos</Link>
+            <Link to="/freelancers">Freelancers</Link>
+            <Link to="/profile">Perfil</Link>
+            <Link to="/account">Conta</Link>
+            <Link to="/tools">Ferramentas</Link>
+            <Link to="/ajuda">Ajuda</Link>
+          </nav>
         </div>
       </header>
 
-      {/* Mobile Menu */}
       {showMobileMenu && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-50 md:hidden" onClick={() => setShowMobileMenu(false)} />
-          <div className="fixed left-0 top-0 w-72 h-full bg-white shadow-xl z-50 md:hidden">
-            <div className="p-4 border-b bg-99dark flex items-center justify-between">
-              <span className="text-xl font-bold text-white">Menu</span>
-              <button onClick={() => setShowMobileMenu(false)} className="p-2 text-white"><X className="w-6 h-6" /></button>
+          <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={() => setShowMobileMenu(false)} />
+          <aside className="fixed left-0 top-0 h-full w-72 bg-white z-50 md:hidden shadow-xl">
+            <div className="h-14 px-4 border-b flex items-center justify-between">
+              <BrandLogo to="/" heightClassName="h-8" />
+              <button type="button" onClick={() => setShowMobileMenu(false)}>
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <nav className="p-4">
-              {menuItems.map((item, i) => (
-                <Link key={i} to={item.href} className="flex items-center px-4 py-3 rounded-lg mb-2 text-gray-700 hover:bg-gray-100" onClick={() => setShowMobileMenu(false)}>
-                  <item.icon className="w-5 h-5 mr-3" />{item.label}
-                </Link>
-              ))}
+            <nav className="p-4 space-y-2">
+              <Link to="/" className="block px-2 py-2 rounded hover:bg-gray-100" onClick={() => setShowMobileMenu(false)}>Página inicial</Link>
+              <Link to="/projects" className="block px-2 py-2 rounded hover:bg-gray-100" onClick={() => setShowMobileMenu(false)}>Projetos</Link>
+              <Link to="/freelancers" className="block px-2 py-2 rounded hover:bg-gray-100" onClick={() => setShowMobileMenu(false)}>Freelancers</Link>
             </nav>
-          </div>
+          </aside>
         </>
       )}
 
-      {/* Subnav (desktop) */}
-      <nav className="hidden md:block bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center space-x-6 h-11">
-            <Link to={user?.type === 'freelancer' ? '/freelancer/dashboard' : '/dashboard'} className="text-sm font-medium text-gray-700 hover:text-99blue">
-              Página inicial
-            </Link>
-            {(user?.type === 'freelancer' ? [
-              { title: 'Projetos', items: [{ label: 'Buscar projetos', href: '/projects' }, { label: 'Meus projetos', href: '/freelancer/projects' }, { label: 'Minhas propostas', href: '/freelancer/proposals' }] },
-              { title: 'Perfil', items: [{ label: 'Editar perfil', href: '/profile/edit' }, { label: 'Meu perfil', href: '/profile' }] },
-              { title: 'Conta', items: [{ label: 'Cartões', href: '/account?tab=cards' }, { label: 'Pagamentos', href: '/payments' }, { label: 'Verificações', href: '/account?tab=verification' }] },
-              { title: 'Ajuda', items: [{ label: 'Como funciona', href: '/como-funciona' }, { label: 'Central de ajuda', href: '/ajuda' }] },
-            ] : [
-              { title: 'Projetos', items: [{ label: 'Publicar projeto', href: '/project/new' }, { label: 'Meus projetos', href: '/my-projects' }, { label: 'Buscar freelancers', href: '/freelancers' }] },
-              { title: 'Conta', items: [{ label: 'Dados da conta', href: '/profile/edit' }, { label: 'Pagamentos', href: '/payments' }] },
-              { title: 'Ajuda', items: [{ label: 'Como funciona', href: '/como-funciona' }, { label: 'Central de ajuda', href: '/ajuda' }] },
-            ]).map((section) => (
-              <div key={section.title} className="relative group">
-                <button type="button" className="flex items-center text-sm font-medium text-gray-700 hover:text-99blue">
-                  {section.title}
-                  <ChevronDown className="w-4 h-4 ml-1 text-gray-400 group-hover:text-99blue" />
-                </button>
-                <div className="absolute left-0 mt-2 bg-white shadow-lg rounded-lg py-2 min-w-[220px] opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto z-30">
-                  {section.items.map((item) => (
-                    <Link key={item.href} to={item.href} className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                      <span>{item.label}</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ))}
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h1 className="text-4xl font-light text-gray-800">Resultado da pesquisa</h1>
+            <p className="text-gray-600">{filteredProjects.length} projeto{filteredProjects.length !== 1 ? 's' : ''} foram encontrados</p>
           </div>
+          <Link to={publishHref} className="bg-99blue text-white px-5 py-3 text-sm font-semibold">Publique um projeto. É grátis.</Link>
         </div>
-      </nav>
 
-      {/* Results Header */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4 md:py-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <p className="text-gray-600 text-sm">Resultado da pesquisa</p>
-              <p className="text-xl md:text-2xl font-semibold text-gray-900">{filteredProjects.length.toLocaleString()} projeto{filteredProjects.length !== 1 && 's'} encontrados</p>
-            </div>
-            <Link to={publishProjectHref} className="px-4 md:px-6 py-2 md:py-3 bg-99blue text-white rounded-lg hover:bg-99blue-light transition-colors font-medium text-sm text-center">Publique um projeto</Link>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 py-4 md:py-6">
-        {/* Mobile Filter Toggle */}
         <div className="lg:hidden mb-4">
-          <button onClick={() => setShowMobileFilters(!showMobileFilters)} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white rounded-lg shadow-sm text-gray-700 font-medium">
-            {showMobileFilters ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            {showMobileFilters ? 'Fechar filtros' : 'Mostrar filtros'}
+          <button type="button" onClick={() => setShowMobileFilters((v) => !v)} className="border border-gray-300 px-4 py-2 text-sm">
+            {showMobileFilters ? 'Fechar filtros' : '(+) Filtros'}
           </button>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-4 md:gap-6">
-          {/* Desktop Filters */}
-          <div className="hidden lg:block lg:w-72 flex-shrink-0">
-            <div className="bg-white rounded-lg shadow-sm p-5 sticky top-20">
-              <h3 className="font-semibold text-gray-800 mb-4">Filtros</h3>
-              <FilterContent />
-            </div>
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
+          <aside className="hidden lg:block border border-gray-300 p-4 h-fit">
+            <Filters />
+          </aside>
 
-          {/* Mobile Filters */}
-          {showMobileFilters && (
-            <div className="lg:hidden bg-white rounded-lg shadow-sm p-4 mb-4">
-              <h3 className="font-semibold text-gray-800 mb-4">Filtros</h3>
-              <FilterContent />
-            </div>
-          )}
+          <section>
+            {showMobileFilters && <div className="lg:hidden border border-gray-300 p-4 mb-4"><Filters /></div>}
 
-          {/* Main Content */}
-          <div className="flex-1">
-            {/* Sort */}
             <div className="flex items-center justify-between mb-4">
-              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                {sortOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="border border-gray-300 px-3 py-2 text-sm">
+                <option value="relevance">Relevância</option>
+                <option value="newest">Mais recentes</option>
+                <option value="oldest">Mais antigos</option>
+                <option value="alpha_asc">Ordem alfabética (A-Z)</option>
+                <option value="alpha_desc">Ordem alfabética (Z-A)</option>
+                <option value="proposals_high">Número de propostas (Maior)</option>
+                <option value="proposals_low">Número de propostas (Menor)</option>
+                <option value="interested_high">Número de interessados (Maior)</option>
+                <option value="interested_low">Número de interessados (Menor)</option>
               </select>
             </div>
 
-            {/* Projects List */}
-            <div className="space-y-4">
-              {loading ? (
-                <div className="bg-white rounded-lg shadow-sm p-8 md:p-12 flex flex-col items-center justify-center text-gray-500">
-                  <Loader2 className="w-10 h-10 animate-spin text-99blue mb-4" />
-                  <p className="font-medium">Carregando projetos...</p>
-                </div>
-              ) : filteredProjects.length === 0 ? (
-                <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-500">
-                  <Briefcase className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p className="font-medium">Nenhum projeto encontrado</p>
-                  <p className="text-sm mt-1">Ajuste os filtros ou publique um projeto.</p>
-                </div>
-              ) : paginatedProjects.map((project) => (
-                <div key={project.id} className="bg-white rounded-lg shadow-sm p-4 md:p-6">
-                  <Link to={`/project/${project.id}`} className="text-base md:text-lg font-semibold text-99blue hover:underline block mb-2">{project.title}</Link>
-                  
-                  {/* Meta Info - Mobile friendly */}
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs md:text-sm text-gray-500 mb-3">
-                    <span className="text-gray-700 font-medium">{project.category}</span>
-                    {project.subcategory && <><span className="hidden sm:inline">|</span><span>{project.subcategory}</span></>}
-                    <span className="hidden sm:inline">|</span>
-                    <span className="text-gray-700">{project.level}</span>
-                    {project.budget && <><span className="hidden sm:inline">|</span><span className="text-green-700 font-medium">{project.budget}</span></>}
-                    <span className="hidden sm:inline">|</span>
-                    <span>{project.publishedAt}</span>
-                    {project.timeRemaining && <><span className="hidden sm:inline">|</span><span className="flex items-center"><Clock className="w-3 h-3 mr-1" />{project.timeRemaining}</span></>}
-                    <span className="hidden sm:inline">|</span>
-                    <span className="flex items-center"><FileText className="w-3 h-3 mr-1" />{project.proposals} propostas</span>
-                  </div>
+            {loading ? (
+              <div className="border border-gray-300 p-10 text-center text-gray-500">Carregando projetos...</div>
+            ) : paginatedProjects.length === 0 ? (
+              <div className="border border-gray-300 p-10 text-center text-gray-500">Nenhum projeto encontrado.</div>
+            ) : (
+              <div className="space-y-4">
+                {paginatedProjects.map((p) => {
+                  const isExpanded = expanded.includes(p.id);
+                  const desc = isExpanded ? p.description : p.description.slice(0, 330);
+                  return (
+                    <article key={p.id} className="border border-gray-300 bg-[#fffef6]">
+                      <div className="p-4 border-b border-gray-200">
+                        <div className="flex items-center gap-2 mb-2">
+                          {p.tags.map((t) => (
+                            <span key={t} className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1">{t}</span>
+                          ))}
+                        </div>
+                        <Link to={`/project/${p.id}`} className="text-3xl font-light text-99blue hover:underline">
+                          {p.title}
+                        </Link>
+                        <p className="text-sm text-gray-700 mt-2">
+                          {p.category} | {p.level} | {p.publishedAt} | Tempo restante: {p.timeRemaining || '-'} | Propostas: <strong>{p.proposals}</strong> | Interessados: <strong>{p.interested}</strong>
+                        </p>
+                      </div>
+                      <div className="p-4">
+                        <p className="text-gray-700 whitespace-pre-line">
+                          {desc}
+                          {p.description.length > 330 && (
+                            <button type="button" className="ml-2 text-99blue hover:underline inline-flex items-center" onClick={() => setExpanded((prev) => (isExpanded ? prev.filter((id) => id !== p.id) : [...prev, p.id]))}>
+                              {isExpanded ? (<><ChevronUp className="w-4 h-4 mr-1" />Recolher</>) : (<><ChevronDown className="w-4 h-4 mr-1" />Expandir</>)}
+                            </button>
+                          )}
+                        </p>
+                        {p.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            {p.skills.map((s) => (
+                              <span key={s} className="bg-gray-100 text-gray-700 px-2 py-1 text-xs">{s}</span>
+                            ))}
+                          </div>
+                        )}
+                        <p className="mt-3 text-sm text-gray-700">
+                          Cliente:{' '}
+                          <Link to={`/user/${p.clientId}`} className="text-99blue hover:underline">
+                            {p.clientName}
+                          </Link>{' '}
+                          {p.clientRating > 0 ? `(${p.clientRating.toFixed(1)} estrelas)` : '(Sem feedback)'}
+                        </p>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
 
-                  {/* Description */}
-                  <div className="mb-3">
-                    <p className={`text-gray-600 text-sm ${expandedProjects.includes(project.id) ? '' : 'line-clamp-2'}`}>{project.description}</p>
-                    {project.description.length > 100 && (
-                      <button onClick={() => toggleExpand(project.id)} className="text-99blue text-sm hover:underline mt-1 flex items-center">
-                        {expandedProjects.includes(project.id) ? <><ChevronUp className="w-4 h-4 mr-1" /> Recolher</> : <><ChevronDown className="w-4 h-4 mr-1" /> Expandir</>}
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Client Info */}
-                  <div className="pt-3 border-t border-gray-100 flex flex-wrap items-center gap-2">
-                    <span className="text-sm text-gray-500">Cliente:</span>
-                    <Link to={`/user/${project.clientUsername}`} className="text-99blue hover:underline text-sm font-medium">{project.clientName}</Link>
-                    {project.clientRating ? (
-                      <span className="text-sm text-yellow-500">{renderStars(project.clientRating)} ({project.clientReviews})</span>
-                    ) : (
-                      <span className="text-sm text-gray-400">(Sem feedback)</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Pagination */}
             {filteredProjects.length > 0 && (
-              <div className="flex items-center justify-center gap-2 mt-6 md:mt-8">
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                  className="px-2 md:px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-                >
+              <div className="mt-6 flex items-center justify-center gap-2">
+                <button type="button" disabled={currentPage === 1} onClick={() => setCurrentPage((v) => Math.max(1, v - 1))} className="border border-gray-300 px-3 py-2 text-sm disabled:opacity-40">
                   Anterior
                 </button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                   .slice(Math.max(0, currentPage - 3), Math.min(totalPages, currentPage + 2))
                   .map((page) => (
-                    <button
-                      key={page}
-                      type="button"
-                      onClick={() => setCurrentPage(page)}
-                      className={`px-2 md:px-3 py-2 border border-gray-300 rounded-lg text-sm ${
-                        currentPage === page ? 'bg-99blue text-white' : 'hover:bg-gray-100'
-                      }`}
-                    >
+                    <button key={page} type="button" onClick={() => setCurrentPage(page)} className={`border px-3 py-2 text-sm ${page === currentPage ? 'bg-99blue text-white border-99blue' : 'border-gray-300'}`}>
                       {page}
                     </button>
                   ))}
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-2 md:px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-                >
+                <button type="button" disabled={currentPage === totalPages} onClick={() => setCurrentPage((v) => Math.min(totalPages, v + 1))} className="border border-gray-300 px-3 py-2 text-sm disabled:opacity-40">
                   Próxima
                 </button>
               </div>
             )}
-          </div>
+          </section>
         </div>
-      </div>
+      </main>
 
-      {/* Footer */}
-      <footer className="bg-99dark text-white py-6 md:py-8 mt-8 md:mt-12">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-gray-400 text-sm">© 2014-2026 meuFreelas. Todos os direitos reservados.</p>
-          <div className="flex justify-center space-x-4 mt-4 text-xs md:text-sm">
-            <Link to="/termos" className="text-gray-400 hover:text-white">Termos de uso</Link>
-            <span className="text-gray-600">|</span>
-            <Link to="/privacidade" className="text-gray-400 hover:text-white">Política de privacidade</Link>
+      <footer className="border-t border-gray-200 py-8 mt-10">
+        <div className="max-w-7xl mx-auto px-4 text-center text-sm text-gray-500">
+          @2014-2026 MeuFreelas. Todos os direitos reservados.
+          <div className="mt-2">
+            <Link to="/termos" className="hover:text-99blue">Termos de uso</Link> | <Link to="/privacidade" className="hover:text-99blue">Política de privacidade</Link>
           </div>
         </div>
       </footer>
