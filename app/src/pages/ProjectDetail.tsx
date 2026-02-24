@@ -170,6 +170,8 @@ export default function ProjectDetail() {
   const [loadingProject, setLoadingProject] = useState(true);
   const [questionLoading, setQuestionLoading] = useState(false);
   const HIDDEN_PROJECT_IDS = ['ee15eb2bbd4a6520bad2e569e5450db99a8f'];
+  const FORCE_WHATSAPP_IDS = ['8c5870363bc9ca76312b3b530fbb6cdf7363', '0660a08bf21452a68e1e3e7eafafac4bec8f'];
+  const [forceWhatsLayout, setForceWhatsLayout] = useState(false);
 
   const menuItems = [
     { icon: Home, label: 'Início', href: '/' },
@@ -280,25 +282,32 @@ export default function ProjectDetail() {
     let description = p.description;
     let experienceLevel = p.experienceLevel || 'Intermediário';
     let proposalDays = p.proposalDays;
+    let subcategory = '';
+    let skills = requiredSkills;
 
-    if (p.title === 'Backend para marketplace offchain de gifts do Telegram') {
+    if (FORCE_WHATSAPP_IDS.includes(String(id)) || p.title === 'Backend para marketplace offchain de gifts do Telegram') {
       title = 'Atendimento ao cliente via WhatsApp por 1 hora';
       category = 'Atendimento ao Consumidor';
+      subcategory = 'Atendimento ao Consumidor';
       description =
         'Olá! Se você é um profissional com excelente comunicação escrita e busca uma renda extra garantida, segura e que tome pouco tempo do seu dia, preste muita atenção neste projeto.\n\nA atuação é de apenas 1 hora por dia.\n\nSomos uma empresa em crescimento e estamos buscando um(a) especialista em atendimento para ser a "voz" da nossa marca no WhatsApp.\n\nO que você vai fazer:\n• Responder mensagens de clientes e interessados de forma humanizada, empática e ágil.\n• Esclarecer dúvidas frequentes utilizando nossos materiais de apoio e roteiros.\n• Fazer a triagem de contatos e direcionar problemas complexos para a nossa equipe interna.\n\nO que nós esperamos de você:\n• Português impecável: gramática, ortografia e pontuação corretas são inegociáveis.\n• Empatia e simpatia.\n• Capacidade de contornar objeções com educação e acolher o cliente.';
       experienceLevel = 'Iniciante';
       proposalDays = '29';
+      skills = ['Atendimento', 'WhatsApp', 'Comunicação', 'Empatia'];
+      setForceWhatsLayout(true);
+    } else {
+      setForceWhatsLayout(false);
     }
     setProject({
       id: p.id,
       title,
       category,
-      subcategory: '',
+      subcategory,
       description,
       budget: p.budget || 'A combinar',
       budgetType: 'range',
       deadline: proposalDays ? `${proposalDays} dias` : '-',
-      requiredSkills,
+      requiredSkills: skills,
       clientId: p.clientId,
       clientName: p.clientName || 'Cliente',
       clientAvatar: '',
@@ -1535,29 +1544,33 @@ export default function ProjectDetail() {
                   <span className="text-gray-500">Interessados:</span>
                   <span className="text-gray-800 font-medium text-right">{project.interested}</span>
                 </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-gray-500">Valor mínimo:</span>
-                  <span className="text-gray-800 font-medium text-right">R$ 50,00</span>
-                </div>
+                {!forceWhatsLayout && (
+                  <div className="flex justify-between gap-3">
+                    <span className="text-gray-500">Valor mínimo:</span>
+                    <span className="text-gray-800 font-medium text-right">R$ 50,00</span>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Similar Projects */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Projetos Similares</h3>
-              <div className="space-y-4">
-                {[
-                  { title: 'Smart Contract para NFT Marketplace', budget: 'R$ 3.000 - R$ 5.000' },
-                  { title: 'Integração Web3 com React', budget: 'R$ 2.000 - R$ 4.000' },
-                  { title: 'Desenvolvimento DeFi Dashboard', budget: 'R$ 4.000 - R$ 8.000' },
-                ].map((proj, i) => (
-                  <div key={i} className="p-3 bg-gray-50 rounded-lg hover:bg-sky-50 transition-colors cursor-pointer">
-                    <p className="font-medium text-gray-800 text-sm mb-1">{proj.title}</p>
-                    <p className="text-99blue text-sm">{proj.budget}</p>
-                  </div>
-                ))}
+            {!forceWhatsLayout && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Projetos Similares</h3>
+                <div className="space-y-4">
+                  {[
+                    { title: 'Smart Contract para NFT Marketplace', budget: 'R$ 3.000 - R$ 5.000' },
+                    { title: 'Integração Web3 com React', budget: 'R$ 2.000 - R$ 4.000' },
+                    { title: 'Desenvolvimento DeFi Dashboard', budget: 'R$ 4.000 - R$ 8.000' },
+                  ].map((proj, i) => (
+                    <div key={i} className="p-3 bg-gray-50 rounded-lg hover:bg-sky-50 transition-colors cursor-pointer">
+                      <p className="font-medium text-gray-800 text-sm mb-1">{proj.title}</p>
+                      <p className="text-99blue text-sm">{proj.budget}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
