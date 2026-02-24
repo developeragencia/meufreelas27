@@ -6,7 +6,7 @@ import {
   Settings, Bell, Search, TrendingUp, LogOut, User, FileText,
   Award, CreditCard, Building2, Wallet, Crown,
   ChevronDown, ChevronRight, RefreshCw, Plus, Building,
-  BarChart3, Menu, X, Home, Folder, HelpCircle, BookOpen, Type, GitBranch, FileCheck, MapPin, RotateCcw
+  BarChart3, Menu, X, Home, Folder, HelpCircle, BookOpen, Type, GitBranch, FileCheck, MapPin, RotateCcw, Check
 } from 'lucide-react';
 import GoalsWidget from '../components/GoalsWidget';
 import BadgesWidget from '../components/BadgesWidget';
@@ -122,6 +122,7 @@ export default function FreelancerDashboard() {
   };
 
   if (loading || !user) {
+    // Loading state
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-99blue" />
@@ -523,6 +524,7 @@ export default function FreelancerDashboard() {
                 <div className="h-full bg-99blue rounded-full transition-all" style={{ width: `${profileCompletion.score}%` }} />
               </div>
             </div>
+          </div>
         </main>
       </div>
 

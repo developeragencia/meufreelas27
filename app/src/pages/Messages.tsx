@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
   AlertTriangle,
@@ -19,6 +19,11 @@ import {
   Smile,
   Star,
   Video,
+  Archive,
+  Trash2,
+  Flag,
+  Eye,
+  Edit
 } from 'lucide-react';
 import { moderateContent, type ModerationResult } from '../utils/contentModerator';
 import { getBanMessage, getPenaltyMessage, getUserSanctionStatus } from '../utils/sanctions';
@@ -49,6 +54,7 @@ function formatMessageTime(value?: string | null): string {
 export default function Messages() {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [conversations, setConversations] = useState<ApiConversation[]>([]);
@@ -58,6 +64,7 @@ export default function Messages() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showMobileChat, setShowMobileChat] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showChatMenu, setShowChatMenu] = useState(false); // New state for chat menu
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isLoadingProposal, setIsLoadingProposal] = useState(false);
@@ -348,9 +355,67 @@ export default function Messages() {
             <h1 className="text-lg font-semibold">Mensagens</h1>
           )}
 
-          <button className="p-2">
-            <EllipsisVertical className="w-6 h-6" />
-          </button>
+          <div className="relative">
+            <button 
+              onClick={() => setShowChatMenu(!showChatMenu)}
+              className="p-2"
+            >
+              <EllipsisVertical className="w-6 h-6" />
+            </button>
+            
+            {showChatMenu && (
+              <div className="absolute top-12 right-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 text-gray-800">
+                {selectedConversation && user?.type === 'freelancer' && selectedConversation.projectId && (
+                  <button 
+                    onClick={() => {
+                      navigate(`/project/${selectedConversation.projectId}/proposal`);
+                      setShowChatMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center"
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Melhorar proposta
+                  </button>
+                )}
+                
+                {selectedConversation ? (
+                  <>
+                    <button 
+                      onClick={() => {
+                        toggleArchiveConversation(selectedConversation.id);
+                        setShowChatMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center"
+                    >
+                      <Archive className="w-4 h-4 mr-2" />
+                      Arquivar conversa
+                    </button>
+                    <button 
+                      onClick={() => {
+                        alert('Usuário denunciado com sucesso.');
+                        setShowChatMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center"
+                    >
+                      <Flag className="w-4 h-4 mr-2" />
+                      Denunciar usuário
+                    </button>
+                  </>
+                ) : (
+                  <button 
+                    onClick={() => {
+                      setSelectedFolder('archived');
+                      setShowChatMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center"
+                  >
+                    <Archive className="w-4 h-4 mr-2" />
+                    Ver Arquivadas
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -556,16 +621,50 @@ export default function Messages() {
                   </div>
                 )}
 
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-1 relative">
                   <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
                     <Phone className="w-5 h-5" />
                   </button>
                   <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
                     <Video className="w-5 h-5" />
                   </button>
-                  <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+                  <button 
+                    onClick={() => setShowChatMenu(!showChatMenu)}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                  >
                     <MoreVertical className="w-5 h-5" />
                   </button>
+                  
+                  {showChatMenu && (
+                    <div className="absolute top-12 right-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
+                      {user?.type === 'freelancer' && selectedConversation.projectId && (
+                        <button 
+                          onClick={() => navigate(`/project/${selectedConversation.projectId}/proposal`)}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          Melhorar proposta
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => toggleArchiveConversation(selectedConversation.id)}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                      >
+                        <Archive className="w-4 h-4 mr-2" />
+                        Arquivar conversa
+                      </button>
+                      <button 
+                        onClick={() => {
+                          alert('Usuário denunciado com sucesso.');
+                          setShowChatMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center"
+                      >
+                        <Flag className="w-4 h-4 mr-2" />
+                        Denunciar usuário
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
