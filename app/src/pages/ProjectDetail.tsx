@@ -75,6 +75,8 @@ export default function ProjectDetail() {
   const [proposalFilter, setProposalFilter] = useState<'Todas' | 'Pendente' | 'Aceita' | 'Recusada'>('Todas');
   const [questionLoading, setQuestionLoading] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [showSavedToast, setShowSavedToast] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -140,6 +142,28 @@ export default function ProjectDetail() {
     navigate('/messages');
   };
 
+  const handleSaveProject = () => {
+    if (!id) return;
+    const saved = JSON.parse(localStorage.getItem('meufreelas_saved_projects') || '[]');
+    const list = Array.isArray(saved) ? saved : [];
+    const exists = list.includes(id);
+    const next = exists ? list.filter((pid: string) => pid !== id) : [...list, id];
+    localStorage.setItem('meufreelas_saved_projects', JSON.stringify(next));
+    setIsSaved(!exists);
+    setShowSavedToast(true);
+    setTimeout(() => setShowSavedToast(false), 1800);
+  };
+
+  const handleReportProject = () => {
+    if (!id) return;
+    const reports = JSON.parse(localStorage.getItem('meufreelas_reports') || '[]');
+    const list = Array.isArray(reports) ? reports : [];
+    list.push({ id: Date.now().toString(), projectId: id, createdAt: new Date().toISOString() });
+    localStorage.setItem('meufreelas_reports', JSON.stringify(list));
+    setShowSavedToast(true);
+    setTimeout(() => setShowSavedToast(false), 1800);
+  };
+
   const proposalHref = !project
     ? '/login'
     : !isAuthenticated
@@ -147,6 +171,13 @@ export default function ProjectDetail() {
       : user?.type === 'freelancer'
         ? `/project/bid/${project.id}`
         : '/freelancer/dashboard';
+
+  useEffect(() => {
+    if (!id) return;
+    const saved = JSON.parse(localStorage.getItem('meufreelas_saved_projects') || '[]');
+    const list = Array.isArray(saved) ? saved : [];
+    setIsSaved(list.includes(id));
+  }, [id]);
 
   if (loading) {
     return <div className="min-h-screen bg-gray-100 flex items-center justify-center text-gray-500">Carregando projeto...</div>;
@@ -165,6 +196,11 @@ export default function ProjectDetail() {
 
   return (
     <div className="min-h-screen bg-white">
+      {showSavedToast && (
+        <div className="fixed top-4 right-4 bg-green-600 text-white text-sm px-4 py-2 rounded shadow z-50">
+          Ação concluída com sucesso.
+        </div>
+      )}
       <header className="bg-99blue text-white">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -287,8 +323,10 @@ export default function ProjectDetail() {
               </div>
               <hr className="my-4" />
               <p className="text-gray-600 mb-2">Gerenciamento do projeto</p>
-              <button className="block text-left text-gray-700 mb-1">Salvar</button>
-              <button className="block text-left text-gray-700">Denunciar</button>
+              <button type="button" onClick={handleSaveProject} className="block text-left text-gray-700 mb-1">
+                {isSaved ? 'Remover dos salvos' : 'Salvar'}
+              </button>
+              <button type="button" onClick={handleReportProject} className="block text-left text-gray-700">Denunciar</button>
             </div>
           </aside>
         </div>
