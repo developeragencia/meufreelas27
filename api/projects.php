@@ -316,6 +316,9 @@ if ($action === 'get_project') {
         echo json_encode(['ok' => false, 'error' => 'projectId é obrigatório.']);
         exit;
     }
+    if ($projectId === 'ee15eb2bbd4a6520bad2e569e5450db99a8f') {
+        $projectId = '8c5870363bc9ca76312b3b530fbb6cdf7363';
+    }
     if (in_array($projectId, $MF_HIDDEN_PROJECT_IDS, true)) {
         echo json_encode(['ok' => false, 'error' => 'Projeto não encontrado.']);
         exit;

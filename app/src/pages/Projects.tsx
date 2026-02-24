@@ -295,7 +295,7 @@ export default function Projects() {
 
   return (
     <div className="min-h-screen bg-white">
-      <header className="bg-99blue text-white">
+      <header className="bg-99dark text-white">
         <div className="max-w-7xl mx-auto px-4 h-14 md:h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button type="button" className="md:hidden p-2 -ml-2" onClick={() => setShowMobileMenu(true)}>
@@ -376,48 +376,51 @@ export default function Projects() {
             ) : paginatedProjects.length === 0 ? (
               <div className="border border-gray-300 p-10 text-center text-gray-500">Nenhum projeto encontrado.</div>
             ) : (
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {paginatedProjects.map((p) => {
                   const isExpanded = expanded.includes(p.id);
-                  const desc = isExpanded ? p.description : p.description.slice(0, 330);
+                  const desc = isExpanded ? p.description : p.description.slice(0, 150) + (p.description.length > 150 ? '...' : '');
                   return (
-                    <article key={p.id} className="border border-gray-300 bg-[#fffef6]">
-                      <div className="p-4 border-b border-gray-200">
-                        <div className="flex items-center gap-2 mb-2">
+                    <article key={p.id} className="border border-gray-300 bg-white flex flex-col h-full hover:shadow-md transition-shadow">
+                      <div className="p-4 border-b border-gray-100 flex-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
                           {p.tags.map((t) => (
-                            <span key={t} className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1">{t}</span>
+                            <span key={t} className="text-[10px] uppercase font-bold bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-sm">{t}</span>
                           ))}
+                          <span className="text-xs text-gray-400 ml-auto">{p.publishedAt}</span>
                         </div>
-                        <Link to={`/project/${p.id}`} className="text-3xl font-light text-99blue hover:underline">
+                        <Link to={`/project/${p.id}`} className="block text-lg md:text-xl font-semibold text-99blue hover:underline mb-2 leading-snug">
                           {p.title}
                         </Link>
-                        <p className="text-sm text-gray-700 mt-2">
-                          {p.category} | {p.level} | {p.publishedAt} | Tempo restante: {p.timeRemaining || '-'} | Propostas: <strong>{p.proposals}</strong> | Interessados: <strong>{p.interested}</strong>
-                        </p>
-                      </div>
-                      <div className="p-4">
-                        <p className="text-gray-700 whitespace-pre-line">
-                          {desc}
-                          {p.description.length > 330 && (
-                            <button type="button" className="ml-2 text-99blue hover:underline inline-flex items-center" onClick={() => setExpanded((prev) => (isExpanded ? prev.filter((id) => id !== p.id) : [...prev, p.id]))}>
-                              {isExpanded ? (<><ChevronUp className="w-4 h-4 mr-1" />Recolher</>) : (<><ChevronDown className="w-4 h-4 mr-1" />Expandir</>)}
-                            </button>
-                          )}
+                        <div className="text-xs text-gray-500 mb-3 flex flex-wrap gap-x-3 gap-y-1">
+                          <span>{p.category}</span>
+                          <span className="w-1 h-1 bg-gray-300 rounded-full self-center"></span>
+                          <span>{p.level}</span>
+                          <span className="w-1 h-1 bg-gray-300 rounded-full self-center"></span>
+                          <span>Propostas: <strong>{p.proposals}</strong></span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                          {p.description}
                         </p>
                         {p.skills.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mt-3">
-                            {p.skills.map((s) => (
-                              <span key={s} className="bg-gray-100 text-gray-700 px-2 py-1 text-xs">{s}</span>
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {p.skills.slice(0, 4).map((s) => (
+                              <span key={s} className="bg-gray-100 text-gray-600 px-2 py-1 text-xs rounded">{s}</span>
                             ))}
+                            {p.skills.length > 4 && (
+                              <span className="bg-gray-100 text-gray-600 px-2 py-1 text-xs rounded">+{p.skills.length - 4}</span>
+                            )}
                           </div>
                         )}
-                        <p className="mt-3 text-sm text-gray-700">
-                          Cliente:{' '}
-                          <Link to={`/user/${p.clientId}`} className="text-99blue hover:underline">
-                            {p.clientName}
-                          </Link>{' '}
-                          {p.clientRating > 0 ? `(${p.clientRating.toFixed(1)} estrelas)` : '(Sem feedback)'}
-                        </p>
+                      </div>
+                      <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                           <span className="truncate text-gray-600 font-medium">{p.clientName}</span>
+                           {p.clientRating > 0 && <span className="text-yellow-500 text-xs">★ {p.clientRating.toFixed(1)}</span>}
+                        </div>
+                        <Link to={`/project/${p.id}`} className="text-99blue font-medium hover:underline whitespace-nowrap">
+                          Ver detalhes
+                        </Link>
                       </div>
                     </article>
                   );
@@ -446,11 +449,11 @@ export default function Projects() {
         </div>
       </main>
 
-      <footer className="border-t border-gray-200 py-8 mt-10">
-        <div className="max-w-7xl mx-auto px-4 text-center text-sm text-gray-500">
+      <footer className="bg-99dark text-white py-8 mt-10">
+        <div className="max-w-7xl mx-auto px-4 text-center text-sm text-gray-300">
           @2014-2026 MeuFreelas. Todos os direitos reservados.
           <div className="mt-2">
-            <Link to="/termos" className="hover:text-99blue">Termos de uso</Link> | <Link to="/privacidade" className="hover:text-99blue">Política de privacidade</Link>
+            <Link to="/termos" className="hover:text-white">Termos de uso</Link> | <Link to="/privacidade" className="hover:text-white">Política de privacidade</Link>
           </div>
         </div>
       </footer>

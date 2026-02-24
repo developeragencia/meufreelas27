@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { Search, MapPin, Star, ChevronDown, ChevronUp, Filter, Check, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import BrandLogo from '../components/BrandLogo';
-import { apiListFreelancersPublic, apiListNotifications, hasApi, type ApiFreelancerPublic } from '../lib/api';
-import { Search, ChevronDown, ChevronUp, Briefcase, ThumbsUp, Calendar, Crown, Star, Menu, X, User, LogOut, Bell, MessageSquare } from 'lucide-react';
+import { apiListFreelancersPublic, hasApi, type ApiFreelancerPublic } from '../lib/api';
+
+// --- Types ---
 
 interface Freelancer {
   id: string;
@@ -17,741 +19,342 @@ interface Freelancer {
   totalReviews: number;
   completedProjects: number;
   recommendations: number;
-  memberSince: string;
-  ranking?: number;
-  isPremium: boolean;
-  isPro: boolean;
-  planTier: 'free' | 'pro' | 'premium';
-  hasPhoto: boolean;
-  profileCompletion: number;
-  rankingScore: number;
+  city?: string;
+  state?: string;
+  country?: string;
+  isOnline?: boolean;
+  lastLogin?: string;
 }
 
-const areasOfInterest = [
-  'Todas as áreas',
-  'Administração & Contabilidade',
-  'Advogados & Leis',
-  'Atendimento ao Consumidor',
-  'Design & Criação',
-  'Educação & Consultoria',
-  'Engenharia & Arquitetura',
-  'Escrita',
-  'Fotografia & AudioVisual',
-  'Suporte Administrativo',
-  'Tradução',
-  'Vendas & Marketing',
-  'Web, Mobile & Software'
-];
+// --- Helpers ---
 
-const rankingOptions = [
-  { value: 'any', label: 'Qualquer ranking' },
-  { value: '5', label: '5 estrelas' },
-  { value: '4.5', label: 'Pelo menos 4.5 estrelas' },
-  { value: '4', label: 'Pelo menos 4 estrelas' },
-  { value: 'none', label: 'Sem feedback' }
-];
-
-const recommendationsOptions = [
-  { value: 'any', label: 'Qualquer quantidade' },
-  { value: '5', label: 'Pelo menos 5' },
-  { value: '10', label: 'Pelo menos 10' },
-  { value: '15', label: 'Pelo menos 15' }
-];
-
-const sortOptions = [
-  { value: 'relevance', label: 'Relevância' },
-  { value: 'rating_high', label: 'Ranking (Maior)' },
-  { value: 'rating_low', label: 'Ranking (Menor)' },
-  { value: 'alpha_asc', label: 'Ordem alfabética (A-Z)' },
-  { value: 'alpha_desc', label: 'Ordem alfabética (Z-A)' },
-  { value: 'projects_high', label: 'Projetos concluídos (Maior)' },
-  { value: 'projects_low', label: 'Projetos concluídos (Menor)' },
-  { value: 'rec_high', label: 'Recomendações (Maior)' },
-  { value: 'rec_low', label: 'Recomendações (Menor)' }
-];
-
-function loadFreelancersFromStorage(): Freelancer[] {
-  try {
-    const users = JSON.parse(localStorage.getItem('meufreelas_users') || '[]');
-    const currentUserRaw = localStorage.getItem('meufreelas_user');
-    const currentUser = currentUserRaw ? JSON.parse(currentUserRaw) : null;
-    const mergedUsers = Array.isArray(users) ? [...users] : [];
-    if (currentUser?.id && !mergedUsers.some((u: any) => u?.id === currentUser.id)) {
-      mergedUsers.push(currentUser);
-    }
-    return mergedUsers
-      .filter((u: any) => u.type === 'freelancer' || u.hasFreelancerAccount)
-      .map((u: any) => {
-        const profileRaw = localStorage.getItem(`profile_${u.id}`);
-        let profile: Record<string, any> = {};
-        try {
-          profile = profileRaw ? JSON.parse(profileRaw) : {};
-        } catch {
-          profile = {};
-        }
-
-        const skills = Array.isArray(u.skills)
-          ? u.skills
-          : Array.isArray(profile.skills)
-            ? profile.skills
-            : u.skills
-              ? [u.skills]
-              : [];
-
-        const profileCompletionChecks = [
-          Boolean(u.avatar),
-          Boolean((u.name || '').trim()),
-          Boolean((u.phone || profile.phone || '').trim()),
-          Boolean((profile.stateUf || '').trim()),
-          Boolean((profile.city || '').trim()),
-          Boolean((u.bio || profile.bio || '').trim()),
-          skills.length > 0,
-          Boolean((profile.title || '').trim()),
-        ];
-        const profileCompletion = Math.round(
-          (profileCompletionChecks.filter(Boolean).length / profileCompletionChecks.length) * 100
-        );
-
-        const hasPremium = Boolean(u.isPremium) || String(u.plan || '').toLowerCase() === 'premium';
-        const hasPro = Boolean(u.isPro) || String(u.plan || '').toLowerCase() === 'pro';
-        const planTier: 'free' | 'pro' | 'premium' = hasPremium ? 'premium' : hasPro ? 'pro' : 'free';
-        const planWeight = planTier === 'premium' ? 40 : planTier === 'pro' ? 25 : 10;
-        const ratingWeight = Math.min(100, ((Number(u.rating) || 0) / 5) * 100) * 0.2;
-        const projectsWeight = Math.min(100, (Number(u.completedProjects) || 0) * 5) * 0.15;
-        const completionWeight = profileCompletion * 0.1;
-        const responseWeight = 5; // placeholder até integrar tempo real de resposta
-        const categoryWeight = Math.min(10, skills.length) * 1;
-        const rankingScore = Math.round(
-          planWeight + ratingWeight + projectsWeight + completionWeight + responseWeight + categoryWeight
-        );
-
-        return {
-          id: u.id,
-          name: u.name || '',
-          username: (u.name || u.id).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || u.id,
-          avatar: u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || 'F')}&background=003366&color=fff`,
-          title: profile.title || '',
-          bio: u.bio || profile.bio || '',
-          skills,
-          rating: Number(u.rating) || 0,
-          totalReviews: Number(u.totalReviews) || 0,
-          completedProjects: Number(u.completedProjects) || 0,
-          recommendations: Number(u.recommendations) || 0,
-          memberSince: u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : '',
-          ranking: 0,
-          isPremium: hasPremium,
-          isPro: hasPro,
-          planTier,
-          hasPhoto: !!u.avatar,
-          profileCompletion,
-          rankingScore,
-        };
-      })
-      .sort((a, b) => b.rankingScore - a.rankingScore)
-      .map((f, index) => ({ ...f, ranking: index + 1 }));
-  } catch {
-    return [];
-  }
+function mapApiFreelancer(f: ApiFreelancerPublic): Freelancer {
+  return {
+    id: f.id,
+    name: f.name,
+    username: f.username,
+    avatar: f.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(f.name)}&background=003366&color=fff`,
+    title: f.title || 'Freelancer',
+    bio: f.bio || '',
+    skills: Array.isArray(f.skills) ? f.skills : [],
+    rating: Number(f.rating) || 0,
+    totalReviews: Number(f.totalReviews) || 0,
+    completedProjects: Number(f.completedProjects) || 0,
+    recommendations: Number(f.recommendations) || 0,
+    // city: f.city, // Not available in API yet
+    // state: f.state, // Not available in API yet
+    // country: f.country, // Not available in API yet
+    // isOnline: f.isOnline, // Not available in API yet
+  };
 }
+
+// --- Components ---
+
+const StarRating = ({ rating, count }: { rating: number; count: number }) => (
+  <div className="flex items-center gap-1">
+    <div className="flex text-yellow-400">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star
+          key={star}
+          className={`w-4 h-4 ${star <= Math.round(rating) ? 'fill-current' : 'text-gray-300'}`}
+        />
+      ))}
+    </div>
+    <span className="text-sm text-gray-600 font-medium">{rating.toFixed(1)}</span>
+    <span className="text-sm text-gray-400">({count})</span>
+  </div>
+);
+
+const FilterSection = ({ title, children, isOpen = true }: { title: string; children: React.ReactNode; isOpen?: boolean }) => {
+  const [open, setOpen] = useState(isOpen);
+  return (
+    <div className="border-b border-gray-200 py-4">
+      <button 
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-between w-full text-left font-medium text-gray-800 mb-2"
+      >
+        {title}
+        {open ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+      </button>
+      {open && <div className="mt-2 space-y-2">{children}</div>}
+    </div>
+  );
+};
+
+// --- Main Page ---
 
 export default function Freelancers() {
-  const { user, isAuthenticated, logout } = useAuth();
-  const [showUserMenu, setShowUserMenu] = useState(false);
+  const { user, isAuthenticated } = useAuth();
   const [freelancers, setFreelancers] = useState<Freelancer[]>([]);
-  const [keywords, setKeywords] = useState('');
-  const [isLoadingFreelancers, setIsLoadingFreelancers] = useState(true);
-  const [notifications, setNotifications] = useState(0);
-  useEffect(() => {
-    const mapApiFreelancer = (f: ApiFreelancerPublic): Freelancer => ({
-      id: f.id,
-      name: f.name,
-      username: f.username,
-      avatar: f.avatar && f.avatar.trim() !== '' ? f.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(f.name)}&background=003366&color=fff`,
-      title: f.title,
-      bio: f.bio,
-      skills: Array.isArray(f.skills) ? f.skills : [],
-      rating: Number(f.rating) || 0,
-      totalReviews: Number(f.totalReviews) || 0,
-      completedProjects: Number(f.completedProjects) || 0,
-      recommendations: Number(f.recommendations) || 0,
-      memberSince: f.memberSince || '-',
-      ranking: f.ranking,
-      isPremium: !!f.isPremium,
-      isPro: !!f.isPro,
-      planTier: f.planTier || 'free',
-      hasPhoto: !!f.hasPhoto,
-      profileCompletion: Number(f.profileCompletion) || 0,
-      rankingScore: Number(f.rankingScore) || 0,
-    });
-
-    const refreshFreelancers = async () => {
-      try {
-        setIsLoadingFreelancers(true);
-        if (hasApi()) {
-          const res = await apiListFreelancersPublic();
-          if (res.ok && Array.isArray(res.freelancers)) {
-            setFreelancers(res.freelancers.map(mapApiFreelancer));
-            setIsLoadingFreelancers(false);
-            return;
-          }
-        }
-        setFreelancers(loadFreelancersFromStorage());
-      } catch {
-        setFreelancers([]);
-      } finally {
-        setIsLoadingFreelancers(false);
-      }
-    };
-    const handleRefresh = () => {
-      void refreshFreelancers();
-    };
-    refreshFreelancers();
-    window.addEventListener('storage', handleRefresh);
-    window.addEventListener('meufreelas:profile-updated', handleRefresh as EventListener);
-    return () => {
-      window.removeEventListener('storage', handleRefresh);
-      window.removeEventListener('meufreelas:profile-updated', handleRefresh as EventListener);
-    };
-  }, []);
-  useEffect(() => {
-    const loadNotifications = async () => {
-      if (!user?.id || !hasApi()) {
-        setNotifications(0);
-        return;
-      }
-      try {
-        const res = await apiListNotifications(user.id);
-        if (!res.ok) {
-          setNotifications(0);
-          return;
-        }
-        const unread = (res.notifications || []).filter((n: any) => !n.isRead).length;
-        setNotifications(unread);
-      } catch {
-        setNotifications(0);
-      }
-    };
-    loadNotifications();
-  }, [user?.id]);
-  const [selectedArea, setSelectedArea] = useState('Todas as áreas');
-  const [selectedRanking, setSelectedRanking] = useState('any');
-  const [selectedRecommendations, setSelectedRecommendations] = useState('any');
-  const [onlyWithPhoto, setOnlyWithPhoto] = useState(false);
-  const [sortBy, setSortBy] = useState('relevance');
-  const [expandedFreelancers, setExpandedFreelancers] = useState<string[]>([]);
-  const [expandedSkills, setExpandedSkills] = useState<string[]>([]);
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [loading, setLoading] = useState(true);
+  
+  // Filters
+  const [keyword, setKeyword] = useState('');
+  const [category, setCategory] = useState('Todas as categorias');
+  const [ratingFilter, setRatingFilter] = useState('any');
+  const [completedFilter, setCompletedFilter] = useState('any');
+  
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
-  const publishProjectHref = !isAuthenticated
-    ? '/login'
-    : user?.type === 'client'
-      ? '/project/new'
-      : '/freelancer/dashboard';
 
-  const toggleExpandBio = (id: string) => {
-    setExpandedFreelancers(prev => 
-      prev.includes(id) ? prev.filter(fId => fId !== id) : [...prev, id]
-    );
-  };
-
-  const toggleExpandSkills = (id: string) => {
-    setExpandedSkills(prev => 
-      prev.includes(id) ? prev.filter(fId => fId !== id) : [...prev, id]
-    );
-  };
-
-  const filteredFreelancers = freelancers.filter(freelancer => {
-    const matchesKeywords = !keywords || 
-      freelancer.name.toLowerCase().includes(keywords.toLowerCase()) ||
-      freelancer.title.toLowerCase().includes(keywords.toLowerCase()) ||
-      freelancer.skills.some(s => s.toLowerCase().includes(keywords.toLowerCase()));
-    
-    const normalizedArea = selectedArea.toLowerCase();
-    const matchesArea =
-      selectedArea === 'Todas as áreas' ||
-      freelancer.title.toLowerCase().includes(normalizedArea) ||
-      freelancer.bio.toLowerCase().includes(normalizedArea) ||
-      freelancer.skills.some((s) => s.toLowerCase().includes(normalizedArea));
-    
-    let matchesRanking = true;
-    if (selectedRanking === '5') matchesRanking = freelancer.rating >= 5;
-    else if (selectedRanking === '4.5') matchesRanking = freelancer.rating >= 4.5;
-    else if (selectedRanking === '4') matchesRanking = freelancer.rating >= 4;
-    else if (selectedRanking === 'none') matchesRanking = freelancer.rating === 0;
-    
-    let matchesRec = true;
-    if (selectedRecommendations === '5') matchesRec = freelancer.recommendations >= 5;
-    else if (selectedRecommendations === '10') matchesRec = freelancer.recommendations >= 10;
-    else if (selectedRecommendations === '15') matchesRec = freelancer.recommendations >= 15;
-    
-    const matchesPhoto = !onlyWithPhoto || freelancer.hasPhoto;
-    
-    return matchesKeywords && matchesArea && matchesRanking && matchesRec && matchesPhoto;
-  });
-
-  const sortedFreelancers = [...filteredFreelancers].sort((a, b) => {
-    if (sortBy === 'rating_high') return b.rating - a.rating;
-    if (sortBy === 'rating_low') return a.rating - b.rating;
-    if (sortBy === 'alpha_asc') return a.name.localeCompare(b.name, 'pt-BR');
-    if (sortBy === 'alpha_desc') return b.name.localeCompare(a.name, 'pt-BR');
-    if (sortBy === 'projects_high') return b.completedProjects - a.completedProjects;
-    if (sortBy === 'projects_low') return a.completedProjects - b.completedProjects;
-    if (sortBy === 'rec_high') return b.recommendations - a.recommendations;
-    if (sortBy === 'rec_low') return a.recommendations - b.recommendations;
-    return b.rankingScore - a.rankingScore;
-  });
-  const totalPages = Math.max(1, Math.ceil(sortedFreelancers.length / pageSize));
-  const paginatedFreelancers = sortedFreelancers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  useEffect(() => {
-    if (currentPage > totalPages) setCurrentPage(1);
-  }, [currentPage, totalPages]);
+  // Mobile
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [keywords, selectedArea, selectedRanking, selectedRecommendations, onlyWithPhoto, sortBy]);
+    async function load() {
+      setLoading(true);
+      try {
+        if (hasApi()) {
+          const res = await apiListFreelancersPublic();
+          if (res.ok && res.freelancers) {
+            setFreelancers(res.freelancers.map(mapApiFreelancer));
+          }
+        } else {
+          // Fallback to local storage or empty
+          const localUsers = JSON.parse(localStorage.getItem('meufreelas_users') || '[]');
+          const fls = localUsers.filter((u: any) => u.type === 'freelancer' || u.hasFreelancerAccount);
+          setFreelancers(fls.map((u: any) => mapApiFreelancer({ ...u, id: String(u.id) })));
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
 
-  const renderStars = (rating: number) => {
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 >= 0.5;
-    return (
-      <>
-        {[...Array(fullStars)].map((_, i) => (
-          <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-        ))}
-        {hasHalfStar && <Star className="w-4 h-4 fill-yellow-400/50 text-yellow-400" />}
-      </>
-    );
-  };
+  const filteredFreelancers = useMemo(() => {
+    return freelancers.filter(f => {
+      const matchKeyword = !keyword || f.name.toLowerCase().includes(keyword.toLowerCase()) || f.title.toLowerCase().includes(keyword.toLowerCase()) || f.skills.some(s => s.toLowerCase().includes(keyword.toLowerCase()));
+      const matchRating = ratingFilter === 'any' || (ratingFilter === '4.5' && f.rating >= 4.5) || (ratingFilter === '4' && f.rating >= 4);
+      // Add more filters as needed
+      return matchKeyword && matchRating;
+    });
+  }, [freelancers, keyword, ratingFilter]);
 
-  const FilterContent = () => (
-    <>
-      {/* Keywords */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Palavras-chaves
-        </label>
-        <div className="flex">
-          <input
-            type="text"
-            value={keywords}
-            onChange={(e) => setKeywords(e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-99blue text-sm"
-            placeholder="Ex: design, logo..."
-          />
-          <button className="px-4 py-2 bg-99blue text-white rounded-r-lg hover:bg-99blue-light text-sm">
-            Ok
-          </button>
-        </div>
-      </div>
+  const paginatedFreelancers = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredFreelancers.slice(start, start + pageSize);
+  }, [filteredFreelancers, currentPage]);
 
-      {/* Areas of Interest */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Áreas de interesse
-        </label>
-        <select
-          value={selectedArea}
-          onChange={(e) => setSelectedArea(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-99blue text-sm"
-        >
-          {areasOfInterest.map(area => (
-            <option key={area} value={area}>{area}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Ranking */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Ranking
-        </label>
-        <select
-          value={selectedRanking}
-          onChange={(e) => setSelectedRanking(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-99blue text-sm"
-        >
-          {rankingOptions.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Recommendations */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Quantidade de recomendações
-        </label>
-        <select
-          value={selectedRecommendations}
-          onChange={(e) => setSelectedRecommendations(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-99blue text-sm"
-        >
-          {recommendationsOptions.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Other Filters */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Outros filtros
-        </label>
-        <label className="flex items-center">
-          <input
-            type="checkbox"
-            checked={onlyWithPhoto}
-            onChange={(e) => setOnlyWithPhoto(e.target.checked)}
-            className="w-4 h-4 text-99blue rounded focus:ring-99blue"
-          />
-          <span className="ml-2 text-gray-600 text-sm">Somente freelancers com foto</span>
-        </label>
-      </div>
-
-      {/* Reset Filters */}
-      <button
-        onClick={() => {
-          setKeywords('');
-          setSelectedArea('Todas as áreas');
-          setSelectedRanking('any');
-          setSelectedRecommendations('any');
-          setOnlyWithPhoto(false);
-          setSortBy('relevance');
-        }}
-        className="w-full py-2 text-99blue hover:underline text-sm"
-      >
-        Resetar Filtros
-      </button>
-    </>
-  );
+  const totalPages = Math.ceil(filteredFreelancers.length / pageSize);
 
   return (
-    <div className="min-h-screen bg-gray-100 overflow-x-hidden">
-      {/* Header */}
+    <div className="min-h-screen bg-[#f2f2f2] font-sans">
+      {/* Header (Simplified to match general layout) */}
       <header className="bg-99dark text-white">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <BrandLogo to="/" darkBg />
-            <div className="flex items-center space-x-4">
-              <div className="hidden md:flex items-center bg-white/10 rounded-lg px-4 py-2">
-                <Search className="w-4 h-4 mr-2 text-gray-400" />
-                <input 
-                  type="text" 
-                  placeholder="Buscar..."
-                  className="bg-transparent text-white placeholder-gray-400 outline-none w-48"
-                />
-              </div>
-              {isAuthenticated && user && (
-                <>
-                  <Link
-                    to="/messages"
-                    className="relative p-2 text-gray-300 hover:text-white hidden md:inline-flex"
-                    title="Mensagens"
-                  >
-                    <MessageSquare className="w-5 h-5" />
-                  </Link>
-                  <Link
-                    to="/notifications"
-                    className="relative p-2 text-gray-300 hover:text-white hidden md:inline-flex"
-                    title="Notificações"
-                  >
-                    <Bell className="w-5 h-5" />
-                    {notifications > 0 && (
-                      <span className="absolute -top-1 -right-1 min-w-[18px] h-4 px-1 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                        {notifications > 99 ? '99+' : notifications}
-                      </span>
-                    )}
-                  </Link>
-                </>
-              )}
-              {isAuthenticated && user ? (
-                <div className="relative hidden sm:block">
-                  <button
-                    type="button"
-                    onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center space-x-2 text-white hover:text-white/90"
-                  >
-                    {user.avatar ? (
-                      <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full" />
-                    ) : (
-                      <div className="w-8 h-8 bg-99blue rounded-full flex items-center justify-center">
-                        <User className="w-5 h-5" />
-                      </div>
-                    )}
-                    <span className="text-sm">{user.name.split(' ')[0]}</span>
-                    <ChevronDown className="w-4 h-4" />
-                  </button>
-                  {showUserMenu && (
-                    <>
-                      <div className="fixed inset-0 z-40" aria-hidden onClick={() => setShowUserMenu(false)} />
-                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50 animate-fade-in">
-                        <Link to={user.type === 'freelancer' ? '/freelancer/dashboard' : '/dashboard'} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setShowUserMenu(false)}>Dashboard</Link>
-                        <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setShowUserMenu(false)}>Meu perfil</Link>
-                        <Link to="/freelancers" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setShowUserMenu(false)}>Freelancers</Link>
-                        <Link to="/projects" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setShowUserMenu(false)}>Projetos</Link>
-                        <button type="button" onClick={() => { setShowUserMenu(false); logout(); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
-                          <LogOut className="w-4 h-4 mr-2" /> Sair
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <Link to="/login" className="text-gray-300 hover:text-white hidden sm:block">Login</Link>
-                  <Link to="/register" className="text-gray-300 hover:text-white hidden sm:block">Cadastre-se</Link>
-                </>
-              )}
-              <Link to={publishProjectHref} className="px-4 py-2 bg-99blue rounded-lg hover:bg-sky-400 text-sm md:text-base">
-                Publicar
-              </Link>
-            </div>
-          </div>
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+           <BrandLogo to="/" darkBg heightClassName="h-8" />
+           <nav className="hidden md:flex gap-6 text-sm">
+             <Link to="/projects" className="hover:text-99blue">Projetos</Link>
+             <Link to="/freelancers" className="text-white font-semibold">Freelancers</Link>
+             <Link to="/login" className="hover:text-99blue">{isAuthenticated ? 'Minha Conta' : 'Entrar'}</Link>
+           </nav>
         </div>
       </header>
 
-      {/* Results Header */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4 md:py-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <p className="text-gray-600 text-sm">Resultado da pesquisa</p>
-              <p className="text-xl md:text-2xl font-semibold text-gray-900">
-                {sortedFreelancers.length.toLocaleString()} freelancer{sortedFreelancers.length !== 1 && 's'} encontrados
-              </p>
-            </div>
-            <Link 
-              to={publishProjectHref}
-              className="px-4 md:px-6 py-2 md:py-3 bg-99blue text-white rounded-lg hover:bg-99blue-light transition-colors font-medium text-sm md:text-base text-center"
-            >
-              Publique um projeto
-            </Link>
-          </div>
-        </div>
-      </div>
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        <div className="flex flex-col md:flex-row gap-6">
+          
+          {/* Sidebar Filters */}
+          <aside className={`w-full md:w-64 flex-shrink-0 ${showMobileFilters ? 'block' : 'hidden md:block'}`}>
+            <div className="bg-white border border-gray-300 rounded-sm p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold text-gray-700">Filtros</h2>
+                <button className="text-xs text-99blue hover:underline" onClick={() => {
+                  setKeyword('');
+                  setRatingFilter('any');
+                }}>Limpar</button>
+              </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-4 md:py-6">
-        {/* Mobile Filter Toggle */}
-        <div className="lg:hidden mb-4">
-          <button
-            onClick={() => setShowMobileFilters(!showMobileFilters)}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white rounded-lg shadow-sm text-gray-700 font-medium"
-          >
-            {showMobileFilters ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            {showMobileFilters ? 'Fechar filtros' : 'Mostrar filtros'}
-          </button>
-        </div>
+              <FilterSection title="Palavras-chaves">
+                <div className="flex">
+                  <input 
+                    type="text" 
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
+                    placeholder="Ex: PHP, Design..." 
+                    className="w-full border border-gray-300 rounded-l px-3 py-2 text-sm focus:outline-none focus:border-99blue"
+                  />
+                  <button className="bg-99blue text-white px-3 rounded-r hover:bg-blue-600">
+                    <Search className="w-4 h-4" />
+                  </button>
+                </div>
+              </FilterSection>
 
-        <div className="flex flex-col lg:flex-row gap-4 md:gap-6">
-          {/* Filters Sidebar - Desktop */}
-          <div className="hidden lg:block lg:w-80 flex-shrink-0">
-            <div className="bg-white rounded-lg shadow-sm p-6 sticky top-4">
-              <FilterContent />
-            </div>
-          </div>
+              <FilterSection title="Categoria">
+                 <select 
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-600 bg-white"
+                 >
+                   <option>Todas as categorias</option>
+                   <option>Web, Mobile & Software</option>
+                   <option>Design & Criação</option>
+                   <option>Escrita</option>
+                   <option>Vendas & Marketing</option>
+                 </select>
+              </FilterSection>
 
-          {/* Mobile Filters */}
-          {showMobileFilters && (
-            <div className="lg:hidden bg-white rounded-lg shadow-sm p-4 mb-4">
-              <FilterContent />
+              <FilterSection title="Avaliação">
+                 <div className="space-y-2">
+                   <label className="flex items-center gap-2 cursor-pointer">
+                     <input type="radio" name="rating" checked={ratingFilter === 'any'} onChange={() => setRatingFilter('any')} className="text-99blue" />
+                     <span className="text-sm text-gray-600">Qualquer avaliação</span>
+                   </label>
+                   <label className="flex items-center gap-2 cursor-pointer">
+                     <input type="radio" name="rating" checked={ratingFilter === '4.5'} onChange={() => setRatingFilter('4.5')} className="text-99blue" />
+                     <span className="text-sm text-gray-600">4.5 ou mais</span>
+                   </label>
+                   <label className="flex items-center gap-2 cursor-pointer">
+                     <input type="radio" name="rating" checked={ratingFilter === '4'} onChange={() => setRatingFilter('4')} className="text-99blue" />
+                     <span className="text-sm text-gray-600">4.0 ou mais</span>
+                   </label>
+                 </div>
+              </FilterSection>
             </div>
-          )}
+          </aside>
 
           {/* Main Content */}
           <div className="flex-1">
-            {/* Sort */}
             <div className="flex items-center justify-between mb-4">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-3 md:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-99blue text-sm"
-              >
-                {sortOptions.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
+              <h1 className="text-2xl font-light text-gray-800">Freelancers</h1>
+              <div className="md:hidden">
+                <button 
+                  onClick={() => setShowMobileFilters(!showMobileFilters)}
+                  className="flex items-center gap-2 bg-white border border-gray-300 px-3 py-2 rounded text-sm text-gray-700"
+                >
+                  <Filter className="w-4 h-4" /> Filtros
+                </button>
+              </div>
             </div>
 
-            {/* Freelancers List */}
             <div className="space-y-4">
-              {isLoadingFreelancers ? (
-                <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-500">
-                  <Briefcase className="w-12 h-12 mx-auto mb-3 text-gray-300 animate-pulse" />
-                  <p className="font-medium">Carregando freelancers...</p>
+              {loading ? (
+                <div className="bg-white border border-gray-300 p-8 text-center text-gray-500">
+                  Carregando freelancers...
                 </div>
-              ) : sortedFreelancers.length === 0 ? (
-                <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-500">
-                  <Briefcase className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p className="font-medium">Nenhum freelancer encontrado</p>
-                  <p className="text-sm mt-1">Os freelancers cadastrados aparecerão aqui.</p>
+              ) : paginatedFreelancers.length === 0 ? (
+                <div className="bg-white border border-gray-300 p-8 text-center text-gray-500">
+                  Nenhum freelancer encontrado com estes filtros.
                 </div>
-              ) : paginatedFreelancers.map((freelancer) => (
-                <div key={freelancer.id} className="bg-white rounded-lg shadow-sm p-4 md:p-6">
-                  {/* Header Row - Foto + dados + ação */}
-                  <div className="flex flex-col md:flex-row md:items-start gap-4 mb-3">
-                    <img
-                      src={freelancer.avatar}
-                      alt={freelancer.name}
-                      className="w-20 h-20 md:w-24 md:h-24 rounded-lg object-cover border border-gray-200"
-                    />
-
-                    <div className="flex-1 min-w-0">
-                      {freelancer.isPremium && (
-                        <div className="mb-2">
-                          <span className="inline-flex items-center px-2 py-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs font-bold rounded">
-                            <Crown className="w-3 h-3 mr-1" />
-                            Top Freelancer Plus
-                          </span>
-                        </div>
-                      )}
-                      <Link
-                        to={`/user/${freelancer.username}`}
-                        className="text-lg md:text-xl font-semibold text-99blue hover:underline block"
-                      >
-                        {freelancer.name}
-                      </Link>
-
-                      {/* Rating */}
-                      <div className="flex items-center gap-2 mb-2 mt-1">
-                        <div className="flex items-center">
-                          {renderStars(freelancer.rating)}
-                        </div>
-                        <span className="text-sm text-gray-600">
-                          ({freelancer.rating.toFixed(2)} - {freelancer.totalReviews.toLocaleString()} avaliações)
-                        </span>
+              ) : (
+                paginatedFreelancers.map((f) => (
+                  <article key={f.id} className="bg-white border border-gray-300 hover:border-gray-400 transition-colors rounded-sm overflow-hidden flex flex-col md:flex-row">
+                    {/* Left/Top: Avatar & Basic Info */}
+                    <div className="p-5 flex-1 flex gap-4">
+                      <div className="flex-shrink-0">
+                         <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-200 rounded-full overflow-hidden border border-gray-200">
+                           <img src={f.avatar} alt={f.name} className="w-full h-full object-cover" />
+                         </div>
+                         {f.isOnline && (
+                           <div className="mt-2 text-xs text-center font-medium text-green-600">
+                             ● Online
+                           </div>
+                         )}
                       </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <Link to={`/user/${f.id}`} className="text-lg font-semibold text-99blue hover:underline truncate block">
+                              {f.name}
+                            </Link>
+                            <p className="text-sm text-gray-600 mb-1">{f.title}</p>
+                            <div className="flex items-center gap-4 mb-2">
+                              <StarRating rating={f.rating} count={f.totalReviews} />
+                              {(f.city || f.state) && (
+                                <div className="flex items-center text-xs text-gray-500">
+                                  <MapPin className="w-3 h-3 mr-1" />
+                                  {[f.city, f.state].filter(Boolean).join('/')}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex-shrink-0">
+                            <Link 
+                              to={`/user/${f.id}`} 
+                              className="inline-block bg-99blue hover:bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded transition-colors"
+                            >
+                              Ver perfil
+                            </Link>
+                          </div>
+                        </div>
 
-                      {/* Stats */}
-                      <div className="flex flex-wrap items-center gap-x-3 md:gap-x-4 gap-y-1 mb-3 text-xs md:text-sm text-gray-500">
-                        {freelancer.ranking && (
-                          <span className="flex items-center">
-                            <Star className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 text-99blue" />
-                            Ranking: <strong className="ml-1 text-gray-700">{freelancer.ranking}</strong>
-                          </span>
+                        <div className="mt-3">
+                          <p className="text-sm text-gray-700 line-clamp-3 leading-relaxed">
+                            {f.bio || 'Este freelancer ainda não adicionou uma descrição.'}
+                          </p>
+                        </div>
+
+                        {f.skills.length > 0 && (
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {f.skills.slice(0, 8).map(skill => (
+                              <span key={skill} className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded border border-gray-200">
+                                {skill}
+                              </span>
+                            ))}
+                            {f.skills.length > 8 && (
+                              <span className="text-xs text-gray-500 self-center">+{f.skills.length - 8}</span>
+                            )}
+                          </div>
                         )}
-                        <span className="flex items-center">
-                          <Briefcase className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1" />
-                          Projetos concluídos: <strong className="ml-1 text-gray-700">{freelancer.completedProjects.toLocaleString()}</strong>
-                        </span>
-                        <span className="flex items-center">
-                          <ThumbsUp className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1" />
-                          Recomendações: <strong className="ml-1 text-gray-700">{freelancer.recommendations.toLocaleString()}</strong>
-                        </span>
-                        <span className="flex items-center">
-                          <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1" />
-                          Registrado desde: <strong className="ml-1 text-gray-700">{freelancer.memberSince}</strong>
-                        </span>
                       </div>
-
-                      <p className="text-gray-800 font-medium text-sm md:text-base mb-2">{freelancer.title}</p>
                     </div>
 
-                    <div className="flex md:flex-col gap-2 md:min-w-[120px]">
-                      <Link
-                        to={publishProjectHref}
-                        className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors font-medium text-sm text-center whitespace-nowrap"
-                      >
-                        Convidar
-                      </Link>
+                    {/* Right/Bottom: Stats (Optional sidebar-like in desktop, stacked in mobile) */}
+                    <div className="bg-gray-50 border-t md:border-t-0 md:border-l border-gray-200 p-4 md:w-48 flex flex-row md:flex-col justify-between md:justify-center gap-4 text-sm text-gray-600">
+                      <div className="text-center md:text-left">
+                        <span className="block font-bold text-gray-800 text-lg">{f.completedProjects}</span>
+                        <span className="text-xs">Projetos concluídos</span>
+                      </div>
+                      <div className="text-center md:text-left">
+                         <span className="block font-bold text-gray-800 text-lg">{f.recommendations}</span>
+                         <span className="text-xs">Recomendações</span>
+                      </div>
+                      <div className="text-center md:text-left">
+                         <span className="block font-bold text-gray-800 text-lg text-green-600">100%</span>
+                         <span className="text-xs">No prazo</span>
+                      </div>
                     </div>
-                  </div>
+                  </article>
+                ))
+              )}
 
-                  {/* Bio */}
-                  <div className="mb-3">
-                    <p className={`text-gray-600 text-sm ${expandedFreelancers.includes(freelancer.id) ? '' : 'line-clamp-2'}`}>
-                      {freelancer.bio}
-                    </p>
-                    <button
-                      onClick={() => toggleExpandBio(freelancer.id)}
-                      className="text-99blue text-sm hover:underline mt-1 flex items-center"
-                    >
-                      {expandedFreelancers.includes(freelancer.id) ? (
-                        <><ChevronUp className="w-4 h-4 mr-1" /> Recolher</>
-                      ) : (
-                        <><ChevronDown className="w-4 h-4 mr-1" /> Expandir</>
-                      )}
-                    </button>
-                  </div>
-
-                  {/* Skills */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    {(expandedSkills.includes(freelancer.id) ? freelancer.skills : freelancer.skills.slice(0, 4)).map((skill, idx) => (
-                      <Link
-                        key={idx}
-                        to={`/freelancers?skill=${encodeURIComponent(skill)}`}
-                        className="px-2 md:px-3 py-1 bg-gray-100 text-gray-600 text-xs md:text-sm rounded hover:bg-gray-200 transition-colors"
-                      >
-                        {skill}
-                      </Link>
-                    ))}
-                    {freelancer.skills.length > 4 && (
-                      <button
-                        onClick={() => toggleExpandSkills(freelancer.id)}
-                        className="px-2 md:px-3 py-1 text-99blue text-xs md:text-sm hover:underline"
-                      >
-                        {expandedSkills.includes(freelancer.id) ? '...menos' : '...'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Empty State */}
-            {!isLoadingFreelancers && sortedFreelancers.length === 0 && (
-              <div className="bg-white rounded-lg shadow-sm p-8 md:p-12 text-center">
-                <Briefcase className="w-12 h-12 md:w-16 md:h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-base md:text-lg font-medium text-gray-800 mb-2">
-                  Nenhum freelancer encontrado
-                </h3>
-                <p className="text-gray-500 text-sm">
-                  Tente ajustar os filtros ou buscar por outros termos.
-                </p>
-              </div>
-            )}
-
-            {/* Pagination */}
-            {sortedFreelancers.length > 0 && (
-              <div className="flex items-center justify-center gap-2 mt-6 md:mt-8">
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .slice(Math.max(0, currentPage - 3), Math.min(totalPages, currentPage + 2))
-                  .map((page) => {
-                  return (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`px-2 md:px-3 py-2 border rounded-lg text-sm ${currentPage === page ? 'bg-99blue text-white border-99blue' : 'border-gray-300 hover:bg-gray-100'}`}
-                    >
-                      {page}
-                    </button>
-                  );
-                })}
-                {totalPages > 1 && (
-                  <button
-                    onClick={() => setCurrentPage(totalPages)}
-                    className="px-2 md:px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-sm"
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex justify-center mt-8 gap-2">
+                  <button 
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 text-sm"
                   >
-                    Última
+                    Anterior
                   </button>
-                )}
-              </div>
-            )}
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setCurrentPage(i + 1)}
+                      className={`px-3 py-1 rounded text-sm ${currentPage === i + 1 ? 'bg-99blue text-white' : 'border border-gray-300 hover:bg-gray-100'}`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  <button 
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 text-sm"
+                  >
+                    Próxima
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* Footer */}
-      <footer className="bg-99dark text-white py-6 md:py-8 mt-8 md:mt-12">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-gray-400 text-sm">© 2014-2026 meuFreelas. Todos os direitos reservados.</p>
-          <div className="flex justify-center space-x-4 mt-4 text-xs md:text-sm">
-            <Link to="/termos" className="text-gray-400 hover:text-white">Termos de uso</Link>
-            <span className="text-gray-600">|</span>
-            <Link to="/privacidade" className="text-gray-400 hover:text-white">Política de privacidade</Link>
-          </div>
-        </div>
-      </footer>
+      </main>
     </div>
   );
 }

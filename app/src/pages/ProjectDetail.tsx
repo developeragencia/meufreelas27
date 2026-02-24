@@ -19,26 +19,23 @@ type ProjectView = {
   minOffer: string;
   clientName: string;
   clientId: string;
+  createdAt: string;
 };
 
-const TARGET_ID = '8c5870363bc9ca76312b3b530fbb6cdf7363';
+const CURRENT_WHATSAPP_ID = '8c5870363bc9ca76312b3b530fbb6cdf7363';
+const LEGACY_WHATSAPP_ID = 'ee15eb2bbd4a6520bad2e569e5450db99a8f';
 
-const targetProjectSeed: ProjectView = {
-  id: TARGET_ID,
-  title: 'Atendimento ao cliente via WhatsApp por 1 hora',
-  description:
-    'Olá! Se você é um profissional com excelente comunicação escrita e busca uma renda extra garantida, segura e que tome pouco tempo do seu dia, preste muita atenção neste projeto.\n\nA atuação é de apenas 1 hora por dia.\n\nSomos uma empresa em crescimento no setor de serviços e estamos buscando um(a) especialista em atendimento para ser a "voz" da nossa marca no WhatsApp.\n\nO que você vai fazer:\n• Responder mensagens de clientes e interessados de forma humanizada, empática e ágil.\n• Esclarecer dúvidas frequentes utilizando nossos materiais de apoio e roteiros.\n• Fazer a triagem de contatos e direcionar problemas complexos para a nossa equipe interna.\n\nO que nós esperamos de você:\n• Português impecável: gramática, ortografia e pontuação corretas são inegociáveis.\n• Empatia e simpatia.\n• Capacidade de contornar objeções com educação e acolher o cliente.',
-  category: 'Atendimento ao Consumidor',
-  subcategory: 'Atendimento ao Consumidor',
-  budget: 'Aberto',
-  experienceLevel: 'Iniciante',
-  visibility: 'Público',
-  proposals: 473,
-  interested: 512,
-  minOffer: 'R$ 100,00',
-  clientName: 'Frederico F.',
-  clientId: 'frederico-f',
-};
+function relativePublishedAt(iso: string) {
+  const created = new Date(iso).getTime();
+  const now = Date.now();
+  const diff = Math.max(0, now - created);
+  const h = Math.floor(diff / (1000 * 60 * 60));
+  const d = Math.floor(h / 24);
+  if (h < 1) return 'Publicado: agora';
+  if (h < 24) return `Publicado: ${h} hora${h > 1 ? 's' : ''} atrás`;
+  if (d < 30) return `Publicado: ${d} dia${d > 1 ? 's' : ''} atrás`;
+  return `Publicado: ${new Date(iso).toLocaleDateString('pt-BR')}`;
+}
 
 function mapProject(p: ApiProject): ProjectView {
   return {
@@ -52,10 +49,37 @@ function mapProject(p: ApiProject): ProjectView {
     visibility: p.visibility === 'private' ? 'Privado' : 'Público',
     proposals: Number(p.proposals || 0),
     interested: Math.max(Number(p.proposals || 0), 0),
-    minOffer: 'R$ 100,00',
+    minOffer: p.budget || 'A combinar',
     clientName: p.clientName || 'Cliente',
     clientId: p.clientId,
+    createdAt: p.createdAt,
   };
+}
+
+function mapLocalProject(raw: any, fallbackId: string): ProjectView | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const id = String(raw.id || fallbackId || '').trim();
+  const clientId = String(raw.clientId || raw.client_id || '').trim();
+  if (!id || !clientId) return null;
+  const createdAt = String(raw.createdAt || raw.updatedAt || new Date().toISOString());
+
+  return mapProject({
+    id,
+    clientId,
+    clientName: String(raw.clientName || raw.client_name || 'Cliente'),
+    title: String(raw.title || 'Projeto sem título'),
+    description: String(raw.description || ''),
+    budget: String(raw.budget || 'Aberto'),
+    category: String(raw.category || 'Categoria'),
+    skills: Array.isArray(raw.skills) ? raw.skills : [],
+    experienceLevel: String(raw.experienceLevel || raw.experience_level || 'intermediate'),
+    proposalDays: String(raw.proposalDays || raw.proposal_days || ''),
+    visibility: String(raw.visibility || 'public') as 'public' | 'private',
+    status: 'Aberto',
+    proposals: Number(raw.proposals || 0),
+    createdAt,
+    updatedAt: String(raw.updatedAt || createdAt),
+  });
 }
 
 function proposalStatusLabel(status: ApiProposal['status'] | 'Todas') {
@@ -89,22 +113,37 @@ export default function ProjectDetail() {
         return;
       }
       setLoading(true);
-
-      if (id === TARGET_ID) {
-        setProject(targetProjectSeed);
-      } else if (hasApi()) {
-        const res = await apiGetProject(id);
-        if (res.ok && res.project) {
-          setProject(mapProject(res.project));
-        } else {
-          setProject(null);
-        }
-      } else {
-        setProject(null);
-      }
+      const requestedId = id === LEGACY_WHATSAPP_ID ? CURRENT_WHATSAPP_ID : id;
+      let resolvedProject: ProjectView | null = null;
 
       if (hasApi()) {
-        const proposalRes = await apiListProposals({ projectId: id });
+        const res = await apiGetProject(requestedId);
+        if (res.ok && res.project) {
+          resolvedProject = mapProject(res.project);
+        }
+      }
+
+      if (!resolvedProject) {
+        try {
+          const localProjects = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]');
+          if (Array.isArray(localProjects)) {
+            const found = localProjects.find((p: any) => {
+              const pid = String(p?.id || '').trim();
+              if (!pid) return false;
+              if (pid === requestedId) return true;
+              return requestedId === CURRENT_WHATSAPP_ID && pid === LEGACY_WHATSAPP_ID;
+            });
+            resolvedProject = mapLocalProject(found, requestedId);
+          }
+        } catch {
+          resolvedProject = null;
+        }
+      }
+
+      setProject(resolvedProject);
+
+      if (hasApi()) {
+        const proposalRes = await apiListProposals({ projectId: requestedId });
         setProposals(proposalRes.ok ? proposalRes.proposals || [] : []);
       } else {
         setProposals([]);
@@ -121,7 +160,6 @@ export default function ProjectDetail() {
 
   const displayProposalCount = useMemo(() => {
     if (!project) return 0;
-    if (project.id === TARGET_ID) return Math.max(project.proposals, visibleProposals.length);
     return visibleProposals.length;
   }, [project, visibleProposals.length]);
 
@@ -223,7 +261,7 @@ export default function ProjectDetail() {
           {toastMessage}
         </div>
       )}
-      <header className="bg-99blue text-white">
+      <header className="bg-99dark text-white">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
@@ -284,16 +322,11 @@ export default function ProjectDetail() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <section className="lg:col-span-2">
-            <h1 className="text-4xl font-light text-gray-800 leading-tight">{project.title}</h1>
-            <p className="text-sm text-gray-500 mt-2">ontem às 19:20</p>
+            <h1 className="text-2xl md:text-3xl font-light text-gray-800 leading-tight">{project.title}</h1>
+            <p className="text-sm text-gray-500 mt-2">{relativePublishedAt(project.createdAt)}</p>
 
-            <h2 className="text-3xl font-light text-gray-800 mt-6 mb-3">Descrição do Projeto:</h2>
-            <p className="text-gray-700 whitespace-pre-line leading-7">{project.description}</p>
-
-            <div className="mt-8 text-sm text-gray-500 border-t pt-4">
-              Atividades do cliente nesse projeto:
-              <p className="mt-1"><strong>Última visualização:</strong> ontem às 19:40</p>
-            </div>
+            <h2 className="text-xl font-light text-gray-800 mt-6 mb-3">Descrição do Projeto:</h2>
+            <p className="text-gray-700 whitespace-pre-line leading-7 text-sm md:text-base">{project.description}</p>
           </section>
 
           <aside className="space-y-4">
@@ -324,24 +357,22 @@ export default function ProjectDetail() {
                 <div className="flex justify-between"><span>Visibilidade:</span><span>{project.visibility}</span></div>
                 <div className="flex justify-between"><span>Propostas:</span><span>{Math.max(project.proposals, proposals.length)}</span></div>
                 <div className="flex justify-between"><span>Interessados:</span><span>{project.interested}</span></div>
-                <div className="flex justify-between"><span>Valor Mínimo:</span><span>{project.minOffer}</span></div>
+                <div className="flex justify-between"><span>Orçamento:</span><span>{project.budget}</span></div>
               </div>
             </div>
 
             <div className="bg-[#efefef] border border-gray-200 p-5 text-sm">
               <p className="text-gray-600">Cliente</p>
               <div className="mt-2 flex items-center gap-3">
-                <Link to={`/user/${project.clientId}`} className="w-14 h-14 bg-gray-300 block hover:ring-2 hover:ring-99blue" />
+                <Link to={`/user/${project.clientId}`} className="w-14 h-14 bg-gray-300 block hover:ring-2 hover:ring-99blue flex items-center justify-center text-gray-500 text-xs">
+                   Foto
+                </Link>
                 <div>
-                  <Link to={`/user/${project.clientId}`} className="text-gray-800 hover:text-99blue">
+                  <Link to={`/user/${project.clientId}`} className="text-gray-800 hover:text-99blue font-medium">
                     {project.clientName}
                   </Link>
-                  <div className="flex text-yellow-400 mt-1">
-                    <Star className="w-4 h-4 fill-current" />
-                    <Star className="w-4 h-4 fill-current" />
-                    <Star className="w-4 h-4 fill-current" />
-                    <Star className="w-4 h-4 fill-current" />
-                    <Star className="w-4 h-4 text-gray-300" />
+                  <div className="text-xs text-gray-500 mt-1">
+                    (Sem avaliações)
                   </div>
                 </div>
               </div>
@@ -377,20 +408,16 @@ export default function ProjectDetail() {
               visibleProposals.map((p) => (
                 <div key={p.id} className="p-4">
                   <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 bg-gray-300 rounded" />
+                    <div className="w-12 h-12 bg-gray-300 rounded flex items-center justify-center text-xs text-gray-500">Foto</div>
                     <div className="flex-1">
                       <Link to={`/user/${p.freelancerId}`} className="text-gray-800 font-medium hover:text-99blue">
                         {p.freelancerName}
                       </Link>
-                      <div className="flex text-yellow-400 mt-1 mb-2">
-                        <Star className="w-4 h-4 fill-current" />
-                        <Star className="w-4 h-4 fill-current" />
-                        <Star className="w-4 h-4 fill-current" />
-                        <Star className="w-4 h-4 fill-current" />
-                        <Star className="w-4 h-4 text-gray-300" />
+                      <div className="text-xs text-gray-400 mb-1">
+                         (Sem avaliações)
                       </div>
                       <p className="text-sm text-gray-600">
-                        Submetido: 10 horas atrás | Oferta: <strong>Privado</strong> | Duração estimada: <strong>Privado</strong> | {proposalStatusLabel(p.status)}
+                        Submetido: {relativePublishedAt(p.createdAt)} | Oferta: <strong>{user?.type === 'client' || user?.id === p.freelancerId ? p.value : 'Privado'}</strong> | Duração estimada: <strong>{user?.type === 'client' || user?.id === p.freelancerId ? p.deliveryDays : 'Privado'}</strong> | {proposalStatusLabel(p.status)}
                       </p>
                     </div>
                   </div>

@@ -152,7 +152,7 @@ export default function MyProfile() {
   return (
     <div className="min-h-screen bg-gray-100 overflow-x-hidden">
       {/* Header */}
-      <header className="bg-99blue text-white py-4">
+      <header className="bg-99dark text-white py-4">
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
           <button
             onClick={() => navigate(-1)}

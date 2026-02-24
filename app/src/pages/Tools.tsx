@@ -263,7 +263,7 @@ export default function Tools() {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
-      <header className="bg-99blue text-white py-4">
+      <header className="bg-99dark text-white py-4">
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
           <button
             onClick={() => navigate(-1)}
