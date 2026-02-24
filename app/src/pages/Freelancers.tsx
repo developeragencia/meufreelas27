@@ -330,9 +330,6 @@ export default function Freelancers() {
             {/* Mobile Filters */}
             <div className="lg:hidden space-y-2 mb-4">
                <button onClick={() => setShowMobileFilters(!showMobileFilters)} className="w-full bg-white border border-gray-300 py-3 px-4 text-gray-700 font-bold text-left flex items-center justify-between rounded-sm shadow-sm hover:bg-gray-50">
-                 <span className="flex items-center gap-2"><span className="text-gray-400 font-normal">(+)</span> Meus Filtros</span>
-               </button>
-               <button onClick={() => setShowMobileFilters(!showMobileFilters)} className="w-full bg-white border border-gray-300 py-3 px-4 text-gray-700 font-bold text-left flex items-center justify-between rounded-sm shadow-sm hover:bg-gray-50">
                  <span className="flex items-center gap-2"><span className="text-gray-400 font-normal">(+)</span> Filtros</span>
                </button>
                
