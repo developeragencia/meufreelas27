@@ -43,8 +43,34 @@ export default function MyProjects() {
           setProjects([]);
         }
       } else {
-        setProjects([]);
-        setFreelancerProjects([]);
+        try {
+          const rawProps = JSON.parse(localStorage.getItem('meufreelas_proposals') || '[]');
+          const accepted = (Array.isArray(rawProps) ? rawProps : []).filter(
+            (pp: any) => String(pp.freelancerId) === String(user.id) && pp.status === 'Aceita'
+          );
+          const mapped: ApiProject[] = accepted.map((proposal: any) => ({
+            id: String(proposal.projectId),
+            clientId: String(proposal.clientId),
+            clientName: String(proposal.clientName || 'Cliente'),
+            title: String(proposal.projectTitle || ''),
+            description: String(proposal.message || ''),
+            budget: String(proposal.value || ''),
+            category: 'Projeto contratado',
+            skills: [],
+            experienceLevel: 'intermediate',
+            proposalDays: String(proposal.deliveryDays || ''),
+            visibility: 'public',
+            status: 'Em andamento',
+            proposals: 1,
+            createdAt: String(proposal.createdAt || new Date().toISOString()),
+            updatedAt: String(proposal.createdAt || new Date().toISOString()),
+          }));
+          setFreelancerProjects(mapped);
+          setProjects([]);
+        } catch {
+          setProjects([]);
+          setFreelancerProjects([]);
+        }
       }
       setIsLoading(false);
       return;

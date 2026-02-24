@@ -298,7 +298,32 @@ export default function ProjectDetail() {
   };
 
   const loadProposals = async () => {
-    if (!id || !hasApi()) return;
+    if (!id) return;
+    if (!hasApi()) {
+      try {
+        const raw = JSON.parse(localStorage.getItem('meufreelas_proposals') || '[]');
+        const list = Array.isArray(raw) ? raw : [];
+        const mapped: Proposal[] = list
+          .filter((p: any) => p?.projectId === id)
+          .map((p: any) => ({
+            id: String(p.id),
+            projectId: String(p.projectId),
+            freelancerId: String(p.freelancerId),
+            freelancerName: String(p.freelancerName || 'Freelancer'),
+            freelancerAvatar: p.freelancerAvatar || '',
+            freelancerRating: Number(p.freelancerRating || 0),
+            text: String(p.message || ''),
+            value: String(p.value || p.amount || 'R$ 0,00'),
+            deliveryTime: String(p.deliveryDays || ''),
+            status: p.status === 'Aceita' ? 'accepted' : p.status === 'Recusada' ? 'rejected' : 'pending',
+            createdAt: String(p.createdAt || new Date().toISOString()),
+          }));
+        setProposals(mapped);
+      } catch {
+        setProposals([]);
+      }
+      return;
+    }
     const res = await apiListProposals({ projectId: id });
     if (!res.ok) {
       setProposals([]);
@@ -390,6 +415,27 @@ export default function ProjectDetail() {
   const handleProposalDecision = async (proposalId: string, decision: 'accepted' | 'rejected') => {
     if (!user?.id || user.type !== 'client' || !project || project.clientId !== user.id) return;
     const status = decision === 'accepted' ? 'Aceita' : 'Recusada';
+    if (!hasApi()) {
+      try {
+        const raw = JSON.parse(localStorage.getItem('meufreelas_proposals') || '[]');
+        const list = Array.isArray(raw) ? raw : [];
+        const idx = list.findIndex((p: any) => String(p.id) === String(proposalId));
+        if (idx >= 0) {
+          list[idx].status = status;
+          localStorage.setItem('meufreelas_proposals', JSON.stringify(list));
+        }
+        await loadProposals();
+        await loadProject();
+        if (decision === 'accepted') {
+          showToast('Proposta aceita.');
+        } else {
+          showToast('Proposta recusada.');
+        }
+      } catch {
+        showToast('Não foi possível atualizar proposta.');
+      }
+      return;
+    }
     const res = await apiUpdateProposalStatus({ proposalId, clientId: user.id, status });
     if (!res.ok) {
       showToast(res.error || 'Não foi possível atualizar proposta.');
@@ -1295,28 +1341,27 @@ export default function ProjectDetail() {
               <h3 className="text-lg font-semibold text-gray-800 mb-3">Tem dúvidas? <button type="button" onClick={handleAskQuestion} className="text-99blue hover:underline">Faça uma pergunta</button>.</h3>
               <button
                 type="button"
-                onClick={handleAskQuestion}
-                disabled={questionLoading}
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    navigate('/login');
+                    return;
+                  }
+                  navigate(`/project/bid/${project.id}`);
+                }}
                 className="w-full py-3 mb-4 bg-99blue text-white rounded-lg hover:bg-99blue-light transition-colors font-medium flex items-center justify-center"
               >
                 <MessageSquare className="w-5 h-5 mr-2" />
-                {questionLoading ? 'Abrindo conversa...' : 'Enviar proposta'}
+                Enviar proposta
               </button>
-              {!showProposalForm && user?.type === 'freelancer' && (
-                <button
-                  onClick={() => {
-                    if (!isAuthenticated) {
-                      navigate('/login');
-                      return;
-                    }
-                    navigate(`/project/bid/${project.id}`);
-                  }}
-                  className="w-full py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center justify-center mb-3"
-                >
-                  <Send className="w-5 h-5 mr-2" />
-                  Tenho interesse
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleAskQuestion}
+                disabled={questionLoading}
+                className="w-full py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center justify-center mb-3"
+              >
+                <Send className="w-5 h-5 mr-2" />
+                {questionLoading ? 'Abrindo conversa...' : 'Fazer pergunta'}
+              </button>
               <button
                 onClick={handleInterest}
                 className="w-full py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center justify-center mb-3"

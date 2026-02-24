@@ -62,7 +62,35 @@ export default function SendProposal() {
       return;
     }
     async function loadProject() {
-      if (!projectId || !hasApi()) return;
+      if (!projectId) return;
+      if (!hasApi()) {
+        try {
+          const raw = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]');
+          const list = Array.isArray(raw) ? raw : [];
+          const found = list.find((p: any) => String(p.id) === String(projectId));
+          if (!found) return;
+          const minimumOffer = detectMinimumOffer(found.category, found.budget);
+          setProject({
+            id: String(found.id),
+            title: String(found.title || ''),
+            description: String(found.description || ''),
+            budget: String(found.budget || 'A combinar'),
+            clientId: String(found.clientId || ''),
+            clientName: String(found.clientName || 'Cliente'),
+            category: String(found.category || 'Outra'),
+            minOffer: minimumOffer,
+          });
+          if (!offer) setOffer(minimumOffer.toFixed(2));
+          const localProps = JSON.parse(localStorage.getItem('meufreelas_proposals') || '[]');
+          const already = Array.isArray(localProps)
+            ? localProps.some((pp: any) => String(pp.projectId) === String(projectId) && String(pp.freelancerId) === String(user?.id))
+            : false;
+          setHasExistingProposal(already);
+          return;
+        } catch {
+          return;
+        }
+      }
       const res = await apiGetProject(projectId);
       if (!res.ok || !res.project) return;
       const minimumOffer = detectMinimumOffer(res.project.category, res.project.budget);
@@ -83,7 +111,19 @@ export default function SendProposal() {
 
   useEffect(() => {
     const checkExistingProposal = async () => {
-      if (!projectId || !user?.id || !hasApi()) return;
+      if (!projectId || !user?.id) return;
+      if (!hasApi()) {
+        try {
+          const localProps = JSON.parse(localStorage.getItem('meufreelas_proposals') || '[]');
+          const already = Array.isArray(localProps)
+            ? localProps.some((pp: any) => String(pp.projectId) === String(projectId) && String(pp.freelancerId) === String(user.id))
+            : false;
+          setHasExistingProposal(already);
+          return;
+        } catch {
+          return;
+        }
+      }
       try {
         const res = await apiListProposals({ projectId, freelancerId: user.id });
         if (!res.ok) return;
@@ -142,20 +182,48 @@ export default function SendProposal() {
       alert('Projeto inválido.');
       return;
     }
-    const res = await apiCreateProposal({
-      projectId,
-      freelancerId: user.id,
-      amount: `R$ ${parseFloat(offer).toFixed(2)}`,
-      deliveryDays: duration,
-      message: details,
-    });
-    if (!res.ok) {
-      setIsSubmitting(false);
-      alert(res.error || 'Não foi possível enviar proposta.');
-      return;
+    if (!hasApi()) {
+      try {
+        const now = new Date().toISOString();
+        const localProps = JSON.parse(localStorage.getItem('meufreelas_proposals') || '[]');
+        const list = Array.isArray(localProps) ? localProps : [];
+        list.push({
+          id: Date.now().toString(),
+          projectId,
+          projectTitle: project?.title || '',
+          projectStatus: 'Aberto',
+          clientId: project?.clientId || '',
+          clientName: project?.clientName || 'Cliente',
+          freelancerId: user.id,
+          freelancerName: user.name || 'Freelancer',
+          value: `R$ ${parseFloat(offer).toFixed(2)}`,
+          deliveryDays: duration,
+          message: details,
+          status: 'Pendente',
+          createdAt: now,
+        });
+        localStorage.setItem('meufreelas_proposals', JSON.stringify(list));
+      } catch {
+        setIsSubmitting(false);
+        alert('Não foi possível enviar proposta no modo local.');
+        return;
+      }
+    } else {
+      const res = await apiCreateProposal({
+        projectId,
+        freelancerId: user.id,
+        amount: `R$ ${parseFloat(offer).toFixed(2)}`,
+        deliveryDays: duration,
+        message: details,
+      });
+      if (!res.ok) {
+        setIsSubmitting(false);
+        alert(res.error || 'Não foi possível enviar proposta.');
+        return;
+      }
     }
 
-    if (project?.clientId) {
+    if (project?.clientId && hasApi()) {
       const conv = await apiEnsureConversation(user.id, project.clientId, projectId);
       if (conv.ok && conv.conversationId) {
         await apiSendMessage(
