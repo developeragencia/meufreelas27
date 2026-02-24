@@ -78,7 +78,7 @@ export default function UserProfile() {
         }
       }
 
-      const users = loadUsers().filter((u) => u?.type === 'freelancer' || u?.hasFreelancerAccount);
+      const users = loadUsers();
       const found = users.find((u) => toUsername(String(u?.name || u?.id || '')) === username || String(u?.id || '') === username);
       if (!found) {
         setProfile(null);
@@ -94,18 +94,19 @@ export default function UserProfile() {
     }
 
     const createdAt = found?.createdAt || found?.created_at || new Date().toISOString();
-    const safeName = String(found?.name || 'Freelancer');
+    const safeName = String(found?.name || 'Usuário');
     const safeAvatar = found?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(safeName)}&background=003366&color=fff`;
+    const isFreelancerProfile = found?.type === 'freelancer' || found?.hasFreelancerAccount;
 
       setProfile({
         id: String(found.id),
         name: safeName,
         username: toUsername(safeName),
-        title: String(savedProfile?.title || found?.title || 'Freelancer'),
+        title: String(savedProfile?.title || found?.title || (isFreelancerProfile ? 'Freelancer' : 'Cliente')),
         bio: String(savedProfile?.bio || found?.bio || 'Sem biografia cadastrada.'),
         avatar: safeAvatar,
         rating: Number(found?.rating || 0),
-        completedProjects: Number(found?.completedProjects || 0),
+        completedProjects: Number(found?.completedProjects || found?.totalProjects || 0),
         memberSince: new Date(createdAt).toLocaleDateString('pt-BR'),
         isPremium: !!found?.isPremium,
         isVerified: !!found?.isVerified,
@@ -117,7 +118,7 @@ export default function UserProfile() {
         recommendations: Number(found?.recommendations || found?.completedProjects || 0),
         ranking: Number(found?.ranking || 0),
         profileCompletion: Number(found?.profileCompletion || 0),
-        planTier: ((found?.planType || found?.plan || 'free') as 'free' | 'pro' | 'premium'),
+        planTier: (isFreelancerProfile ? ((found?.planType || found?.plan || 'free') as 'free' | 'pro' | 'premium') : 'free'),
       });
     };
     void load();

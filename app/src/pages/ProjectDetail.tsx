@@ -37,7 +37,7 @@ const targetProjectSeed: ProjectView = {
   interested: 512,
   minOffer: 'R$ 100,00',
   clientName: 'Frederico F.',
-  clientId: 'client_demo',
+  clientId: 'frederico-f',
 };
 
 function mapProject(p: ApiProject): ProjectView {
@@ -331,9 +331,11 @@ export default function ProjectDetail() {
             <div className="bg-[#efefef] border border-gray-200 p-5 text-sm">
               <p className="text-gray-600">Cliente</p>
               <div className="mt-2 flex items-center gap-3">
-                <div className="w-14 h-14 bg-gray-300" />
+                <Link to={`/user/${project.clientId}`} className="w-14 h-14 bg-gray-300 block hover:ring-2 hover:ring-99blue" />
                 <div>
-                  <p className="text-gray-800">{project.clientName}</p>
+                  <Link to={`/user/${project.clientId}`} className="text-gray-800 hover:text-99blue">
+                    {project.clientName}
+                  </Link>
                   <div className="flex text-yellow-400 mt-1">
                     <Star className="w-4 h-4 fill-current" />
                     <Star className="w-4 h-4 fill-current" />
