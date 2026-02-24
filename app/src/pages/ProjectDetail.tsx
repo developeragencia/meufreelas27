@@ -316,7 +316,7 @@ export default function ProjectDetail() {
       clientMemberSince: new Date(p.createdAt).toLocaleDateString('pt-BR'),
       clientLocation: '',
       proposals: p.proposals || 0,
-      interested: p.proposals || 0,
+      interested: p.interested || 0,
       status: p.status,
       createdAt: p.createdAt,
       experienceLevel,
