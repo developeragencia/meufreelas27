@@ -415,7 +415,7 @@ export default function Projects() {
                       </div>
                       <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2 overflow-hidden">
-                           <span className="truncate text-gray-600 font-medium">{p.clientName}</span>
+                           <span className="truncate text-99blue font-medium capitalize">{p.clientName.toLowerCase()}</span>
                            {p.clientRating > 0 && <span className="text-yellow-500 text-xs">★ {p.clientRating.toFixed(1)}</span>}
                         </div>
                         <Link to={`/project/${p.id}`} className="text-99blue font-medium hover:underline whitespace-nowrap">

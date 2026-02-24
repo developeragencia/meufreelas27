@@ -413,8 +413,8 @@ export default function Freelancers() {
                         {/* Name & Badges */}
                         <div className="flex flex-col md:flex-row items-center md:items-baseline gap-2 mb-1 justify-center md:justify-start">
                           <div className="flex items-center gap-1.5">
-                            <Link to={`/user/${f.id}`} className="text-xl md:text-lg font-bold text-99blue hover:underline truncate">
-                              {f.name}
+                            <Link to={`/user/${f.id}`} className="text-xl md:text-lg font-bold text-99blue hover:underline truncate capitalize">
+                              {f.name.toLowerCase()}
                             </Link>
                             {f.isVerified && <CheckCircle className="w-5 h-5 md:w-4 md:h-4 text-blue-500 fill-white" />}
                             {f.isPremium && <span className="bg-yellow-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm shadow-sm">PREMIUM</span>}

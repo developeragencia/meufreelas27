@@ -368,8 +368,8 @@ export default function ProjectDetail() {
                    Foto
                 </Link>
                 <div>
-                  <Link to={`/user/${project.clientId}`} className="text-gray-800 hover:text-99blue font-medium">
-                    {project.clientName}
+                  <Link to={`/user/${project.clientId}`} className="text-99blue hover:text-99blue font-medium capitalize">
+                    {project.clientName.toLowerCase()}
                   </Link>
                   <div className="text-xs text-gray-500 mt-1">
                     (Sem avaliações)
@@ -410,8 +410,8 @@ export default function ProjectDetail() {
                   <div className="flex items-start gap-3">
                     <div className="w-12 h-12 bg-gray-300 rounded flex items-center justify-center text-xs text-gray-500">Foto</div>
                     <div className="flex-1">
-                      <Link to={`/user/${p.freelancerId}`} className="text-gray-800 font-medium hover:text-99blue">
-                        {p.freelancerName}
+                      <Link to={`/user/${p.freelancerId}`} className="text-99blue font-medium hover:text-99blue capitalize">
+                        {p.freelancerName.toLowerCase()}
                       </Link>
                       <div className="text-xs text-gray-400 mb-1">
                          (Sem avaliações)

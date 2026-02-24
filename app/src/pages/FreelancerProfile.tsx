@@ -282,7 +282,7 @@ export default function FreelancerProfile() {
             
             <div className="flex-1">
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{freelancer.name}</h1>
+                <h1 className="text-2xl md:text-3xl font-bold text-99blue capitalize">{freelancer.name.toLowerCase()}</h1>
                 {freelancer.isPremium && (
                   <span className="px-3 py-1 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-sm font-medium rounded-full flex items-center">
                     <Crown className="w-4 h-4 mr-1" />
