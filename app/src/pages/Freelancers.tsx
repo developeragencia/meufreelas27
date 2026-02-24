@@ -121,25 +121,62 @@ export default function Freelancers() {
     async function load() {
       setLoading(true);
       try {
+        let loadedFreelancers: Freelancer[] = [];
+
         if (hasApi()) {
           const res = await apiListFreelancersPublic();
           if (res.ok && res.freelancers) {
-            setFreelancers(res.freelancers.map(mapApiFreelancer));
+            loadedFreelancers = res.freelancers.map(mapApiFreelancer);
           }
         } else {
           // Fallback to local storage or empty
           const localUsers = JSON.parse(localStorage.getItem('meufreelas_users') || '[]');
           const fls = localUsers.filter((u: any) => u.type === 'freelancer' || u.hasFreelancerAccount);
-          setFreelancers(fls.map((u: any) => mapApiFreelancer({ ...u, id: String(u.id) })));
+          loadedFreelancers = fls.map((u: any) => mapApiFreelancer({ ...u, id: String(u.id) }));
         }
+
+        // Se o usuário estiver logado, atualiza seus dados na lista com os dados locais mais recentes
+        if (user && user.id) {
+          loadedFreelancers = loadedFreelancers.map(f => {
+            if (String(f.id) === String(user.id)) {
+              // Tenta recuperar dados estendidos do perfil local
+              let localProfile: any = {};
+              try {
+                localProfile = JSON.parse(localStorage.getItem(`profile_${user.id}`) || '{}');
+              } catch {}
+
+              return {
+                ...f,
+                name: user.name || f.name,
+                avatar: user.avatar || f.avatar,
+                // Atualiza também outros campos se disponíveis localmente
+                title: localProfile.title || f.title,
+                bio: user.bio || localProfile.bio || f.bio,
+                skills: user.skills || localProfile.skills || f.skills,
+              };
+            }
+            return f;
+          });
+        }
+
+        setFreelancers(loadedFreelancers);
       } catch (e) {
         console.error(e);
       } finally {
         setLoading(false);
       }
     }
+    
     load();
-  }, []);
+
+    // Listener para atualizações de perfil em tempo real
+    const handleProfileUpdate = () => load();
+    window.addEventListener('meufreelas:profile-updated', handleProfileUpdate);
+
+    return () => {
+      window.removeEventListener('meufreelas:profile-updated', handleProfileUpdate);
+    };
+  }, [user]);
 
   const filteredFreelancers = useMemo(() => {
     return freelancers.filter(f => {
@@ -274,14 +311,44 @@ export default function Freelancers() {
 
           {/* Main Content */}
           <div className="flex-1">
-            <div className="lg:hidden mb-4">
-               <button onClick={() => setShowMobileFilters(!showMobileFilters)} className="w-full bg-white border border-gray-300 py-2 text-sm font-bold text-gray-700 flex items-center justify-center gap-2">
-                 <Filter className="w-4 h-4" /> {showMobileFilters ? 'Ocultar Filtros' : 'Mostrar Filtros'}
+            {/* Mobile Filters */}
+            <div className="lg:hidden space-y-2 mb-4">
+               <button onClick={() => setShowMobileFilters(!showMobileFilters)} className="w-full bg-white border border-gray-300 py-3 px-4 text-gray-700 font-bold text-left flex items-center justify-between rounded-sm shadow-sm hover:bg-gray-50">
+                 <span className="flex items-center gap-2"><span className="text-gray-400 font-normal">(+)</span> Meus Filtros</span>
                </button>
+               <button onClick={() => setShowMobileFilters(!showMobileFilters)} className="w-full bg-white border border-gray-300 py-3 px-4 text-gray-700 font-bold text-left flex items-center justify-between rounded-sm shadow-sm hover:bg-gray-50">
+                 <span className="flex items-center gap-2"><span className="text-gray-400 font-normal">(+)</span> Filtros</span>
+               </button>
+               
+               <div className="bg-white border border-gray-300 rounded-sm px-4 py-3 shadow-sm">
+                 <select className="w-full border-none text-gray-700 text-sm focus:ring-0 cursor-pointer bg-transparent p-0 font-medium">
+                   <option>Relevância</option>
+                   <option>Mais recentes</option>
+                   <option>Melhor avaliação</option>
+                 </select>
+               </div>
+
+               {/* Mobile Pagination (Top) */}
+               {totalPages > 1 && (
+                  <div className="flex justify-end gap-1 pt-2">
+                    {Array.from({ length: Math.min(3, totalPages) }, (_, i) => (
+                       <button
+                         key={i}
+                         onClick={() => setCurrentPage(i + 1)}
+                         className={`w-8 h-8 flex items-center justify-center text-sm border rounded-sm transition-colors ${currentPage === i + 1 ? 'bg-white border-99blue text-99blue font-bold shadow-sm' : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'}`}
+                       >
+                         {i + 1}
+                       </button>
+                    ))}
+                    {totalPages > 3 && <span className="flex items-center justify-center w-8 text-gray-400 text-xs">...</span>}
+                     <button className="px-3 h-8 text-sm bg-white border border-gray-300 rounded-sm text-gray-600 hover:bg-gray-50 font-medium">Última</button>
+                  </div>
+               )}
             </div>
 
-            <div className="flex items-center justify-between mb-4 bg-white p-2 border border-gray-300 rounded-sm">
-               <select className="border-none text-sm text-gray-700 focus:ring-0 cursor-pointer bg-transparent">
+            {/* Desktop Sort Bar (Hidden on Mobile) */}
+            <div className="hidden lg:flex items-center justify-between mb-4 bg-white p-2 border border-gray-300 rounded-sm">
+               <select className="border-none text-sm text-gray-700 focus:ring-0 cursor-pointer bg-transparent font-medium">
                  <option>Relevância</option>
                  <option>Mais recentes</option>
                  <option>Melhor avaliação</option>
@@ -293,80 +360,86 @@ export default function Freelancers() {
                       <button
                         key={i}
                         onClick={() => setCurrentPage(i + 1)}
-                        className={`w-8 h-8 flex items-center justify-center text-sm border ${currentPage === i + 1 ? 'bg-white border-gray-300 font-bold text-gray-800' : 'bg-white border-transparent text-99blue hover:underline'}`}
+                        className={`w-8 h-8 flex items-center justify-center text-sm border rounded-sm transition-colors ${currentPage === i + 1 ? 'bg-white border-gray-300 font-bold text-gray-800 shadow-sm' : 'bg-white border-transparent text-99blue hover:underline'}`}
                       >
                         {i + 1}
                       </button>
                     ))}
-                    {totalPages > 5 && <span className="flex items-center text-gray-500">...</span>}
-                    <button className="px-2 text-sm text-99blue hover:underline bg-white border border-gray-300 rounded-sm h-8 flex items-center">Última</button>
+                    {totalPages > 5 && <span className="flex items-center text-gray-400">...</span>}
+                    <button className="px-2 text-sm text-99blue hover:underline bg-white border border-gray-300 rounded-sm h-8 flex items-center font-medium">Última</button>
                   </div>
                )}
             </div>
 
             <div className="space-y-4">
               {loading ? (
-                <div className="bg-white border border-gray-300 p-12 text-center text-gray-500">
+                <div className="bg-white border border-gray-300 p-12 text-center text-gray-500 rounded-sm shadow-sm">
                   Carregando freelancers...
                 </div>
               ) : paginatedFreelancers.length === 0 ? (
-                <div className="bg-white border border-gray-300 p-12 text-center text-gray-500">
+                <div className="bg-white border border-gray-300 p-12 text-center text-gray-500 rounded-sm shadow-sm">
                   Nenhum freelancer encontrado com estes filtros.
                 </div>
               ) : (
                 paginatedFreelancers.map((f) => (
-                  <article key={f.id} className="bg-white border border-gray-300 rounded-sm p-5 hover:shadow-sm transition-shadow">
-                    <div className="flex flex-col md:flex-row gap-5">
+                  <article key={f.id} className="bg-white border border-gray-300 rounded-sm p-6 hover:shadow-md transition-shadow relative">
+                    <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
                       {/* Avatar Column */}
-                      <div className="flex-shrink-0">
-                         <div className="w-24 h-24 md:w-28 md:h-28 rounded-lg overflow-hidden border border-gray-200 relative group">
+                      <div className="flex-shrink-0 relative">
+                         <div className="w-32 h-32 md:w-28 md:h-28 rounded-full overflow-hidden border-4 border-gray-50 relative group shadow-sm mx-auto">
                            <img src={f.avatar} alt={f.name} className="w-full h-full object-cover" />
-                           {f.isOnline && <div className="absolute bottom-1 right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>}
                          </div>
+                         {f.isOnline && <div className="absolute bottom-2 right-1/2 translate-x-10 md:translate-x-0 md:right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full shadow-sm"></div>}
                       </div>
 
                       {/* Content Column */}
-                      <div className="flex-1 min-w-0">
-                        {/* Header Line */}
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <Link to={`/user/${f.id}`} className="text-lg font-bold text-99blue hover:underline truncate">
-                            {f.name}
-                          </Link>
-                          {f.isVerified && <CheckCircle className="w-4 h-4 text-blue-500 fill-white" />}
-                          {f.isPremium && <span className="bg-yellow-400 text-white text-[10px] font-bold px-1 rounded-sm">PREMIUM</span>}
+                      <div className="flex-1 min-w-0 text-center md:text-left w-full">
+                        {/* Name & Badges */}
+                        <div className="flex flex-col md:flex-row items-center md:items-baseline gap-2 mb-1 justify-center md:justify-start">
+                          <div className="flex items-center gap-1.5">
+                            <Link to={`/user/${f.id}`} className="text-xl md:text-lg font-bold text-99blue hover:underline truncate">
+                              {f.name}
+                            </Link>
+                            {f.isVerified && <CheckCircle className="w-5 h-5 md:w-4 md:h-4 text-blue-500 fill-white" />}
+                            {f.isPremium && <span className="bg-yellow-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm shadow-sm">PREMIUM</span>}
+                          </div>
                         </div>
 
-                        {/* Badges/Title Line */}
+                        {/* Top Freelancer Badge */}
                         {f.isPro && (
-                           <div className="flex items-center gap-1 mb-2">
+                           <div className="flex items-center justify-center md:justify-start gap-1.5 mb-3 md:mb-2">
                              <Shield className="w-4 h-4 text-blue-600 fill-current" />
                              <span className="text-xs font-bold text-blue-600 uppercase tracking-wide">TOP FREELANCER PLUS</span>
                            </div>
                         )}
 
-                        {/* Rating & Stats Line */}
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 mb-3">
+                        {/* Rating */}
+                        <div className="flex justify-center md:justify-start mb-3 md:mb-2">
                            <StarRating rating={f.rating} count={f.totalReviews} />
-                           {f.ranking > 0 && <span>Ranking: <strong className="text-gray-700">{f.ranking}</strong></span>}
-                           <span className="hidden md:inline">|</span>
+                        </div>
+
+                        {/* Stats Line */}
+                        <div className="flex flex-wrap justify-center md:justify-start gap-x-3 gap-y-1 text-xs text-gray-500 mb-4 md:mb-3 leading-relaxed">
+                           <span>Ranking: <strong className="text-gray-700">{f.ranking}</strong></span>
+                           <span className="hidden md:inline text-gray-300">|</span>
                            <span>Projetos concluídos: <strong className="text-gray-700">{f.completedProjects}</strong></span>
-                           <span className="hidden md:inline">|</span>
+                           <span className="hidden md:inline text-gray-300">|</span>
                            <span>Recomendações: <strong className="text-gray-700">{f.recommendations}</strong></span>
-                           <span className="hidden md:inline">|</span>
+                           <span className="hidden md:inline text-gray-300">|</span>
                            <span>Registrado(a) desde: {formatDate(f.memberSince)}</span>
                         </div>
 
                         {/* Professional Title */}
-                        <h3 className="font-bold text-gray-800 text-sm mb-2">{f.title}</h3>
+                        <h3 className="font-bold text-gray-800 text-base md:text-sm mb-3 md:mb-2">{f.title}</h3>
 
                         {/* Description */}
-                        <div className="text-sm text-gray-600 leading-relaxed mb-4">
+                        <div className="text-sm text-gray-600 leading-relaxed mb-4 text-justify md:text-left">
                           {f.bio ? (
                             <>
                               {f.bio.length > 250 ? (
                                 <>
                                   {f.bio.substring(0, 250)}... 
-                                  <Link to={`/user/${f.id}`} className="text-99blue hover:underline ml-1">Expandir</Link>
+                                  <Link to={`/user/${f.id}`} className="text-99blue hover:underline ml-1 font-medium">Expandir</Link>
                                 </>
                               ) : f.bio}
                             </>
@@ -377,9 +450,9 @@ export default function Freelancers() {
 
                         {/* Skills */}
                         {f.skills.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap justify-center md:justify-start gap-2">
                             {f.skills.map(skill => (
-                              <span key={skill} className="bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded-sm">
+                              <span key={skill} className="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-sm border border-gray-200">
                                 {skill}
                               </span>
                             ))}
