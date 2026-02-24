@@ -452,6 +452,41 @@ export default function Projects() {
         </>
       )}
 
+      {/* Subnav (desktop) */}
+      <nav className="hidden md:block bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center space-x-6 h-11">
+            <Link to={user?.type === 'freelancer' ? '/freelancer/dashboard' : '/dashboard'} className="text-sm font-medium text-gray-700 hover:text-99blue">
+              Página inicial
+            </Link>
+            {(user?.type === 'freelancer' ? [
+              { title: 'Projetos', items: [{ label: 'Buscar projetos', href: '/projects' }, { label: 'Meus projetos', href: '/freelancer/projects' }, { label: 'Minhas propostas', href: '/freelancer/proposals' }] },
+              { title: 'Perfil', items: [{ label: 'Editar perfil', href: '/profile/edit' }, { label: 'Meu perfil', href: '/profile' }] },
+              { title: 'Conta', items: [{ label: 'Cartões', href: '/account?tab=cards' }, { label: 'Pagamentos', href: '/payments' }, { label: 'Verificações', href: '/account?tab=verification' }] },
+              { title: 'Ajuda', items: [{ label: 'Como funciona', href: '/como-funciona' }, { label: 'Central de ajuda', href: '/ajuda' }] },
+            ] : [
+              { title: 'Projetos', items: [{ label: 'Publicar projeto', href: '/project/new' }, { label: 'Meus projetos', href: '/my-projects' }, { label: 'Buscar freelancers', href: '/freelancers' }] },
+              { title: 'Conta', items: [{ label: 'Dados da conta', href: '/profile/edit' }, { label: 'Pagamentos', href: '/payments' }] },
+              { title: 'Ajuda', items: [{ label: 'Como funciona', href: '/como-funciona' }, { label: 'Central de ajuda', href: '/ajuda' }] },
+            ]).map((section) => (
+              <div key={section.title} className="relative group">
+                <button type="button" className="flex items-center text-sm font-medium text-gray-700 hover:text-99blue">
+                  {section.title}
+                  <ChevronDown className="w-4 h-4 ml-1 text-gray-400 group-hover:text-99blue" />
+                </button>
+                <div className="absolute left-0 mt-2 bg-white shadow-lg rounded-lg py-2 min-w-[220px] opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto z-30">
+                  {section.items.map((item) => (
+                    <Link key={item.href} to={item.href} className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                      <span>{item.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </nav>
+
       {/* Results Header */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 py-4 md:py-6">

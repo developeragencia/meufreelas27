@@ -14,21 +14,21 @@ interface Goal {
 }
 
 const GOAL_TEMPLATES_FREELANCER: Goal[] = [
-  { id: 'complete_profile', icon: User, title: 'Completar Perfil', description: 'Preencha todas as informações do seu perfil', points: 50, completed: false, link: '/profile/edit' },
-  { id: 'publish_project', icon: Briefcase, title: 'Publicar Projeto', description: 'Publique seu primeiro projeto', points: 100, completed: false, link: '/project/new' },
-  { id: 'send_proposal', icon: MessageSquare, title: 'Enviar Proposta', description: 'Envie sua primeira proposta', points: 50, completed: false, link: '/projects' },
-  { id: 'receive_review', icon: Star, title: 'Receber Avaliação', description: 'Receba sua primeira avaliação positiva', points: 100, completed: false, link: '/profile' },
-  { id: 'invite_friend', icon: Users, title: 'Convidar Amigo', description: 'Convide um amigo para a plataforma', points: 50, completed: false, link: '#' },
-  { id: 'complete_project', icon: Award, title: 'Completar Projeto', description: 'Complete seu primeiro projeto', points: 150, completed: false, link: '/my-projects' },
+  { id: 'complete_profile', icon: User, title: 'Completar perfil', description: 'Preencha todas as informações do seu perfil', points: 50, completed: false, link: '/profile/edit' },
+  { id: 'publish_project', icon: Briefcase, title: 'Publicar projeto', description: 'Publique seu primeiro projeto', points: 100, completed: false, link: '/project/new' },
+  { id: 'send_proposal', icon: MessageSquare, title: 'Enviar proposta', description: 'Envie sua primeira proposta', points: 50, completed: false, link: '/projects' },
+  { id: 'receive_review', icon: Star, title: 'Receber avaliação', description: 'Receba sua primeira avaliação positiva', points: 100, completed: false, link: '/profile' },
+  { id: 'invite_friend', icon: Users, title: 'Convidar amigo', description: 'Convide um amigo para a plataforma', points: 50, completed: false, link: '#' },
+  { id: 'complete_project', icon: Award, title: 'Completar projeto', description: 'Complete seu primeiro projeto', points: 150, completed: false, link: '/my-projects' },
   { id: 'premium_member', icon: Gift, title: 'Tornar-se Premium', description: 'Assine o plano Premium', points: 200, completed: false, link: '/premium' },
 ];
 
 const GOAL_TEMPLATES_CLIENT: Goal[] = [
-  { id: 'complete_profile', icon: User, title: 'Completar Perfil', description: 'Preencha seus dados pessoais', points: 50, completed: false, link: '/profile/edit' },
-  { id: 'publish_project', icon: Briefcase, title: 'Publicar Projeto', description: 'Publique seu primeiro projeto', points: 100, completed: false, link: '/project/new' },
-  { id: 'hire_freelancer', icon: Users, title: 'Contratar Freelancer', description: 'Aceite uma proposta e contrate', points: 150, completed: false, link: '/my-projects' },
-  { id: 'complete_payment', icon: DollarSign, title: 'Concluir Pagamento', description: 'Pague e conclua um projeto', points: 100, completed: false, link: '/payments' },
-  { id: 'invite_friend', icon: Users, title: 'Convidar Amigo', description: 'Convide um amigo para a plataforma', points: 50, completed: false, link: '#' },
+  { id: 'complete_profile', icon: User, title: 'Completar perfil', description: 'Preencha seus dados pessoais', points: 50, completed: false, link: '/profile/edit' },
+  { id: 'publish_project', icon: Briefcase, title: 'Publicar projeto', description: 'Publique seu primeiro projeto', points: 100, completed: false, link: '/project/new' },
+  { id: 'hire_freelancer', icon: Users, title: 'Contratar freelancer', description: 'Aceite uma proposta e contrate', points: 150, completed: false, link: '/my-projects' },
+  { id: 'complete_payment', icon: DollarSign, title: 'Concluir pagamento', description: 'Pague e conclua um projeto', points: 100, completed: false, link: '/payments' },
+  { id: 'invite_friend', icon: Users, title: 'Convidar amigo', description: 'Convide um amigo para a plataforma', points: 50, completed: false, link: '#' },
   { id: 'premium_member', icon: Gift, title: 'Tornar-se Premium', description: 'Assine o plano Premium', points: 200, completed: false, link: '/premium' },
 ];
 

@@ -36,7 +36,7 @@ export default function BadgesWidget() {
         id: 'newbie',
         icon: Star,
         name: 'Novato',
-        description: 'Complete seu cadastro na plataforma',
+        description: 'Complete seu perfil na plataforma',
         color: 'bg-blue-500',
         unlocked: true
       },
@@ -51,8 +51,8 @@ export default function BadgesWidget() {
       {
         id: 'first_project',
         icon: Award,
-        name: 'Primeiro Projeto',
-        description: 'Complete seu primeiro projeto',
+        name: 'Primeiro projeto',
+        description: 'Conclua seu primeiro projeto',
         color: 'bg-purple-500',
         unlocked: userProjects.length > 0,
         progress: userProjects.length,
@@ -72,7 +72,7 @@ export default function BadgesWidget() {
         id: 'projects_5',
         icon: Target,
         name: 'Profissional',
-        description: 'Complete 5 projetos',
+        description: 'Conclua 5 projetos',
         color: 'bg-orange-500',
         unlocked: userProjects.length >= 5,
         progress: userProjects.length,
@@ -81,7 +81,7 @@ export default function BadgesWidget() {
       {
         id: 'top_rated',
         icon: Crown,
-        name: 'Top Rated',
+        name: 'Top rated',
         description: 'Mantenha avaliação acima de 4.5',
         color: 'bg-yellow-600',
         unlocked: (user?.rating || 0) >= 4.5
@@ -116,7 +116,7 @@ export default function BadgesWidget() {
         id: 'expert',
         icon: TrendingUp,
         name: 'Especialista',
-        description: 'Complete 20 projetos',
+        description: 'Conclua 20 projetos',
         color: 'bg-red-500',
         unlocked: userProjects.length >= 20,
         progress: userProjects.length,
@@ -125,7 +125,7 @@ export default function BadgesWidget() {
       {
         id: 'skills_master',
         icon: CheckCircle,
-        name: 'Mestre das Skills',
+        name: 'Mestre das skills',
         description: 'Adicione 10 habilidades ao perfil',
         color: 'bg-indigo-500',
         unlocked: (profile?.skills?.length || 0) >= 10,

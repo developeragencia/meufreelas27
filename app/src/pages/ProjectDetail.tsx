@@ -194,37 +194,65 @@ export default function ProjectDetail() {
     }
     if (!hasApi()) {
       try {
+        const TARGET_ID = '8c5870363bc9ca76312b3b530fbb6cdf7363';
         const raw = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]');
-        const found = raw.find((p: { id: string }) => p.id === id);
-        if (found) {
+        let list = Array.isArray(raw) ? raw : [];
+        if (id === TARGET_ID) {
+          list = list.filter((p: any) => p?.id !== TARGET_ID);
+          const nowISO = new Date().toISOString();
+          const recreated = {
+            id: TARGET_ID,
+            title: 'Atendimento ao cliente via WhatsApp por 1 hora',
+            category: 'Atendimento ao Consumidor',
+            subcategory: 'Atendimento ao Consumidor',
+            description:
+              'Olá! Se você é um profissional com excelente comunicação escrita e busca uma renda extra garantida, segura e que tome pouco tempo do seu dia, preste muita atenção neste projeto.\n\nA atuação é de apenas 1 hora por dia.\n\nSomos uma empresa em crescimento e estamos buscando um(a) especialista em atendimento para ser a \"voz\" da nossa marca no WhatsApp.\n\nO que você vai fazer:\n• Responder mensagens de clientes e interessados de forma humanizada, empática e ágil.\n• Esclarecer dúvidas frequentes utilizando nossos materiais de apoio e roteiros.\n• Fazer a triagem de contatos e direcionar problemas complexos para a nossa equipe interna.\n\nO que nós esperamos de você:\n• Português impecável: gramática, ortografia e pontuação corretas são inegociáveis.\n• Empatia e simpatia.\n• Capacidade de contornar objeções com educação e acolher o cliente.',
+            budget: 'Aberto',
+            experienceLevel: 'Iniciante',
+            proposalDays: '29',
+            clientId: 'client_demo',
+            clientName: 'Cliente',
+            createdAt: nowISO,
+            updatedAt: nowISO,
+            proposals: 214,
+            interested: 239,
+            minOffer: 100,
+            skills: ['Atendimento', 'WhatsApp', 'Comunicação', 'Empatia'],
+            status: 'Aberto',
+          };
+          list.push(recreated);
+          localStorage.setItem('meufreelas_projects', JSON.stringify(list));
+        }
+        const found = list.find((p: { id: string }) => p.id === id);
+        if (!found) {
+          setProject(null);
+        } else {
           setProject({
             id: found.id,
             title: found.title || '',
             category: found.category || 'Outra',
-            subcategory: '',
+            subcategory: found.subcategory || '',
             description: found.description || '',
-            budget: found.budget || 'A combinar',
+            budget: String(found.budget || 'A combinar'),
             budgetType: 'range',
             deadline: found.proposalDays ? `${found.proposalDays} dias` : '-',
             requiredSkills: Array.isArray(found.skills) ? found.skills : [],
-            clientId: found.clientId || '',
-            clientName: found.clientName || 'Cliente',
+            clientId: String(found.clientId || ''),
+            clientName: String(found.clientName || 'Cliente'),
             clientAvatar: '',
             clientRating: 0,
             clientJobs: 0,
             clientMemberSince: found.createdAt ? new Date(found.createdAt).toLocaleDateString('pt-BR') : '-',
             clientLocation: '',
-            proposals: 0,
-            interested: 0,
-            status: 'Aberto',
-            createdAt: found.createdAt || '',
-            experienceLevel: found.experienceLevel || 'Intermediário',
+            proposals: Number(found.proposals || 0),
+            interested: Number(found.interested || 0),
+            status: String(found.status || 'Aberto'),
+            createdAt: String(found.createdAt || ''),
+            experienceLevel: String(found.experienceLevel || 'Intermediário'),
             projectType: 'Proj único',
             views: 0,
             attachments: [],
           });
-        } else {
-          setProject(null);
         }
       } catch {
         setProject(null);
@@ -1254,17 +1282,15 @@ export default function ProjectDetail() {
           <div className="space-y-6">
             {/* Action Card */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                Tem dúvidas sobre o projeto?
-              </h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">Tem dúvidas? <button type="button" onClick={handleAskQuestion} className="text-99blue hover:underline">Faça uma pergunta</button>.</h3>
               <button
                 type="button"
                 onClick={handleAskQuestion}
                 disabled={questionLoading}
-                className="w-full py-3 mb-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center justify-center"
+                className="w-full py-3 mb-4 bg-99blue text-white rounded-lg hover:bg-99blue-light transition-colors font-medium flex items-center justify-center"
               >
                 <MessageSquare className="w-5 h-5 mr-2" />
-                {questionLoading ? 'Abrindo conversa...' : 'Fazer uma pergunta ao cliente'}
+                {questionLoading ? 'Abrindo conversa...' : 'Enviar proposta'}
               </button>
               {!showProposalForm && user?.type === 'freelancer' && (
                 <button
@@ -1275,10 +1301,10 @@ export default function ProjectDetail() {
                     }
                     navigate(`/project/bid/${project.id}`);
                   }}
-                  className="w-full py-3 bg-99blue text-white rounded-lg hover:bg-sky-400 transition-colors font-medium flex items-center justify-center mb-3"
+                  className="w-full py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center justify-center mb-3"
                 >
                   <Send className="w-5 h-5 mr-2" />
-                  Enviar Proposta
+                  Tenho interesse
                 </button>
               )}
               <button
@@ -1286,14 +1312,14 @@ export default function ProjectDetail() {
                 className="w-full py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center justify-center mb-3"
               >
                 <ThumbsUp className="w-5 h-5 mr-2" />
-                Tenho Interesse
+                Salvar
               </button>
               <button
                 onClick={() => setShowReportModal(true)}
                 className="w-full py-3 border border-orange-200 text-orange-600 rounded-lg hover:bg-orange-50 transition-colors font-medium flex items-center justify-center"
               >
                 <Flag className="w-5 h-5 mr-2" />
-                Denunciar Projeto
+                Denunciar
               </button>
             </div>
 
