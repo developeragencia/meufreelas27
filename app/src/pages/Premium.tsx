@@ -189,11 +189,9 @@ export default function Premium() {
     setCheckoutLoading(provider);
     const res = await apiCreateSubscriptionCheckout({
       userId: user.id,
-      planCode: selectedPlan as 'pro' | 'premium',
-      billingCycle: billingPeriod,
+      plan: selectedPlan as 'pro' | 'premium',
+      cycle: billingPeriod === 'monthly' ? 'monthly' : 'yearly',
       provider,
-      successUrl: `${window.location.origin}/premium?subscription=success`,
-      cancelUrl: `${window.location.origin}/premium?subscription=cancel`,
     });
     setCheckoutLoading(null);
     if (res.ok && res.checkoutUrl) {

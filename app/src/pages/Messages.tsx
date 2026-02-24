@@ -23,7 +23,8 @@ import {
   Trash2,
   Flag,
   Eye,
-  Edit
+  Edit,
+  X
 } from 'lucide-react';
 import { moderateContent, type ModerationResult } from '../utils/contentModerator';
 import { getBanMessage, getPenaltyMessage, getUserSanctionStatus } from '../utils/sanctions';

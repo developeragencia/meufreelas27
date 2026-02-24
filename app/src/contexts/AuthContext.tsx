@@ -20,6 +20,7 @@ export interface User {
   hasClientAccount?: boolean;
   isVerified?: boolean;
   isPremium?: boolean;
+  isPro?: boolean;
 }
 
 export type LoginResult = { success: boolean; error?: string; code?: string };
