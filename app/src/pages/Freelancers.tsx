@@ -58,10 +58,13 @@ function mapApiFreelancer(f: ApiFreelancerPublic): Freelancer {
 }
 
 function formatDate(iso: string) {
+  if (!iso) return 'Recente';
   try {
-    return new Date(iso).toLocaleDateString('pt-BR');
+    const date = new Date(iso);
+    if (isNaN(date.getTime())) return 'Recente';
+    return date.toLocaleDateString('pt-BR');
   } catch {
-    return iso;
+    return 'Recente';
   }
 }
 

@@ -636,6 +636,8 @@ export async function apiCreateCheckout(payload: {
   provider: 'stripe' | 'mercadopago';
   successUrl?: string;
   cancelUrl?: string;
+  amount?: number;
+  title?: string;
 }): Promise<{ ok: boolean; checkoutUrl?: string; paymentId?: string; error?: string }> {
   try {
     const data = await callPaymentsApi({ action: 'create_checkout', ...payload });

@@ -3,6 +3,7 @@ import { Check, X, HelpCircle, Star, Crown, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import BrandLogo from '../components/BrandLogo';
+import PaymentModal from '../components/PaymentModal';
 import { Link } from 'react-router-dom';
 
 const plans = [
@@ -80,6 +81,8 @@ export default function Premium() {
   const { user, updateUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState<string | null>(null);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<any>(null);
 
   const handleSubscribe = async (planId: string) => {
     if (!isAuthenticated) {
@@ -87,26 +90,29 @@ export default function Premium() {
       return;
     }
 
-    setLoading(planId);
+    const plan = plans.find(p => p.id === planId);
     
-    // Simulate API call/Payment processing
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    if (plan?.id === 'free') {
+        // Plano grátis é direto
+        handleSuccess(plan);
+    } else {
+        // Planos pagos abrem modal
+        setSelectedPlan(plan);
+        setPaymentModalOpen(true);
+    }
+  };
 
-    const selectedPlan = plans.find(p => p.id === planId);
-    
-    if (selectedPlan) {
+  const handleSuccess = (plan: any) => {
       // Update user context and persist to localStorage
       const updatedData = {
-        plan: planId as 'free' | 'pro' | 'premium',
-        connections: (user?.connections || 0) + selectedPlan.connections, // Add connections or reset? Usually reset/set monthly limit. Let's add for now as a "purchase".
-        isPremium: planId === 'premium',
-        isPro: planId === 'pro' || planId === 'premium',
+        plan: plan.id as 'free' | 'pro' | 'premium',
+        connections: (user?.connections || 0) + plan.connections,
+        isPremium: plan.id === 'premium',
+        isPro: plan.id === 'pro' || plan.id === 'premium',
       };
 
       updateUser(updatedData);
       
-      // Update localStorage manually to ensure persistence if AuthContext doesn't do deep merge instantly for complex objects
-      // Note: AuthContext.updateUser should handle this, but let's be safe if we want immediate effect in this mock environment
       try {
         const storedUsers = JSON.parse(localStorage.getItem('meufreelas_users') || '[]');
         const updatedUsers = storedUsers.map((u: any) => 
@@ -114,7 +120,6 @@ export default function Premium() {
         );
         localStorage.setItem('meufreelas_users', JSON.stringify(updatedUsers));
         
-        // Also update individual profile if needed
         const profileKey = `profile_${user?.id}`;
         const profile = JSON.parse(localStorage.getItem(profileKey) || '{}');
         localStorage.setItem(profileKey, JSON.stringify({ ...profile, ...updatedData }));
@@ -122,15 +127,19 @@ export default function Premium() {
         console.error("Error persisting plan", e);
       }
 
-      alert(`Parabéns! Você assinou o plano ${selectedPlan.name} com sucesso.`);
+      alert(`Parabéns! Você assinou o plano ${plan.name} com sucesso.`);
+      setPaymentModalOpen(false);
       navigate('/freelancer/dashboard');
-    }
-    
-    setLoading(null);
   };
 
   return (
     <div className="bg-white">
+      <PaymentModal 
+        isOpen={paymentModalOpen} 
+        onClose={() => setPaymentModalOpen(false)} 
+        plan={selectedPlan || {}}
+        onSuccess={() => handleSuccess(selectedPlan)}
+      />
       {/* Header */}
       <header className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

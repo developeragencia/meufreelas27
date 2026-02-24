@@ -7,16 +7,32 @@ namespace Composer\Autoload;
 class ComposerStaticInit67daaa7e9ea7dc03418d39e9b210486f
 {
     public static $prefixLengthsPsr4 = array (
+        'S' =>
+        array (
+            'Stripe\\' => 7,
+        ),
         'P' =>
         array (
             'PHPMailer\\PHPMailer\\' => 20,
         ),
+        'M' =>
+        array (
+            'MercadoPago\\' => 12,
+        ),
     );
 
     public static $prefixDirsPsr4 = array (
+        'Stripe\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/stripe/stripe-php/lib',
+        ),
         'PHPMailer\\PHPMailer\\' =>
         array (
             0 => __DIR__ . '/..' . '/phpmailer/phpmailer/src',
+        ),
+        'MercadoPago\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/mercadopago/dx-php/src/MercadoPago',
         ),
     );
 

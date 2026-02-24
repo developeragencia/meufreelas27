@@ -92,6 +92,8 @@ export default function Checkout() {
       provider,
       successUrl,
       cancelUrl,
+      amount: total,
+      title: `Pagamento do projeto: ${proposal.projectTitle}`,
     });
     setIsProcessing(false);
     if (!res.ok || !res.checkoutUrl) {

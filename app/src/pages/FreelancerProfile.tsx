@@ -243,7 +243,7 @@ export default function FreelancerProfile() {
   } as any);
   const completionScore = completionResult.score;
 
-  const activeBadges = [
+  const allBadges = [
     {
       id: 'top_1',
       icon: Medal,
@@ -274,7 +274,7 @@ export default function FreelancerProfile() {
       name: 'Experiente',
       description: 'Tem experiência no envio de propostas',
       color: 'bg-amber-600',
-      unlocked: (freelancer.jobs || 0) > 5 // Assuming jobs count correlates with proposals experience
+      unlocked: (freelancer.jobs || 0) > 5
     },
     {
       id: 'recommended',
@@ -284,7 +284,7 @@ export default function FreelancerProfile() {
       color: 'bg-blue-800',
       unlocked: (freelancer.recommendations || 0) > 0
     }
-  ].filter(b => b.unlocked);
+  ];
 
   return (
     <div className="min-h-screen bg-gray-100 overflow-x-hidden">
@@ -662,12 +662,14 @@ export default function FreelancerProfile() {
                   <div className="h-full bg-99blue rounded-full transition-all" style={{ width: `${completionScore}%` }} />
                 </div>
               </div>
-              {activeBadges.length > 0 ? (
+              {allBadges.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
-                  {activeBadges.map((badge) => (
+                  {allBadges.map((badge) => (
                     <div 
                       key={badge.id} 
-                      className={`group relative flex items-center justify-center w-10 h-10 rounded-full transition-all ${badge.color}`}
+                      className={`group relative flex items-center justify-center w-10 h-10 rounded-full transition-all ${
+                        badge.unlocked ? badge.color : 'bg-gray-200 grayscale opacity-50'
+                      }`}
                       title={badge.description}
                     >
                       <badge.icon className="w-5 h-5 text-white" />
@@ -676,6 +678,7 @@ export default function FreelancerProfile() {
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none shadow-lg">
                         <p className="font-bold mb-0.5">{badge.name}</p>
                         <p className="font-normal opacity-90">{badge.description}</p>
+                        {!badge.unlocked && <p className="font-bold text-red-300 mt-1">(Bloqueado)</p>}
                         <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
                       </div>
                     </div>

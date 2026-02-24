@@ -22,6 +22,7 @@ interface ProfileModel {
   ranking: number;
   profileCompletion: number;
   planTier: 'free' | 'pro' | 'premium';
+  type: 'freelancer' | 'client';
 }
 
 function toUsername(value: string): string {
@@ -119,6 +120,7 @@ export default function UserProfile() {
         ranking: Number(found?.ranking || 0),
         profileCompletion: Number(found?.profileCompletion || 0),
         planTier: (isFreelancerProfile ? ((found?.planType || found?.plan || 'free') as 'free' | 'pro' | 'premium') : 'free'),
+        type: isFreelancerProfile ? 'freelancer' : 'client',
       });
     };
     void load();
@@ -241,7 +243,18 @@ export default function UserProfile() {
               </div>
               <p className="text-gray-600 mt-1">{profile.title}</p>
               <div className="mt-2 text-sm text-gray-600">
-                Ranking: <strong>{profile.ranking || '-'}</strong> | Projetos concluídos: <strong>{profile.completedProjects}</strong> | Recomendações: <strong>{profile.recommendations}</strong> | Registrado desde: <strong>{profile.memberSince}</strong>
+                {profile.type === 'freelancer' && (
+                  <>
+                    Ranking: <strong>{profile.ranking || '-'}</strong> |{' '}
+                  </>
+                )}
+                Projetos {profile.type === 'client' ? 'publicados' : 'concluídos'}: <strong>{profile.completedProjects}</strong> |{' '}
+                {profile.type === 'freelancer' && (
+                  <>
+                    Recomendações: <strong>{profile.recommendations}</strong> |{' '}
+                  </>
+                )}
+                Registrado desde: <strong>{profile.memberSince}</strong>
               </div>
               {reputationBadges.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
