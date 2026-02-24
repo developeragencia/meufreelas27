@@ -27,6 +27,8 @@ export interface User {
   title?: string;
   portfolio?: any[];
   experiences?: any[];
+  connections?: number;
+  plan?: 'free' | 'pro' | 'premium';
 }
 
 export type LoginResult = { success: boolean; error?: string; code?: string };
