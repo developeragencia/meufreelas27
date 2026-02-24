@@ -233,6 +233,31 @@ export default function MyProjects() {
 
         {isLoading ? (
           <div className="bg-white rounded-lg shadow-sm p-10 text-center text-gray-500">Carregando projetos...</div>
+        ) : filteredProjects.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-sm p-10 text-center text-gray-500">
+            {user?.type === 'client'
+              ? 'Você ainda não tem projetos cadastrados.'
+              : 'Você ainda não tem projetos contratados.'}
+            <div className="mt-4">
+              {user?.type === 'client' ? (
+                <Link
+                  to="/project/new"
+                  className="inline-flex items-center px-4 py-2 bg-99blue text-white rounded-lg hover:bg-sky-400 transition-colors text-sm font-medium"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Publicar primeiro projeto
+                </Link>
+              ) : (
+                <Link
+                  to="/projects"
+                  className="inline-flex items-center px-4 py-2 bg-99blue text-white rounded-lg hover:bg-sky-400 transition-colors text-sm font-medium"
+                >
+                  <Search className="w-4 h-4 mr-2" />
+                  Buscar projetos
+                </Link>
+              )}
+            </div>
+          </div>
         ) : (
           <div className="space-y-4">
             {filteredProjects.map((project) => (
