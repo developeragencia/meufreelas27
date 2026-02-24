@@ -389,7 +389,7 @@ export default function SendProposal() {
                         <input
                           type="number"
                           value={offer}
-                          onChange={(e) => setOffer(e.target.value)}
+                          onChange={(e) => handleOfferChange(e.target.value)}
                           placeholder="0,00"
                           className="w-full px-3 py-2 outline-none"
                         />
@@ -398,9 +398,14 @@ export default function SendProposal() {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-800 mb-2">Oferta final</label>
-                      <div className="flex border border-gray-300 bg-gray-50">
+                      <div className="flex border border-gray-300">
                         <span className="px-3 py-2 text-sm bg-gray-100 border-r border-gray-300">R$</span>
-                        <input type="text" value={(Number(offer || 0) * 1.25).toFixed(2)} readOnly className="w-full px-3 py-2 outline-none bg-gray-50" />
+                        <input 
+                          type="number" 
+                          value={finalOffer} 
+                          onChange={(e) => handleFinalOfferChange(e.target.value)}
+                          className="w-full px-3 py-2 outline-none" 
+                        />
                       </div>
                       <button
                         type="button"
@@ -516,7 +521,6 @@ export default function SendProposal() {
                   </button>
                 </div>
               </form>
-            )}
           </div>
 
           {/* Sidebar */}

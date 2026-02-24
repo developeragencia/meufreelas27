@@ -664,3 +664,49 @@ export async function apiUpdateProfile(userId: string, data: any): Promise<{ ok:
     return { ok: false, error: 'Falha de conexão' };
   }
 }
+
+export type ApiReview = {
+  id: string;
+  reviewerName: string;
+  reviewerAvatar?: string;
+  rating: number;
+  comment: string;
+  date: string;
+  projectTitle: string;
+};
+
+export async function apiListReviews(userId: string): Promise<{ ok: boolean; reviews?: ApiReview[]; error?: string }> {
+  if (!API_URL) return { ok: false, error: 'API não configurada' };
+  try {
+    const url = `${API_URL.replace(/\/$/, '')}/reviews.php?userId=${encodeURIComponent(userId)}`;
+    const res = await fetch(url, { credentials: 'omit' });
+    const data = await res.json().catch(() => ({}));
+    return {
+      ok: !!data.ok,
+      reviews: (data.reviews as ApiReview[] | undefined) || [],
+      error: data.error as string | undefined,
+    };
+  } catch (e) {
+    console.error('apiListReviews', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
+
+export async function apiCreateSubscriptionCheckout(payload: {
+  userId: string;
+  plan: 'pro' | 'premium';
+  cycle: 'monthly' | 'yearly';
+  provider: 'stripe' | 'mercadopago';
+}): Promise<{ ok: boolean; checkoutUrl?: string; error?: string }> {
+  try {
+    const data = await callPaymentsApi({ action: 'create_subscription_checkout', ...payload });
+    return {
+      ok: !!data.ok,
+      checkoutUrl: data.checkoutUrl as string | undefined,
+      error: data.error as string | undefined,
+    };
+  } catch (e) {
+    console.error('apiCreateSubscriptionCheckout', e);
+    return { ok: false, error: 'Falha de conexão' };
+  }
+}
