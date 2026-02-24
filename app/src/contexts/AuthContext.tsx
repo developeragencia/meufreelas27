@@ -21,6 +21,9 @@ export interface User {
   isVerified?: boolean;
   isPremium?: boolean;
   isPro?: boolean;
+  ranking?: number;
+  profileCompletion?: number;
+  recommendations?: number;
 }
 
 export type LoginResult = { success: boolean; error?: string; code?: string };
