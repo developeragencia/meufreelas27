@@ -151,6 +151,10 @@ export type ApiFreelancerPublic = {
   rankingScore: number;
   isVerified?: boolean;
   registeredAt?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  isOnline?: boolean;
 };
 
 export async function apiListFreelancersPublic(): Promise<{ ok: boolean; freelancers?: ApiFreelancerPublic[]; total?: number; error?: string }> {
