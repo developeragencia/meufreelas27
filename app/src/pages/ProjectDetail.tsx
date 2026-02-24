@@ -169,6 +169,7 @@ export default function ProjectDetail() {
   const [deliveryRatingById, setDeliveryRatingById] = useState<Record<string, number>>({});
   const [loadingProject, setLoadingProject] = useState(true);
   const [questionLoading, setQuestionLoading] = useState(false);
+  const HIDDEN_PROJECT_IDS = ['ee15eb2bbd4a6520bad2e569e5450db99a8f'];
 
   const menuItems = [
     { icon: Home, label: 'Início', href: '/' },
@@ -188,6 +189,11 @@ export default function ProjectDetail() {
   const loadProject = async () => {
     setLoadingProject(true);
     if (!id) {
+      setProject(null);
+      setLoadingProject(false);
+      return;
+    }
+    if (HIDDEN_PROJECT_IDS.includes(id)) {
       setProject(null);
       setLoadingProject(false);
       return;
@@ -299,6 +305,10 @@ export default function ProjectDetail() {
 
   const loadProposals = async () => {
     if (!id) return;
+    if (HIDDEN_PROJECT_IDS.includes(id)) {
+      setProposals([]);
+      return;
+    }
     if (!hasApi()) {
       try {
         const raw = JSON.parse(localStorage.getItem('meufreelas_proposals') || '[]');

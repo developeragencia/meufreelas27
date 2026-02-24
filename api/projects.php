@@ -68,6 +68,90 @@ function normalize_skills($skills): array {
     return $normalized;
 }
 
+function mf_ensure_whatsapp_demo_project(PDO $pdo): ?array {
+    $newId = '8c5870363bc9ca76312b3b530fbb6cdf7363';
+    $oldId = 'ee15eb2bbd4a6520bad2e569e5450db99a8f';
+
+    $checkNew = $pdo->prepare("
+        SELECT p.*, u.name AS client_name, COUNT(pr.id) AS proposals_count
+        FROM projects p
+        INNER JOIN users u ON u.id = p.client_id
+        LEFT JOIN proposals pr ON pr.project_id = p.id
+        WHERE p.id = ?
+        GROUP BY p.id
+        LIMIT 1
+    ");
+    $checkNew->execute([$newId]);
+    $existing = $checkNew->fetch();
+    if ($existing) {
+        return $existing;
+    }
+
+    $checkOld = $pdo->prepare('SELECT client_id FROM projects WHERE id = ? LIMIT 1');
+    $checkOld->execute([$oldId]);
+    $old = $checkOld->fetch();
+    if (!$old || empty($old['client_id'])) {
+        return null;
+    }
+
+    $description = <<<'TXT'
+Olá! Se você é um profissional com excelente comunicação escrita e busca uma renda extra garantida, segura e que tome pouco tempo do seu dia, preste muita atenção neste projeto.
+
+A atuação é de apenas 1 hora por dia.
+
+Somos uma empresa em crescimento e estamos buscando um(a) especialista em atendimento para ser a "voz" da nossa marca no WhatsApp.
+
+O que você vai fazer:
+• Responder mensagens de clientes e interessados de forma humanizada, empática e ágil.
+• Esclarecer dúvidas frequentes utilizando nossos materiais de apoio e roteiros.
+• Fazer a triagem de contatos e direcionar problemas complexos para a nossa equipe interna.
+
+O que nós esperamos de você:
+• Português impecável: gramática, ortografia e pontuação corretas são inegociáveis.
+• Empatia e simpatia.
+• Capacidade de contornar objeções com educação e acolher o cliente.
+TXT;
+
+    $skills = ['Atendimento', 'WhatsApp', 'Comunicação', 'Empatia'];
+    $skillsJson = json_encode($skills, JSON_UNESCAPED_UNICODE);
+
+    $insert = $pdo->prepare("
+        INSERT INTO projects (
+            id, client_id, title, description, budget, category, skills, experience_level, proposal_days, visibility, status
+        ) VALUES (
+            :id, :client_id, :title, :description, :budget, :category, :skills, :experience_level, :proposal_days, :visibility, 'open'
+        )
+    ");
+    $insert->execute([
+        'id' => $newId,
+        'client_id' => $old['client_id'],
+        'title' => 'Atendimento ao cliente via WhatsApp por 1 hora',
+        'description' => $description,
+        'budget' => null,
+        'category' => 'Atendimento ao Consumidor',
+        'skills' => $skillsJson,
+        'experience_level' => 'intermediate',
+        'proposal_days' => '29',
+        'visibility' => 'public',
+    ]);
+
+    $reload = $pdo->prepare("
+        SELECT p.*, u.name AS client_name, COUNT(pr.id) AS proposals_count
+        FROM projects p
+        INNER JOIN users u ON u.id = p.client_id
+        LEFT JOIN proposals pr ON pr.project_id = p.id
+        WHERE p.id = ?
+        GROUP BY p.id
+        LIMIT 1
+    ");
+    $reload->execute([$newId]);
+    $created = $reload->fetch();
+    if ($created) {
+        return $created;
+    }
+    return null;
+}
+
 $input = json_decode(file_get_contents('php://input'), true) ?? [];
 $action = trim((string)($input['action'] ?? ''));
 
@@ -138,7 +222,13 @@ if ($action === 'create_project') {
     exit;
 }
 
+// IDs de projetos que não devem mais ser exibidos publicamente
+$MF_HIDDEN_PROJECT_IDS = [
+    'ee15eb2bbd4a6520bad2e569e5450db99a8f',
+];
+
 if ($action === 'list_projects') {
+    mf_ensure_whatsapp_demo_project($pdo);
     $clientId = trim((string)($input['clientId'] ?? ''));
     $status = trim((string)($input['status'] ?? ''));
     $search = trim((string)($input['search'] ?? ''));
@@ -186,6 +276,11 @@ if ($action === 'list_projects') {
     $stmt->execute($params);
     $rows = $stmt->fetchAll();
 
+    // Remove projetos ocultos da listagem
+    $rows = array_values(array_filter($rows, function ($r) use ($MF_HIDDEN_PROJECT_IDS) {
+        return !in_array($r['id'], $MF_HIDDEN_PROJECT_IDS, true);
+    }));
+
     $projects = array_map(function ($r) {
         $skills = [];
         if (!empty($r['skills'])) {
@@ -220,6 +315,41 @@ if ($action === 'get_project') {
     if ($projectId === '') {
         echo json_encode(['ok' => false, 'error' => 'projectId é obrigatório.']);
         exit;
+    }
+    if (in_array($projectId, $MF_HIDDEN_PROJECT_IDS, true)) {
+        echo json_encode(['ok' => false, 'error' => 'Projeto não encontrado.']);
+        exit;
+    }
+    if ($projectId === '8c5870363bc9ca76312b3b530fbb6cdf7363') {
+        $demo = mf_ensure_whatsapp_demo_project($pdo);
+        if ($demo) {
+            $skills = [];
+            if (!empty($demo['skills'])) {
+                $parsed = json_decode($demo['skills'], true);
+                if (is_array($parsed)) $skills = $parsed;
+            }
+            echo json_encode([
+                'ok' => true,
+                'project' => [
+                    'id' => $demo['id'],
+                    'clientId' => $demo['client_id'],
+                    'clientName' => $demo['client_name'],
+                    'title' => $demo['title'],
+                    'description' => $demo['description'],
+                    'budget' => (string)($demo['budget'] ?? ''),
+                    'category' => $demo['category'],
+                    'skills' => $skills,
+                    'experienceLevel' => $demo['experience_level'],
+                    'proposalDays' => $demo['proposal_days'],
+                    'visibility' => $demo['visibility'],
+                    'status' => normalize_status_for_ui((string)$demo['status']),
+                    'proposals' => (int)($demo['proposals_count'] ?? 0),
+                    'createdAt' => $demo['created_at'],
+                    'updatedAt' => $demo['updated_at'],
+                ],
+            ]);
+            exit;
+        }
     }
     $stmt = $pdo->prepare("
         SELECT p.*, u.name AS client_name, COUNT(pr.id) AS proposals_count
