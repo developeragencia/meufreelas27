@@ -166,7 +166,7 @@ export default function Freelancers() {
       id: f.id,
       name: f.name,
       username: f.username,
-      avatar: f.avatar,
+      avatar: f.avatar && f.avatar.trim() !== '' ? f.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(f.name)}&background=003366&color=fff`,
       title: f.title,
       bio: f.bio,
       skills: Array.isArray(f.skills) ? f.skills : [],

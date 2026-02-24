@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Briefcase, Clock, DollarSign, Eye, Search, Trash2 } from 'lucide-react';
+import { Plus, Briefcase, Clock, DollarSign, Eye, Search, Trash2, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiDeleteProject, apiListProjects, apiListProposals, hasApi, type ApiProject } from '../lib/api';
 
@@ -99,7 +99,7 @@ export default function MyProjects() {
       experienceLevel: 'intermediate',
       proposalDays: proposal.deliveryDays,
       visibility: 'public',
-      status: proposal.projectStatus || 'Em andamento',
+      status: (proposal.projectStatus as ApiProject['status']) || 'Em andamento',
       proposals: 1,
       createdAt: proposal.createdAt,
       updatedAt: proposal.createdAt,

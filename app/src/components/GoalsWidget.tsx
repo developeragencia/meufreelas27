@@ -14,22 +14,23 @@ interface Goal {
 }
 
 const GOAL_TEMPLATES_FREELANCER: Goal[] = [
-  { id: 'complete_profile', icon: User, title: 'Completar perfil', description: 'Preencha todas as informações do seu perfil', points: 50, completed: false, link: '/profile/edit' },
-  { id: 'publish_project', icon: Briefcase, title: 'Publicar projeto', description: 'Publique seu primeiro projeto', points: 100, completed: false, link: '/project/new' },
-  { id: 'send_proposal', icon: MessageSquare, title: 'Enviar proposta', description: 'Envie sua primeira proposta', points: 50, completed: false, link: '/projects' },
-  { id: 'receive_review', icon: Star, title: 'Receber avaliação', description: 'Receba sua primeira avaliação positiva', points: 100, completed: false, link: '/profile' },
-  { id: 'invite_friend', icon: Users, title: 'Convidar amigo', description: 'Convide um amigo para a plataforma', points: 50, completed: false, link: '#' },
-  { id: 'complete_project', icon: Award, title: 'Completar projeto', description: 'Complete seu primeiro projeto', points: 150, completed: false, link: '/my-projects' },
-  { id: 'premium_member', icon: Gift, title: 'Tornar-se Premium', description: 'Assine o plano Premium', points: 200, completed: false, link: '/premium' },
+  { id: 'complete_profile', icon: User, title: 'Perfil 100% completo', description: 'Finalize todas as informações do seu perfil', points: 50, completed: false, link: '/profile/edit' },
+  { id: 'verify_identity', icon: CheckCircle, title: 'Conta verificada', description: 'Conclua a verificação de identidade', points: 80, completed: false, link: '/account?tab=verification' },
+  { id: 'send_first_proposal', icon: MessageSquare, title: 'Primeira proposta', description: 'Envie sua primeira proposta', points: 60, completed: false, link: '/projects' },
+  { id: 'send_10_proposals', icon: MessageSquare, title: 'Proponente', description: 'Envie 10 propostas na plataforma', points: 120, completed: false, link: '/projects' },
+  { id: 'complete_first_project', icon: Award, title: 'Primeiro projeto', description: 'Conclua seu primeiro projeto', points: 120, completed: false, link: '/my-projects' },
+  { id: 'complete_5_projects', icon: Briefcase, title: 'Profissional', description: 'Conclua 5 projetos no total', points: 180, completed: false, link: '/my-projects' },
+  { id: 'complete_20_projects', icon: Star, title: 'Especialista', description: 'Conclua 20 projetos no total', points: 300, completed: false, link: '/my-projects' },
+  { id: 'add_10_skills', icon: Users, title: 'Mestre das skills', description: 'Adicione 10 habilidades ao perfil', points: 150, completed: false, link: '/profile/edit' },
+  { id: 'premium_member', icon: Gift, title: 'Assinante Premium', description: 'Ative o plano Premium', points: 200, completed: false, link: '/premium' },
 ];
 
 const GOAL_TEMPLATES_CLIENT: Goal[] = [
-  { id: 'complete_profile', icon: User, title: 'Completar perfil', description: 'Preencha seus dados pessoais', points: 50, completed: false, link: '/profile/edit' },
-  { id: 'publish_project', icon: Briefcase, title: 'Publicar projeto', description: 'Publique seu primeiro projeto', points: 100, completed: false, link: '/project/new' },
-  { id: 'hire_freelancer', icon: Users, title: 'Contratar freelancer', description: 'Aceite uma proposta e contrate', points: 150, completed: false, link: '/my-projects' },
-  { id: 'complete_payment', icon: DollarSign, title: 'Concluir pagamento', description: 'Pague e conclua um projeto', points: 100, completed: false, link: '/payments' },
-  { id: 'invite_friend', icon: Users, title: 'Convidar amigo', description: 'Convide um amigo para a plataforma', points: 50, completed: false, link: '#' },
-  { id: 'premium_member', icon: Gift, title: 'Tornar-se Premium', description: 'Assine o plano Premium', points: 200, completed: false, link: '/premium' },
+  { id: 'complete_profile', icon: User, title: 'Perfil 100% completo', description: 'Preencha seus dados pessoais e de contato', points: 50, completed: false, link: '/profile/edit' },
+  { id: 'publish_project', icon: Briefcase, title: 'Primeiro projeto publicado', description: 'Publique seu primeiro projeto na plataforma', points: 100, completed: false, link: '/project/new' },
+  { id: 'hire_freelancer', icon: Users, title: 'Primeira contratação', description: 'Contrate um freelancer pela plataforma', points: 150, completed: false, link: '/my-projects' },
+  { id: 'complete_payment', icon: DollarSign, title: 'Projeto concluído', description: 'Conclua pagamento de um projeto', points: 120, completed: false, link: '/payments' },
+  { id: 'premium_member', icon: Gift, title: 'Conta Premium', description: 'Ative um plano Premium para ter mais benefícios', points: 200, completed: false, link: '/premium' },
 ];
 
 function cloneGoalsTemplate(isClient: boolean): Goal[] {
@@ -92,13 +93,13 @@ export default function GoalsWidget() {
 
       const hasProject = projects.some((p) => String(p.clientId) === String(user.id));
       const hasProposal = proposals.some((p) => String(p.freelancerId) === String(user.id));
-      const hasCompletedProject =
-        Number(user.completedProjects || 0) > 0 ||
-        projects.some(
-          (p) =>
-            (String(p.clientId) === String(user.id) || String(p.freelancerId) === String(user.id)) &&
-            String(p.status || '').toLowerCase() === 'completed'
-        );
+      const completedProjects = projects.filter(
+        (p) =>
+          (String(p.clientId) === String(user.id) || String(p.freelancerId) === String(user.id)) &&
+          String(p.status || '').toLowerCase() === 'completed'
+      );
+      const completedCount = completedProjects.length || Number(user.completedProjects || 0);
+      const hasCompletedProject = completedCount > 0;
 
       const autoCompletedById: Record<string, boolean> = isClient
         ? {
@@ -106,15 +107,17 @@ export default function GoalsWidget() {
             publish_project: hasProject,
             hire_freelancer: hasProposal || hasCompletedProject,
             complete_payment: hasCompletedProject,
-            invite_friend: completedById.get('invite_friend') ?? false,
             premium_member: Boolean(user.isPremium),
           }
         : {
             complete_profile: isProfileComplete(profile, Boolean(user.avatar), false),
-            publish_project: hasProject,
-            send_proposal: hasProposal,
-            receive_review: Number(user.rating || 0) > 0,
-            complete_project: hasCompletedProject,
+            verify_identity: Boolean(user.isVerified),
+            send_first_proposal: hasProposal,
+            send_10_proposals: proposals.filter((p) => String(p.freelancerId) === String(user.id)).length >= 10,
+            complete_first_project: completedCount >= 1,
+            complete_5_projects: completedCount >= 5,
+            complete_20_projects: completedCount >= 20,
+            add_10_skills: (profile?.skills && Array.isArray(profile.skills) ? profile.skills.length : 0) >= 10,
             premium_member: Boolean(user.isPremium),
           };
 

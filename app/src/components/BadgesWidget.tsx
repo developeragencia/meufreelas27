@@ -26,6 +26,7 @@ export default function BadgesWidget() {
     // Load stats
     const projects = JSON.parse(localStorage.getItem('meufreelas_projects') || '[]');
     const userProjects = projects.filter((p: any) => p.clientId === user.id || p.freelancerId === user.id);
+    const completedProjects = userProjects.filter((p: any) => String(p.status || '').toLowerCase() === 'completed');
     const proposals = JSON.parse(localStorage.getItem('meufreelas_proposals') || '[]');
     const userProposals = proposals.filter((p: any) => p.freelancerId === user.id);
     const profileData = localStorage.getItem(`profile_${user.id}`);
@@ -38,15 +39,7 @@ export default function BadgesWidget() {
         name: 'Novato',
         description: 'Complete seu perfil na plataforma',
         color: 'bg-blue-500',
-        unlocked: true
-      },
-      {
-        id: 'verified',
-        icon: Shield,
-        name: 'Verificado',
-        description: 'Verifique seu perfil',
-        color: 'bg-green-500',
-        unlocked: user?.isVerified || false
+        unlocked: false
       },
       {
         id: 'first_project',
@@ -54,12 +47,12 @@ export default function BadgesWidget() {
         name: 'Primeiro projeto',
         description: 'Conclua seu primeiro projeto',
         color: 'bg-purple-500',
-        unlocked: userProjects.length > 0,
-        progress: userProjects.length,
+        unlocked: completedProjects.length >= 1,
+        progress: completedProjects.length,
         maxProgress: 1
       },
       {
-        id: 'proposals_10',
+        id: 'proponent',
         icon: Zap,
         name: 'Proponente',
         description: 'Envie 10 propostas',
@@ -69,48 +62,14 @@ export default function BadgesWidget() {
         maxProgress: 10
       },
       {
-        id: 'projects_5',
+        id: 'professional',
         icon: Target,
         name: 'Profissional',
         description: 'Conclua 5 projetos',
         color: 'bg-orange-500',
-        unlocked: userProjects.length >= 5,
-        progress: userProjects.length,
+        unlocked: completedProjects.length >= 5,
+        progress: completedProjects.length,
         maxProgress: 5
-      },
-      {
-        id: 'top_rated',
-        icon: Crown,
-        name: 'Top rated',
-        description: 'Mantenha avaliação acima de 4.5',
-        color: 'bg-yellow-600',
-        unlocked: (user?.rating || 0) >= 4.5
-      },
-      {
-        id: 'fast_response',
-        icon: Clock,
-        name: 'Rápido',
-        description: 'Responda em menos de 1 hora',
-        color: 'bg-cyan-500',
-        unlocked: false
-      },
-      {
-        id: 'popular',
-        icon: Users,
-        name: 'Popular',
-        description: 'Seja favoritado 10 vezes',
-        color: 'bg-pink-500',
-        unlocked: false,
-        progress: 0,
-        maxProgress: 10
-      },
-      {
-        id: 'premium',
-        icon: Crown,
-        name: 'Premium',
-        description: 'Assine o plano Premium',
-        color: 'bg-gradient-to-r from-yellow-400 to-yellow-600',
-        unlocked: user?.isPremium || false
       },
       {
         id: 'expert',
@@ -118,8 +77,8 @@ export default function BadgesWidget() {
         name: 'Especialista',
         description: 'Conclua 20 projetos',
         color: 'bg-red-500',
-        unlocked: userProjects.length >= 20,
-        progress: userProjects.length,
+        unlocked: completedProjects.length >= 20,
+        progress: completedProjects.length,
         maxProgress: 20
       },
       {
@@ -133,14 +92,36 @@ export default function BadgesWidget() {
         maxProgress: 10
       },
       {
-        id: 'referrer',
-        icon: Gift,
-        name: 'Embaixador',
-        description: 'Convide 5 amigos',
-        color: 'bg-teal-500',
-        unlocked: false,
-        progress: 0,
-        maxProgress: 5
+        id: 'verified',
+        icon: Shield,
+        name: 'Verificado',
+        description: 'Conta de identidade verificada',
+        color: 'bg-green-500',
+        unlocked: Boolean(user?.isVerified)
+      },
+      {
+        id: 'premium',
+        icon: Crown,
+        name: 'Premium',
+        description: 'Plano premium ativo',
+        color: 'bg-gradient-to-r from-yellow-400 to-yellow-600',
+        unlocked: Boolean(user?.isPremium)
+      },
+      {
+        id: 'top_rated',
+        icon: Crown,
+        name: 'Top rated',
+        description: 'Avaliação média a partir de 4,5 estrelas',
+        color: 'bg-yellow-600',
+        unlocked: (user?.rating || 0) >= 4.5
+      },
+      {
+        id: 'popular',
+        icon: Users,
+        name: 'Popular',
+        description: 'Destaque entre os mais contratados',
+        color: 'bg-pink-500',
+        unlocked: false
       }
     ];
 
