@@ -569,7 +569,26 @@ export default function Messages() {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 relative">
+                {/* Warning Banner */}
+                <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6 flex items-start gap-3">
+                  <div className="bg-white p-1.5 rounded-full shadow-sm flex-shrink-0">
+                    <Shield className="w-6 h-6 text-red-500" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-red-600 text-sm mb-1">Atenção:</h4>
+                    <p className="text-sm text-red-700 leading-relaxed">
+                      Negocie sempre via chat seguro do 99Freelas. Informações de contato só poderão ser passadas após o pagamento ser feito dentro do 99Freelas.
+                    </p>
+                    <p className="text-xs text-red-600 mt-1 font-medium">
+                      * O descumprimento desta regra poderá acarretar em penalizações e banimentos.
+                    </p>
+                  </div>
+                  <button className="text-red-400 hover:text-red-600 ml-auto">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
                 {selectedConversation?.projectTitle && (
                   <div className="bg-white border border-gray-200 rounded-xl p-4">
                     <div className="flex items-start justify-between gap-4">

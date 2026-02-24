@@ -457,91 +457,72 @@ export default function FreelancerDashboard() {
             </p>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="font-semibold text-gray-800">Completude do Perfil</h2>
-              <span
-                className={`text-xs px-2 py-1 rounded-full ${
-                  profileCompletion.level === 'alta'
-                    ? 'bg-green-100 text-green-700'
-                    : profileCompletion.level === 'média'
-                    ? 'bg-yellow-100 text-yellow-700'
-                    : 'bg-red-100 text-red-700'
-                }`}
-              >
-                {profileCompletion.score}%
-              </span>
+          <div className="bg-white rounded-xl shadow-sm mb-6">
+            <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="font-semibold text-gray-800">Minhas conexões</h2>
             </div>
-            <div className="w-full h-2 bg-gray-200 rounded-full mb-3">
-              <div className="h-full bg-99blue rounded-full transition-all" style={{ width: `${profileCompletion.score}%` }} />
-            </div>
-            {profileCompletion.nextSteps.length > 0 && (
-              <p className="text-sm text-gray-500">
-                Próximos passos: {profileCompletion.nextSteps.join(', ')}.
+            <div className="p-4">
+              <p className="text-gray-600 mb-2">Conexões disponíveis: <strong className="text-gray-800">20</strong></p>
+              <p className="text-sm text-gray-500 mb-2">
+                10 conexões restantes de um total de 10 referentes ao seu plano (Gratuito). Essas conexões serão renovadas no dia {new Date(new Date().setMonth(new Date().getMonth() + 1)).toLocaleDateString('pt-BR')}.
               </p>
-            )}
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-            <h2 className="font-semibold text-gray-800 mb-3">Selos e Reputação</h2>
-            {badges.length === 0 ? (
-              <p className="text-sm text-gray-500">Complete seu perfil e conclua projetos para conquistar selos.</p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {badges.map((badge) => (
-                  <span key={badge} className="px-3 py-1 rounded-full text-xs font-medium bg-99blue/10 text-99blue">
-                    {badge}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <Link to="/projects" className="bg-gradient-to-r from-99blue to-99blue-light rounded-xl p-4 md:p-6 text-white">
-              <h3 className="font-semibold mb-1">Encontre Novos Projetos</h3>
-              <p className="text-sm text-white/80 mb-3">Milhares de oportunidades esperando por você</p>
-              <span className="inline-block px-4 py-2 bg-white text-99blue rounded-lg text-sm font-medium">
-                Buscar Projetos
-              </span>
-            </Link>
-            <Link to="/profile/edit" className="bg-white rounded-xl p-4 md:p-6 shadow-sm">
-              <h3 className="font-semibold text-gray-800 mb-1">Complete seu Perfil</h3>
-              <p className="text-sm text-gray-500 mb-3">Aumente suas chances de ser contratado</p>
-              <span className="text-99blue text-sm font-medium">Editar perfil →</span>
-            </Link>
+              <p className="text-sm text-gray-500 mb-4">
+                10 conexões não expiráveis.
+              </p>
+              <Link to="/plans" className="inline-block px-4 py-2 bg-99blue text-white rounded font-medium text-sm hover:bg-blue-600 transition-colors">
+                Assinar plano
+              </Link>
+            </div>
           </div>
 
           <div className="bg-white rounded-xl shadow-sm mb-6">
             <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="font-semibold text-gray-800">Minhas Propostas</h2>
-              <Link to="/freelancer/proposals" className="text-99blue text-sm">Ver todas</Link>
+              <h2 className="font-semibold text-gray-800">Minhas metas</h2>
             </div>
-            {proposals.length > 0 ? (
-              <div className="divide-y divide-gray-100">
-                {proposals.slice(0, 3).map((proposal) => (
-                  <div key={proposal.id} className="p-4 hover:bg-gray-50">
-                    <h3 className="font-medium text-gray-800">{proposal.projectTitle}</h3>
-                    <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                      <span className="text-99blue font-medium">{proposal.value}</span>
-                      <span>{proposal.status}</span>
-                    </div>
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">Metas concluídas (20%)</span>
+              </div>
+              <div className="w-full h-2 bg-gray-200 rounded-full mb-4">
+                <div className="h-full bg-99blue rounded-full transition-all" style={{ width: '20%' }} />
+              </div>
+              
+              <ul className="space-y-2 text-sm">
+                <li className="flex items-center gap-2 text-gray-700">
+                  <div className="w-4 h-4 bg-99blue rounded flex items-center justify-center">
+                    <Check className="w-3 h-3 text-white" />
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-8 text-center">
-                <Briefcase className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                <p className="text-gray-500 text-sm">Você ainda não enviou propostas</p>
-                <Link to="/projects" className="text-99blue text-sm mt-2 inline-block">Buscar projetos</Link>
-              </div>
-            )}
+                  Completar Perfil (+)
+                </li>
+                <li className="flex items-center gap-2 text-gray-400">
+                  <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                  Enviar Feedback (+)
+                </li>
+                <li className="flex items-center gap-2 text-gray-400">
+                  <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                  Enviar Proposta (+)
+                </li>
+                <li className="flex items-center gap-2 text-gray-400">
+                  <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                  Receber Recomendação (+)
+                </li>
+                <li className="flex items-center gap-2 text-gray-400">
+                  <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                  Convidar Amigos (+)
+                </li>
+              </ul>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <GoalsWidget />
-            <BadgesWidget />
-          </div>
+            <div className="bg-white rounded-xl shadow-sm p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold text-gray-800">Perfil preenchido ({profileCompletion.score}%)</h2>
+              </div>
+              <div className="w-full h-3 bg-gray-200 rounded-full mb-3">
+                <div className="h-full bg-99blue rounded-full transition-all" style={{ width: `${profileCompletion.score}%` }} />
+              </div>
+            </div>
         </main>
       </div>
 

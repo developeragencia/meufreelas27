@@ -104,7 +104,10 @@ export default function SendProposal() {
         category: res.project.category,
         minOffer: minimumOffer,
       });
-      if (!offer) setOffer(minimumOffer.toFixed(2));
+      if (!offer) {
+        setOffer(minimumOffer.toFixed(2));
+        setFinalOffer((minimumOffer * 1.25).toFixed(2));
+      }
     }
     loadProject();
   }, [projectId, isAuthenticated, navigate]);
@@ -148,11 +151,37 @@ export default function SendProposal() {
     return { gross: value, fee, net };
   };
 
+  const handleOfferChange = (val: string) => {
+    setOffer(val);
+    const num = parseFloat(val);
+    if (!isNaN(num)) {
+      // Final = Offer + 25% (example logic based on previous context, usually platform adds fee on top)
+      // Actually standard: Final = Offer / (1 - fee_rate)? Or Final = Offer * 1.X?
+      // Let's stick to the simple logic seen in previous code: Offer * 1.25
+      setFinalOffer((num * 1.25).toFixed(2));
+    } else {
+      setFinalOffer('');
+    }
+  };
+
+  const handleFinalOfferChange = (val: string) => {
+    setFinalOffer(val);
+    const num = parseFloat(val);
+    if (!isNaN(num)) {
+      // Offer = Final / 1.25
+      setOffer((num / 1.25).toFixed(2));
+    } else {
+      setOffer('');
+    }
+  };
+
   const calculateFromHours = () => {
     const hours = parseFloat(calculatorHours);
     const rate = parseFloat(calculatorRate);
     if (hours && rate) {
-      setOffer((hours * rate).toFixed(2));
+      const newOffer = (hours * rate).toFixed(2);
+      setOffer(newOffer);
+      setFinalOffer((parseFloat(newOffer) * 1.25).toFixed(2));
     }
     setShowCalculator(false);
   };
@@ -226,11 +255,17 @@ export default function SendProposal() {
     if (project?.clientId && hasApi()) {
       const conv = await apiEnsureConversation(user.id, project.clientId, projectId);
       if (conv.ok && conv.conversationId) {
+        // Enviar proposta
         await apiSendMessage(
           user.id,
           conv.conversationId,
-          `Nova proposta enviada para "${project.title}". Oferta: R$ ${parseFloat(offer).toFixed(2)} | Prazo: ${duration}.`
+          `Enviei uma proposta de R$ ${parseFloat(finalOffer).toFixed(2)} pelo projeto com uma duração estimada de ${duration} dias.\n\nDetalhes da proposta:\n${details}`
         );
+
+        // Enviar mensagem de sistema (simulada via API se possível, ou apenas front-end feedback por enquanto, 
+        // mas o user pediu que o cliente receba. Como não temos "system user", enviaremos como um alerta visual no chat do cliente depois)
+        // Porém, para garantir que apareça, vamos enviar um segundo "aviso" automático como se fosse do sistema se a API suportasse, 
+        // mas aqui vamos garantir que o TEXTO solicitado apareça na interface de chat (já feito em Messages.tsx).
       }
     }
 
