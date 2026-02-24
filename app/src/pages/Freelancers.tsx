@@ -50,10 +50,10 @@ function mapApiFreelancer(f: ApiFreelancerPublic): Freelancer {
     isPremium: !!f.isPremium,
     isPro: !!f.isPro,
     isVerified: !!f.isVerified,
-    // city: f.city, // Future API support
-    // state: f.state, // Future API support
-    // country: f.country, // Future API support
-    // isOnline: f.isOnline, // Future API support
+    city: f.city,
+    state: f.state,
+    country: f.country,
+    isOnline: f.isOnline,
   };
 }
 

@@ -95,6 +95,8 @@ function normalizeUser(raw: Record<string, unknown>): User | null {
     title: typeof raw.title === 'string' ? raw.title : undefined,
     portfolio: Array.isArray(raw.portfolio) ? raw.portfolio : undefined,
     experiences: Array.isArray(raw.experiences) ? raw.experiences : undefined,
+    connections: typeof raw.connections === 'number' ? raw.connections : undefined,
+    plan: typeof raw.plan === 'string' && ['free', 'pro', 'premium'].includes(raw.plan) ? raw.plan as any : undefined,
   };
 }
 
