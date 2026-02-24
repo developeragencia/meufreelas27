@@ -46,6 +46,7 @@ interface Freelancer {
   isPremium: boolean;
   isVerified: boolean;
   isPro: boolean;
+  type?: 'freelancer' | 'client'; // Added type property
   availability: string;
   lastActive: string;
   education: { degree: string; institution: string; year: string }[];
@@ -107,7 +108,8 @@ export default function FreelancerProfile() {
     
     // 2. Check registered users
     if (!foundFreelancer) {
-      const users = JSON.parse(localStorage.getItem('meufreelas_users') || '[]');
+      // Allow finding clients too, not just freelancers
+      const users = JSON.parse(localStorage.getItem('meufr
       const foundUser = users.find((u: any) => u.id === id && u.type === 'freelancer');
       if (foundUser) {
         const profileData = localStorage.getItem(`profile_${foundUser.id}`);
@@ -149,6 +151,7 @@ export default function FreelancerProfile() {
     certifications: [],
     isPremium: !!userData.isPremium,
     isVerified: !!userData.isVerified,
+    type: userData.type || 'freelancer', // Map type from user data
     isPro: !!userData.isPro,
     availability: profile.availability || 'full-time',
     lastActive: 'Há poucos minutos',
@@ -317,7 +320,7 @@ export default function FreelancerProfile() {
         <div className="max-w-6xl mx-auto px-4 py-8">
           <Link to="/freelancers" className="flex items-center text-gray-500 hover:text-99blue mb-4 text-sm">
             <ArrowLeft className="w-4 h-4 mr-1" />
-            Voltar para freelancers
+            Voltar para {freelancer.type === 'client' ? 'projetos' : 'freelancers'}
           </Link>
           
           <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
