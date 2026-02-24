@@ -6,9 +6,8 @@ import {
   Settings, Bell, Search, TrendingUp, LogOut, User, FileText,
   Award, CreditCard, Building2, Wallet, Crown,
   ChevronDown, ChevronRight, RefreshCw, Plus, Building,
-  BarChart3, Menu, X, Home, Folder, HelpCircle, BookOpen, Type, GitBranch, FileCheck, MapPin, RotateCcw, Check
+  BarChart3, Menu, X, Home, Folder, HelpCircle, BookOpen, Type, GitBranch, FileCheck, MapPin, RotateCcw
 } from 'lucide-react';
-import GoalsWidget from '../components/GoalsWidget';
 import BadgesWidget from '../components/BadgesWidget';
 import BrandLogo from '../components/BrandLogo';
 import { apiListNotifications, apiListPayments, apiListProposals, hasApi } from '../lib/api';
@@ -476,45 +475,6 @@ export default function FreelancerDashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm mb-6">
-            <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="font-semibold text-gray-800">Minhas metas</h2>
-            </div>
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">Metas concluídas (20%)</span>
-              </div>
-              <div className="w-full h-2 bg-gray-200 rounded-full mb-4">
-                <div className="h-full bg-99blue rounded-full transition-all" style={{ width: '20%' }} />
-              </div>
-              
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-center gap-2 text-gray-700">
-                  <div className="w-4 h-4 bg-99blue rounded flex items-center justify-center">
-                    <Check className="w-3 h-3 text-white" />
-                  </div>
-                  Completar Perfil (+)
-                </li>
-                <li className="flex items-center gap-2 text-gray-400">
-                  <div className="w-4 h-4 bg-gray-200 rounded"></div>
-                  Enviar Feedback (+)
-                </li>
-                <li className="flex items-center gap-2 text-gray-400">
-                  <div className="w-4 h-4 bg-gray-200 rounded"></div>
-                  Enviar Proposta (+)
-                </li>
-                <li className="flex items-center gap-2 text-gray-400">
-                  <div className="w-4 h-4 bg-gray-200 rounded"></div>
-                  Receber Recomendação (+)
-                </li>
-                <li className="flex items-center gap-2 text-gray-400">
-                  <div className="w-4 h-4 bg-gray-200 rounded"></div>
-                  Convidar Amigos (+)
-                </li>
-              </ul>
-            </div>
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div className="bg-white rounded-xl shadow-sm p-4">
               <div className="flex items-center justify-between mb-4">
@@ -524,6 +484,8 @@ export default function FreelancerDashboard() {
                 <div className="h-full bg-99blue rounded-full transition-all" style={{ width: `${profileCompletion.score}%` }} />
               </div>
             </div>
+            
+            <BadgesWidget />
           </div>
         </main>
       </div>

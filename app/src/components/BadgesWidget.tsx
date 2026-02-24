@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   Award, Star, Zap, Shield, Crown, TrendingUp, Users, 
-  CheckCircle, Clock, Target, Gift, Lock, Info
+  CheckCircle, Clock, Target, Gift, Lock, Info, Medal, UserCheck, Megaphone, FileText, ThumbsUp
 } from 'lucide-react';
 
 interface Badge {
@@ -12,8 +12,6 @@ interface Badge {
   description: string;
   color: string;
   unlocked: boolean;
-  progress?: number;
-  maxProgress?: number;
 }
 
 export default function BadgesWidget() {
@@ -32,96 +30,53 @@ export default function BadgesWidget() {
     const profileData = localStorage.getItem(`profile_${user.id}`);
     const profile = profileData ? JSON.parse(profileData) : null;
 
+    // Determine unlocks based on real data (or mocks where data is missing)
+    const isTop1 = (user.ranking || 0) === 1; // Assuming ranking field exists
+    const isProfileComplete = (user.profileCompletion || 0) >= 100;
+    const hasFeedback = false; // Placeholder for now as we don't have feedback tracking yet
+    const hasProposals = userProposals.length > 0;
+    const isRecommended = (user.recommendations || 0) > 0;
+
     const allBadges: Badge[] = [
       {
-        id: 'newbie',
-        icon: Star,
-        name: 'Novato',
-        description: 'Complete seu perfil na plataforma',
-        color: 'bg-blue-500',
-        unlocked: false
-      },
-      {
-        id: 'first_project',
-        icon: Award,
-        name: 'Primeiro projeto',
-        description: 'Conclua seu primeiro projeto',
-        color: 'bg-purple-500',
-        unlocked: completedProjects.length >= 1,
-        progress: completedProjects.length,
-        maxProgress: 1
-      },
-      {
-        id: 'proponent',
-        icon: Zap,
-        name: 'Proponente',
-        description: 'Envie 10 propostas',
-        color: 'bg-yellow-500',
-        unlocked: userProposals.length >= 10,
-        progress: userProposals.length,
-        maxProgress: 10
-      },
-      {
-        id: 'professional',
-        icon: Target,
-        name: 'Profissional',
-        description: 'Conclua 5 projetos',
+        id: 'top_1',
+        icon: Medal,
+        name: 'Top 1',
+        description: 'Ranking: 1',
         color: 'bg-orange-500',
-        unlocked: completedProjects.length >= 5,
-        progress: completedProjects.length,
-        maxProgress: 5
+        unlocked: isTop1
       },
       {
-        id: 'expert',
-        icon: TrendingUp,
-        name: 'Especialista',
-        description: 'Conclua 20 projetos',
-        color: 'bg-red-500',
-        unlocked: completedProjects.length >= 20,
-        progress: completedProjects.length,
-        maxProgress: 20
-      },
-      {
-        id: 'skills_master',
-        icon: CheckCircle,
-        name: 'Mestre das skills',
-        description: 'Adicione 10 habilidades ao perfil',
-        color: 'bg-indigo-500',
-        unlocked: (profile?.skills?.length || 0) >= 10,
-        progress: profile?.skills?.length || 0,
-        maxProgress: 10
-      },
-      {
-        id: 'verified',
-        icon: Shield,
-        name: 'Verificado',
-        description: 'Conta de identidade verificada',
+        id: 'profile_complete',
+        icon: UserCheck,
+        name: 'Perfil Completo',
+        description: 'Completou o seu perfil e está pronto para usar o 99Freelas',
         color: 'bg-green-500',
-        unlocked: Boolean(user?.isVerified)
+        unlocked: isProfileComplete
       },
       {
-        id: 'premium',
-        icon: Crown,
-        name: 'Premium',
-        description: 'Plano premium ativo',
-        color: 'bg-gradient-to-r from-yellow-400 to-yellow-600',
-        unlocked: Boolean(user?.isPremium)
-      },
-      {
-        id: 'top_rated',
-        icon: Crown,
-        name: 'Top rated',
-        description: 'Avaliação média a partir de 4,5 estrelas',
-        color: 'bg-yellow-600',
-        unlocked: (user?.rating || 0) >= 4.5
-      },
-      {
-        id: 'popular',
-        icon: Users,
-        name: 'Popular',
-        description: 'Destaque entre os mais contratados',
+        id: 'feedback',
+        icon: Megaphone,
+        name: 'Colaborador',
+        description: 'Ajudou o 99Freelas com um feedback relevante',
         color: 'bg-pink-500',
-        unlocked: false
+        unlocked: hasFeedback
+      },
+      {
+        id: 'proposals',
+        icon: FileText,
+        name: 'Experiente',
+        description: 'Tem experiência no envio de propostas',
+        color: 'bg-amber-600', // Brownish
+        unlocked: hasProposals
+      },
+      {
+        id: 'recommended',
+        icon: ThumbsUp,
+        name: 'Recomendado',
+        description: 'Concluiu um projeto e foi recomendado',
+        color: 'bg-blue-800', // Dark blue
+        unlocked: isRecommended
       }
     ];
 
@@ -134,82 +89,33 @@ export default function BadgesWidget() {
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Meus Selos</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Selos e Conquistas</h3>
         <span className="text-sm text-gray-500">
-          {unlockedCount}/{totalCount} desbloqueados
+          {unlockedCount}/{totalCount}
         </span>
       </div>
 
-      {/* Progress */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between text-sm mb-2">
-          <span className="text-gray-600">Progresso</span>
-          <span className="text-99blue font-medium">{Math.round((unlockedCount / totalCount) * 100)}%</span>
-        </div>
-        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-99blue to-99blue-light rounded-full transition-all duration-500"
-            style={{ width: `${(unlockedCount / totalCount) * 100}%` }}
-          />
-        </div>
-      </div>
-
       {/* Badges Grid */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+      <div className="flex flex-wrap gap-3">
         {badges.map((badge) => (
           <div 
             key={badge.id}
-            className={`relative group cursor-pointer ${
-              badge.unlocked ? '' : 'opacity-50'
+            className={`group relative flex items-center justify-center w-12 h-12 rounded-full transition-all ${
+              badge.unlocked ? badge.color : 'bg-gray-200 grayscale'
             }`}
             title={badge.description}
           >
-            <div className={`w-14 h-14 mx-auto rounded-full flex items-center justify-center mb-2 ${
-              badge.unlocked 
-                ? badge.color 
-                : 'bg-gray-200'
-            }`}>
-              {badge.unlocked ? (
-                <badge.icon className="w-7 h-7 text-white" />
-              ) : (
-                <Lock className="w-5 h-5 text-gray-400" />
-              )}
-            </div>
-            <p className={`text-xs text-center font-medium ${
-              badge.unlocked ? 'text-gray-700' : 'text-gray-400'
-            }`}>
-              {badge.name}
-            </p>
+            <badge.icon className="w-6 h-6 text-white" />
             
-            {/* Progress indicator */}
-            {badge.progress !== undefined && badge.maxProgress && !badge.unlocked && (
-              <div className="mt-1">
-                <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-99blue rounded-full"
-                    style={{ width: `${(badge.progress / badge.maxProgress) * 100}%` }}
-                  />
-                </div>
-                <p className="text-xs text-center text-gray-400 mt-1">
-                  {badge.progress}/{badge.maxProgress}
-                </p>
-              </div>
-            )}
-
             {/* Tooltip */}
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
-              {badge.description}
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none shadow-lg">
+              <p className="font-bold mb-0.5">{badge.name}</p>
+              <p className="font-normal opacity-90">{badge.description}</p>
+              {/* Arrow */}
+              <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
             </div>
           </div>
         ))}
-      </div>
-
-      {/* Info */}
-      <div className="mt-4 p-3 bg-blue-50 rounded-lg flex items-start">
-        <Info className="w-4 h-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
-        <p className="text-xs text-blue-700">
-          Complete as metas para desbloquear selos exclusivos e ganhar pontos na plataforma!
-        </p>
       </div>
     </div>
   );

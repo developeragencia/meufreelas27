@@ -19,7 +19,12 @@ import {
   Crown,
   Heart,
   Share2,
-  Flag
+  Flag,
+  Medal,
+  UserCheck,
+  Megaphone,
+  FileText,
+  ThumbsUp
 } from 'lucide-react';
 
 interface Freelancer {
@@ -46,6 +51,8 @@ interface Freelancer {
   education: { degree: string; institution: string; year: string }[];
   experiences: { company: string; role: string; period: string; description: string }[];
   reviews: { id: string; reviewerName: string; rating: number; comment: string; date: string; projectTitle: string }[];
+  ranking?: number;
+  recommendations?: number;
 }
 
 export default function FreelancerProfile() {
@@ -237,12 +244,48 @@ export default function FreelancerProfile() {
     return Math.min(100, score);
   })();
 
-  const reputationBadges = [
-    freelancer.isVerified ? 'Perfil Verificado' : null,
-    freelancer.isPremium ? 'Premium' : null,
-    freelancer.rating >= 4.5 ? 'Alta Avaliação' : null,
-    freelancer.completedProjects >= 3 ? 'Projetos Entregues' : null,
-  ].filter(Boolean) as string[];
+  const activeBadges = [
+    {
+      id: 'top_1',
+      icon: Medal,
+      name: 'Top 1',
+      description: 'Ranking: 1',
+      color: 'bg-orange-500',
+      unlocked: (freelancer.ranking || 0) === 1
+    },
+    {
+      id: 'profile_complete',
+      icon: UserCheck,
+      name: 'Perfil Completo',
+      description: 'Completou o seu perfil e está pronto para usar o 99Freelas',
+      color: 'bg-green-500',
+      unlocked: completionScore >= 100
+    },
+    {
+      id: 'feedback',
+      icon: Megaphone,
+      name: 'Colaborador',
+      description: 'Ajudou o 99Freelas com um feedback relevante',
+      color: 'bg-pink-500',
+      unlocked: false // Placeholder
+    },
+    {
+      id: 'proposals',
+      icon: FileText,
+      name: 'Experiente',
+      description: 'Tem experiência no envio de propostas',
+      color: 'bg-amber-600',
+      unlocked: (freelancer.jobs || 0) > 5 // Assuming jobs count correlates with proposals experience
+    },
+    {
+      id: 'recommended',
+      icon: ThumbsUp,
+      name: 'Recomendado',
+      description: 'Concluiu um projeto e foi recomendado',
+      color: 'bg-blue-800',
+      unlocked: (freelancer.recommendations || 0) > 0
+    }
+  ].filter(b => b.unlocked);
 
   return (
     <div className="min-h-screen bg-gray-100 overflow-x-hidden">
@@ -616,12 +659,23 @@ export default function FreelancerProfile() {
                   <div className="h-full bg-99blue rounded-full transition-all" style={{ width: `${completionScore}%` }} />
                 </div>
               </div>
-              {reputationBadges.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {reputationBadges.map((badge) => (
-                    <span key={badge} className="px-3 py-1 rounded-full text-xs font-medium bg-99blue/10 text-99blue">
-                      {badge}
-                    </span>
+              {activeBadges.length > 0 ? (
+                <div className="flex flex-wrap gap-3">
+                  {activeBadges.map((badge) => (
+                    <div 
+                      key={badge.id} 
+                      className={`group relative flex items-center justify-center w-10 h-10 rounded-full transition-all ${badge.color}`}
+                      title={badge.description}
+                    >
+                      <badge.icon className="w-5 h-5 text-white" />
+                      
+                      {/* Tooltip */}
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none shadow-lg">
+                        <p className="font-bold mb-0.5">{badge.name}</p>
+                        <p className="font-normal opacity-90">{badge.description}</p>
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+                      </div>
+                    </div>
                   ))}
                 </div>
               ) : (
