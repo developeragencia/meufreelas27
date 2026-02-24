@@ -340,22 +340,25 @@ export default function Projects() {
             <h1 className="text-2xl md:text-3xl font-light text-gray-800">Resultado da pesquisa</h1>
             <p className="text-sm text-gray-600 mt-1">{filteredProjects.length} projeto{filteredProjects.length !== 1 ? 's' : ''} foram encontrados</p>
           </div>
-          <Link to={publishHref} className="w-full md:w-auto text-center bg-99blue hover:bg-blue-600 text-white font-bold py-2 px-4 rounded shadow-sm text-sm">
+          <Link to={publishHref} className="w-full md:w-auto text-center bg-99blue hover:bg-blue-600 text-white font-bold py-3 px-6 rounded shadow-sm text-sm uppercase tracking-wide transition-colors">
             Publique um projeto. É grátis.
           </Link>
         </div>
 
-        <div className="lg:hidden space-y-2 mb-4">
-           <button onClick={() => setShowMobileFilters(!showMobileFilters)} className="w-full bg-white border border-gray-300 py-3 px-4 text-gray-700 font-bold text-left flex items-center justify-between rounded-sm shadow-sm hover:bg-gray-50">
-             <span className="flex items-center gap-2"><span className="text-gray-400 font-normal">(+)</span> Filtros</span>
-             {showMobileFilters ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+        <div className="lg:hidden space-y-3 mb-6">
+           <button 
+             onClick={() => setShowMobileFilters(!showMobileFilters)} 
+             className="w-full bg-white border border-gray-300 py-3 px-4 text-gray-700 font-bold text-left flex items-center justify-between rounded-sm shadow-sm hover:bg-gray-50 transition-colors"
+           >
+             <span className="flex items-center gap-2 text-sm uppercase"><span className="text-gray-400 font-normal text-lg leading-none">(+)</span> Filtros</span>
+             {showMobileFilters ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
            </button>
            
            <div className="bg-white border border-gray-300 rounded-sm px-4 py-3 shadow-sm">
              <select 
                value={sortBy} 
                onChange={(e) => setSortBy(e.target.value as any)}
-               className="w-full border-none text-gray-700 text-sm focus:ring-0 cursor-pointer bg-transparent p-0 font-medium"
+               className="w-full border-none text-gray-700 text-sm focus:ring-0 cursor-pointer bg-transparent p-0 font-bold uppercase tracking-wide outline-none"
              >
                 <option value="relevance">Relevância</option>
                 <option value="newest">Mais recentes</option>
