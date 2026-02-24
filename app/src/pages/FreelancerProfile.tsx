@@ -483,11 +483,11 @@ export default function FreelancerProfile() {
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center">
                           <div className="w-10 h-10 bg-99blue/10 rounded-full flex items-center justify-center mr-3">
-                            <span className="text-99blue font-medium">{review.author.charAt(0)}</span>
+                            <span className="text-99blue font-medium">{review.reviewerName.charAt(0)}</span>
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">{review.author}</p>
-                            <p className="text-sm text-gray-500">{review.project}</p>
+                            <p className="font-medium text-gray-900">{review.reviewerName}</p>
+                            <p className="text-sm text-gray-500">{review.projectTitle}</p>
                           </div>
                         </div>
                         <div className="flex items-center">
