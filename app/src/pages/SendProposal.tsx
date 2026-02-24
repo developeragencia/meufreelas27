@@ -25,6 +25,7 @@ export default function SendProposal() {
   
   const [project, setProject] = useState<Project | null>(null);
   const [offer, setOffer] = useState('');
+  const [finalOffer, setFinalOffer] = useState('');
   const [duration, setDuration] = useState('');
   const [details, setDetails] = useState('');
   const [showCalculator, setShowCalculator] = useState(false);
