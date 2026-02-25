@@ -3,6 +3,20 @@ require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/db.php';
 
+// Enable CORS explicitly for payments
+if (isset($_SERVER['HTTP_ORIGIN'])) {
+    header("Access-Control-Allow-Origin: {$_SERVER['HTTP_ORIGIN']}");
+    header('Access-Control-Allow-Credentials: true');
+    header('Access-Control-Max-Age: 86400');
+}
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_METHOD']))
+        header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+    if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']))
+        header("Access-Control-Allow-Headers: {$_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']}");
+    exit(0);
+}
+
 // --- JWT Helper Functions (Inlined to avoid require errors) ---
 function jwt_base64url_decode($data) {
     return base64_decode(strtr($data, '-_', '+/') . str_repeat('=', 3 - (3 + strlen($data)) % 4));
@@ -101,6 +115,14 @@ if ($method === 'POST') {
             $payer->name = $user['name'];
             $preference->payer = $payer;
 
+            // Criar registro de assinatura pendente no banco
+            $subscriptionId = bin2hex(random_bytes(18));
+            $planCode = $data['plan'] ?? 'pro'; // pro, premium
+            $billingCycle = $data['cycle'] ?? 'monthly'; // monthly, yearly
+            
+            $stmtSub = $pdo->prepare("INSERT INTO user_subscriptions (id, user_id, plan_code, billing_cycle, provider, amount, status, created_at) VALUES (?, ?, ?, ?, 'mercadopago', ?, 'pending', NOW())");
+            $stmtSub->execute([$subscriptionId, $user['id'], $planCode, $billingCycle, (float)$data['price']]);
+
             // Back URLs
             $preference->back_urls = array(
                 "success" => $_ENV['FRONTEND_URL'] . "/payments/success",
@@ -112,15 +134,14 @@ if ($method === 'POST') {
             // Webhook para notificação
             $preference->notification_url = $_ENV['MERCADOPAGO_WEBHOOK_URL'];
             
-            // External Reference para identificar o pedido no webhook
-            $preference->external_reference = json_encode([
-                'user_id' => $user['id'],
-                'type' => $data['type'], // 'subscription' ou 'project_payment'
-                'plan' => $data['plan'] ?? null,
-                'project_id' => $data['project_id'] ?? null
-            ]);
+            // External Reference: Agora usamos o ID da assinatura que acabamos de criar
+            $preference->external_reference = $subscriptionId;
 
             $preference->save();
+
+            // Atualizar o registro com o ID externo (init_point ou id da preferencia se quiser)
+            $pdo->prepare("UPDATE user_subscriptions SET external_id = ?, checkout_url = ? WHERE id = ?")
+                ->execute([$preference->id, $preference->init_point, $subscriptionId]);
 
             echo json_encode(['preference_id' => $preference->id, 'init_point' => $preference->init_point]);
         } catch (Exception $e) {

@@ -109,6 +109,7 @@ $buildUserById = function (string $id) use ($pdo) {
         'isVerified' => (int)($row['is_verified'] ?? 0) === 1,
         'isPremium' => (int)($row['is_premium'] ?? 0) === 1,
         'planType' => (string)($row['plan_type'] ?? 'free'),
+        'connections' => (int)($row['connections'] ?? 0),
     ];
 };
 

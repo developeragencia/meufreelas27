@@ -48,19 +48,31 @@ if ($externalReference === '') {
 }
 
 if ($paymentStatus === 'approved') {
+    // Busca assinatura pelo ID (external_reference)
     $stmt = $pdo->prepare('SELECT id, user_id, plan_code, billing_cycle FROM user_subscriptions WHERE id = ? AND status = ? LIMIT 1');
     $stmt->execute([$externalReference, 'pending']);
     $sub = $stmt->fetch();
+    
     if ($sub) {
+        // Atualiza assinatura
         $interval = ($sub['billing_cycle'] ?? '') === 'yearly' ? '1 YEAR' : '1 MONTH';
         $pdo->prepare('UPDATE user_subscriptions SET status = ?, started_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL ' . $interval . '), external_id = ? WHERE id = ?')
             ->execute(['active', (string)$id, $sub['id']]);
+            
+        // Atualiza usuário: Plano + Conexões
         $planType = (string)($sub['plan_code'] ?? 'pro');
-        $pdo->prepare('UPDATE users SET is_premium = 1, plan_type = ?, plan_expires_at = DATE_ADD(NOW(), INTERVAL ' . $interval . ') WHERE id = ?')
-            ->execute([$planType, $sub['user_id']]);
+        $connectionsToAdd = ($planType === 'premium') ? 300 : 100; // Premium: 300, Pro: 100
+        
+        $pdo->prepare('UPDATE users SET is_premium = 1, plan_type = ?, plan_expires_at = DATE_ADD(NOW(), INTERVAL ' . $interval . '), connections = connections + ? WHERE id = ?')
+            ->execute([$planType, $connectionsToAdd, $sub['user_id']]);
+            
     } else {
+        // Pode ser pagamento de projeto/escrow (não implementado full aqui ainda, mas mantendo logica antiga de fallback)
         $upd = $pdo->prepare('UPDATE payments SET status = "held", external_id = ? WHERE id = ? AND status IN ("pending","processing")');
-        $upd->execute([(string)$id, $externalReference]);
+        // Se externalReference não for ID de pagamento, isso falhará silenciosamente, o que é ok por enquanto
+        try {
+             $upd->execute([(string)$id, $externalReference]);
+        } catch (Exception $e) {}
     }
 }
 

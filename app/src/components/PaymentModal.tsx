@@ -112,6 +112,12 @@ export default function PaymentModal({ isOpen, onClose, plan, onSuccess }: Payme
             plan: plan.id
           })
         });
+
+        if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(`Server error ${res.status}: ${errorText}`);
+        }
+
         const data = await res.json();
         if (data.preference_id) {
           setMpPreferenceId(data.preference_id);

@@ -121,6 +121,22 @@ if ($action === 'create_proposal') {
         exit;
     }
 
+    // Verificar conexões
+    $connections = (int)($freelancer['connections'] ?? 0);
+    $isPremium = (int)($freelancer['is_premium'] ?? 0);
+    
+    // Se não for premium, consome 1 conexão (ou lógica personalizada)
+    // Se for premium, pode ser ilimitado ou ter mais conexões. Assumindo consumo padrão para todos por enquanto.
+    $cost = 1; 
+    
+    if ($connections < $cost) {
+        echo json_encode(['ok' => false, 'error' => 'Você não tem conexões suficientes para enviar esta proposta.']);
+        exit;
+    }
+
+    // Deduzir conexão
+    $pdo->prepare('UPDATE users SET connections = connections - ? WHERE id = ?')->execute([$cost, $freelancerId]);
+
     $proposalId = bin2hex(random_bytes(18));
     $ins = $pdo->prepare("
         INSERT INTO proposals (id, project_id, freelancer_id, amount, delivery_days, message, status)
