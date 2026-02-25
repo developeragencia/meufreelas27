@@ -150,16 +150,24 @@ export default function PremiumPlans() {
     setError(null);
 
     try {
-      // Determine API URL
+      // Determine API URL with robust fallback
       let apiUrl = import.meta.env.VITE_API_URL;
-      if (!apiUrl) {
-          apiUrl = window.location.hostname === 'localhost' 
-            ? 'http://localhost:8000/api' 
-            : window.location.origin + '/api';
+      if (!apiUrl || apiUrl === '/') {
+          if (window.location.hostname === 'localhost') {
+            apiUrl = 'http://localhost:8000/api';
+          } else {
+            // Force HTTPS absolute URL in production
+            apiUrl = window.location.origin + '/api';
+          }
       }
-
+      
+      // Debug Alert to see what URL is being called
+      console.log('Calling API at:', apiUrl);
+      
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/checkout_v2.php`, {
+      const targetUrl = `${apiUrl}/checkout_v2.php`;
+      
+      const res = await fetch(targetUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -188,9 +196,15 @@ export default function PremiumPlans() {
 
     } catch (err: any) {
       console.error(err);
-      const msg = err.message || 'Erro de conexão.';
+      let msg = err.message || 'Erro de conexão.';
+      
+      // More detailed error for debugging
+      if (msg.includes('Endpoint')) {
+         msg += `\nTentou acessar: ${apiUrl}/checkout_v2.php`;
+      }
+      
       setError(msg);
-      alert('Erro ao iniciar assinatura: ' + msg); // Forçar alerta
+      alert('Erro ao iniciar assinatura:\n' + msg); 
       setLoadingPlanId(null);
     }
   };
