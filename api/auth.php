@@ -113,6 +113,8 @@ $buildUserById = function (string $id) use ($pdo) {
 };
 
 if ($action === 'register') {
+    // ReCaptcha temporarily disabled
+    /*
     $recaptchaSecret = mf_env('RECAPTCHA_SECRET_KEY');
     if ($recaptchaSecret !== null && $recaptchaSecret !== '') {
         $recaptchaToken = trim((string)($input['recaptchaToken'] ?? ''));
@@ -125,6 +127,7 @@ if ($action === 'register') {
             exit;
         }
     }
+    */
 
     $name = trim($input['name'] ?? '');
     $email = trim($input['email'] ?? '');

@@ -74,16 +74,11 @@ export default function Register() {
       return;
     }
 
-    if (hasReCaptcha() && !recaptchaToken) {
-      setError('Complete a verificação de segurança (não sou um robô) antes de continuar.');
-      return;
-    }
-
     setIsLoading(true);
 
     try {
       setSuccessMessage('');
-      const result = await register(trimmedName, trimmedEmail, password, userType, recaptchaToken || undefined);
+      const result = await register(trimmedName, trimmedEmail, password, userType);
       if (result.success && result.requiresActivation) {
         setSuccessMessage(result.message || 'Enviamos um e-mail de ativação. Clique no link para ativar sua conta e depois faça login.');
         return;

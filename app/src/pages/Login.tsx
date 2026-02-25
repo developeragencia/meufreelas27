@@ -212,15 +212,11 @@ export default function Login() {
               </Link>
             </div>
 
-            {/* Turnstile temporarily disabled */}
-            {/*
-            <TurnstileWidget
-              onVerify={handleTurnstileVerify}
-              onExpire={handleTurnstileExpire}
-              theme="light"
-              className="my-4"
+            <ReCaptchaWidget
+              onVerify={handleRecaptchaVerify}
+              onExpire={handleRecaptchaExpire}
+              className="my-4 flex justify-center"
             />
-            */}
 
             <button
               type="submit"
