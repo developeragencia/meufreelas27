@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
 /**
  * MeuFreelas - API de autenticação (registro e login)
  * POST: register | login
