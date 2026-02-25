@@ -459,7 +459,7 @@ export default function Freelancers() {
                               <Link to={`/user/${f.id}`} className="text-lg font-bold text-gray-900 hover:text-blue-600 transition-colors capitalize">
                                 {f.name.toLowerCase()}
                               </Link>
-                              {f.isVerified && <CheckCircle className="w-4 h-4 text-blue-500" title="Verificado" />}
+                              {f.isVerified && <div title="Verificado"><CheckCircle className="w-4 h-4 text-blue-500" /></div>}
                             </div>
                             <h3 className="text-blue-600 font-medium text-sm">{f.title}</h3>
                           </div>
