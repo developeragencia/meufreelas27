@@ -16,10 +16,10 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [isResendLoading, setIsResendLoading] = useState(false);
   const [notVerifiedEmail, setNotVerifiedEmail] = useState<string | null>(null);
-  const [turnstileToken, setTurnstileToken] = useState('');
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
-  const handleTurnstileVerify = useCallback((token: string) => setTurnstileToken(token), []);
-  const handleTurnstileExpire = useCallback(() => setTurnstileToken(''), []);
+  const handleRecaptchaVerify = useCallback((token: string | null) => setRecaptchaToken(token), []);
+  const handleRecaptchaExpire = useCallback(() => setRecaptchaToken(null), []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,14 +31,14 @@ export default function Login() {
       setError('Preencha email e senha.');
       return;
     }
-    if (hasTurnstile() && !turnstileToken.trim()) {
-      setError('Complete a verificação de segurança (caixa abaixo) antes de continuar. Se não aparecer, atualize a página.');
+    if (hasReCaptcha() && !recaptchaToken) {
+      setError('Complete a verificação de segurança (não sou um robô) antes de continuar.');
       return;
     }
     setIsLoading(true);
 
     try {
-      const result = await login(trimmedEmail, password, turnstileToken.trim() || undefined);
+      const result = await login(trimmedEmail, password, recaptchaToken || undefined);
       if (result.success) {
         const stored = localStorage.getItem('meufreelas_user');
         const u = stored ? (JSON.parse(stored) as { type?: string }) : null;

@@ -41,25 +41,42 @@ function jwt_encode($payload, $secret) {
 // -------------------------------------------------------------
 
 /**
- * Verifica o token do Cloudflare Turnstile.
+ * Verifica o token do Google ReCaptcha.
  * Retorna true se válido, false caso contrário.
  */
-function mf_verify_turnstile(string $secretKey, string $token): bool {
+function mf_verify_recaptcha(string $secretKey, string $token): bool {
     if ($token === '') return false;
-    $url = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+    $url = 'https://www.google.com/recaptcha/api/siteverify';
     $data = ['secret' => $secretKey, 'response' => $token];
     $opts = [
         'http' => [
             'method'  => 'POST',
-            'header'  => 'Content-Type: application/x-www-form-urlencoded',
-            'content' => http_build_query($data),
-            'timeout' => 10,
-        ],
+            'header'  => 'Content-type: application/x-www-form-urlencoded',
+            'content' => http_build_query($data)
+        ]
     ];
-    $ctx = stream_context_create($opts);
-    $raw = @file_get_contents($url, false, $ctx);
-    if ($raw === false) return false;
-    $json = json_decode($raw, true);
+    $context  = stream_context_create($opts);
+    $result = @file_get_contents($url, false, $context);
+    
+    if ($result === false) {
+        // Fallback para cURL se file_get_contents estiver bloqueado
+        if (function_exists('curl_init')) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true); // Importante em produção
+            $result = curl_exec($ch);
+            curl_close($ch);
+        } else {
+            return false; // Não foi possível verificar
+        }
+    }
+    
+    if ($result === false) return false;
+    
+    $json = json_decode($result, true);
     return isset($json['success']) && $json['success'] === true;
 }
 
@@ -96,14 +113,14 @@ $buildUserById = function (string $id) use ($pdo) {
 };
 
 if ($action === 'register') {
-    $turnstileSecret = mf_env('TURNSTILE_SECRET_KEY');
-    if ($turnstileSecret !== null && $turnstileSecret !== '') {
-        $turnstileToken = trim((string)($input['turnstileToken'] ?? ''));
-        if ($turnstileToken === '') {
+    $recaptchaSecret = mf_env('RECAPTCHA_SECRET_KEY');
+    if ($recaptchaSecret !== null && $recaptchaSecret !== '') {
+        $recaptchaToken = trim((string)($input['recaptchaToken'] ?? ''));
+        if ($recaptchaToken === '') {
             echo json_encode(['ok' => false, 'error' => 'Verificação de segurança obrigatória. Atualize a página e tente novamente.']);
             exit;
         }
-        if (!mf_verify_turnstile($turnstileSecret, $turnstileToken)) {
+        if (!mf_verify_recaptcha($recaptchaSecret, $recaptchaToken)) {
             echo json_encode(['ok' => false, 'error' => 'Verificação de segurança falhou. Tente novamente.']);
             exit;
         }

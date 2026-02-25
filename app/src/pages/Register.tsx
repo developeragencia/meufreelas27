@@ -19,10 +19,10 @@ export default function Register() {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState('');
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
-  const handleTurnstileVerify = useCallback((token: string) => setTurnstileToken(token), []);
-  const handleTurnstileExpire = useCallback(() => setTurnstileToken(''), []);
+  const handleRecaptchaVerify = useCallback((token: string | null) => setRecaptchaToken(token), []);
+  const handleRecaptchaExpire = useCallback(() => setRecaptchaToken(null), []);
 
   const handleTypeSelection = (type: UserTypeOption) => {
     setUserType(type);
@@ -347,15 +347,11 @@ export default function Register() {
                   </label>
                 </div>
 
-                {/* Turnstile disabled */}
-                {/*
-                <TurnstileWidget
-                  onVerify={handleTurnstileVerify}
-                  onExpire={handleTurnstileExpire}
-                  theme="light"
-                  className="my-2"
+                <ReCaptchaWidget
+                  onVerify={handleRecaptchaVerify}
+                  onExpire={handleRecaptchaExpire}
+                  className="my-4 flex justify-center"
                 />
-                */}
 
                 <button
                   type="submit"
