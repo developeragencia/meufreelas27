@@ -104,17 +104,14 @@ try {
         }
     }
 
-    // Criar Assinatura
+    // Criar Sessão de Checkout (Redirect) em vez de Assinatura Direta
     $amount = (int)($data['price'] * 100);
-    $cycle = $data['cycle'] ?? 'month'; // 'month' ou 'year'
+    $cycle = $data['cycle'] ?? 'month'; 
+    $planName = $data['title'] ?? 'Assinatura Premium';
     
-    $priceParams = [
-        'unit_amount' => $amount,
-        'currency' => 'brl',
-        'recurring' => ['interval' => $cycle],
-        'product_data' => ['name' => $data['title'] ?? 'Assinatura'],
-    ];
-    $price = \Stripe\Price::create($priceParams);
+    // URL de retorno
+    $successUrl = $_ENV['FRONTEND_URL'] . "/payments/success";
+    $cancelUrl = $_ENV['FRONTEND_URL'] . "/payments/cancel";
 
     $subscriptionIdLocal = bin2hex(random_bytes(18));
     $billingCycle = ($cycle === 'year') ? 'yearly' : 'monthly';
@@ -123,12 +120,24 @@ try {
     $pdo->prepare("INSERT INTO user_subscriptions (id, user_id, plan_code, billing_cycle, provider, amount, status, created_at) VALUES (?, ?, ?, ?, 'stripe', ?, 'pending', NOW())")
         ->execute([$subscriptionIdLocal, $user['id'], $data['plan'], $billingCycle, (float)$data['price']]);
 
-    $subscription = \Stripe\Subscription::create([
+    // Criar Sessão do Stripe
+    $session = \Stripe\Checkout\Session::create([
         'customer' => $customerId,
-        'items' => [['price' => $price->id]],
-        'payment_behavior' => 'default_incomplete',
-        'payment_settings' => ['save_default_payment_method' => 'on_subscription'],
-        'expand' => ['latest_invoice.payment_intent'],
+        'payment_method_types' => ['card'],
+        'line_items' => [[
+            'price_data' => [
+                'currency' => 'brl',
+                'product_data' => [
+                    'name' => $planName,
+                ],
+                'unit_amount' => $amount,
+                'recurring' => ['interval' => $cycle],
+            ],
+            'quantity' => 1,
+        ]],
+        'mode' => 'subscription',
+        'success_url' => $successUrl,
+        'cancel_url' => $cancelUrl,
         'metadata' => [
             'user_id' => $user['id'],
             'plan' => $data['plan'],
@@ -137,14 +146,14 @@ try {
         ]
     ]);
     
-    // Atualizar External ID
-    $pdo->prepare("UPDATE user_subscriptions SET external_id = ? WHERE id = ?")
-        ->execute([$subscription->id, $subscriptionIdLocal]);
+    // Atualizar External ID com o ID da Sessão
+    $pdo->prepare("UPDATE user_subscriptions SET external_id = ?, checkout_url = ? WHERE id = ?")
+        ->execute([$session->id, $session->url, $subscriptionIdLocal]);
 
     ob_clean();
     echo json_encode([
-        'clientSecret' => $subscription->latest_invoice->payment_intent->client_secret,
-        'subscriptionId' => $subscription->id
+        'url' => $session->url,
+        'subscriptionId' => $subscriptionIdLocal
     ]);
 
 } catch (Throwable $e) {

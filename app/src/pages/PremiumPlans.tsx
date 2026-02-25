@@ -1,19 +1,15 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import PaymentModal from '../components/PaymentModal';
 import { 
   Check, 
   Zap, 
   Crown, 
   Star, 
-  TrendingUp, 
-  Clock, 
-  Briefcase, 
-  Users,
-  Shield,
   ArrowRight,
-  HelpCircle
+  HelpCircle,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 
 interface Plan {
@@ -128,10 +124,18 @@ const plans: Plan[] = [
 export default function PremiumPlans() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const handlePlanAction = (plan: Plan) => {
+  const getAdjustedPrice = (price: number) => {
+    if (billingCycle === 'yearly') {
+      return (price * 0.8).toFixed(2); // 20% discount
+    }
+    return price.toFixed(2);
+  };
+
+  const handleSubscribe = async (plan: Plan) => {
     if (plan.id === 'free') {
       navigate('/dashboard');
       return;
@@ -142,14 +146,51 @@ export default function PremiumPlans() {
       return;
     }
 
-    setSelectedPlan(plan);
-  };
+    setLoadingPlanId(plan.id);
+    setError(null);
 
-  const getAdjustedPrice = (price: number) => {
-    if (billingCycle === 'yearly') {
-      return (price * 0.8).toFixed(2); // 20% discount
+    try {
+      // Determine API URL
+      let apiUrl = import.meta.env.VITE_API_URL;
+      if (!apiUrl) {
+          apiUrl = window.location.hostname === 'localhost' 
+            ? 'http://localhost:8000/api' 
+            : window.location.origin + '/api';
+      }
+
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiUrl}/v2/checkout.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          plan: plan.id,
+          price: parseFloat(getAdjustedPrice(plan.price)),
+          title: `Plano ${plan.name}`,
+          cycle: billingCycle === 'yearly' ? 'year' : 'month'
+        })
+      });
+
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro ao iniciar checkout');
+      }
+
+      if (data.url) {
+        // Redirect to Stripe Checkout Page
+        window.location.href = data.url;
+      } else {
+        throw new Error('URL de redirecionamento não recebida.');
+      }
+
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Erro de conexão.');
+      setLoadingPlanId(null);
     }
-    return price.toFixed(2);
   };
 
   return (
@@ -177,6 +218,13 @@ export default function PremiumPlans() {
             </span>
           </div>
         </div>
+
+        {error && (
+          <div className="max-w-3xl mx-auto mb-8 bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 shrink-0" />
+            <p>{error}</p>
+          </div>
+        )}
 
         <div className="grid md:grid-cols-3 gap-8 mb-16">
           {plans.map((plan) => (
@@ -236,15 +284,25 @@ export default function PremiumPlans() {
               </div>
 
               <button
-                onClick={() => handlePlanAction(plan)}
+                onClick={() => handleSubscribe(plan)}
+                disabled={loadingPlanId === plan.id || (plan.price === 0 && plan.id !== 'free')}
                 className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2 ${
                   plan.id === 'free'
                     ? 'bg-gray-100 text-gray-400 hover:bg-gray-200'
                     : 'bg-99blue text-white hover:bg-blue-700 shadow-lg hover:shadow-xl'
-                }`}
+                } ${loadingPlanId === plan.id ? 'opacity-70 cursor-wait' : ''}`}
               >
-                {plan.id === 'free' ? 'Plano Atual' : 'Assinar Agora'}
-                {plan.id !== 'free' && <ArrowRight className="w-5 h-5" />}
+                {loadingPlanId === plan.id ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Processando...</span>
+                  </>
+                ) : (
+                  <>
+                    {plan.id === 'free' ? 'Plano Atual' : 'Assinar Agora'}
+                    {plan.id !== 'free' && <ArrowRight className="w-5 h-5" />}
+                  </>
+                )}
               </button>
             </div>
           ))}
@@ -317,22 +375,6 @@ export default function PremiumPlans() {
           <p className="text-gray-400 text-sm">© 2026 MeuFreelas. Todos os direitos reservados.</p>
         </div>
       </footer>
-
-      {selectedPlan && (
-        <PaymentModal
-          isOpen={!!selectedPlan}
-          onClose={() => setSelectedPlan(null)}
-          plan={{
-            ...selectedPlan,
-            price: getAdjustedPrice(selectedPlan.price),
-            cycle: billingCycle === 'yearly' ? 'year' : 'month'
-          }}
-          onSuccess={() => {
-            setSelectedPlan(null);
-            navigate('/dashboard');
-          }}
-        />
-      )}
     </div>
   );
 }
