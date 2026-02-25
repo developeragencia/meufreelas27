@@ -16,7 +16,17 @@ if (file_exists($envFile)) {
     }
 }
 
-define('DB_HOST', $_ENV['DB_HOST'] ?? 'localhost');
+/**
+ * Helper para carregar variáveis de ambiente de forma segura
+ */
+function mf_env($key, $default = null) {
+    return $_ENV[$key] ?? getenv($key) ?? $default;
+}
+
+// Configurações do ReCaptcha
+$_ENV['RECAPTCHA_SECRET_KEY'] = mf_env('RECAPTCHA_SECRET_KEY', '6LdAHncsAAAAANvPjU4sL2hG3Qup2glxhbALzVud');
+
+define('DB_HOST', mf_env('DB_HOST', 'localhost'));
 define('DB_PORT', $_ENV['DB_PORT'] ?? '3306');
 define('DB_NAME', $_ENV['DB_NAME'] ?? 'u892594395_meufreelas');
 define('DB_USER', $_ENV['DB_USER'] ?? 'u892594395_meufreelas27');

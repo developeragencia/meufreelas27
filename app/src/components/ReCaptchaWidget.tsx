@@ -7,12 +7,13 @@ interface ReCaptchaWidgetProps {
 }
 
 export function hasReCaptcha(): boolean {
-  const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+  // Fallback para a chave fornecida se a variável de ambiente não estiver definida
+  const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LdAHncsAAAAAC85_0xpXPNlnMjcjUgNF9f1Gsa1';
   return !!siteKey && siteKey.length > 0;
 }
 
 export function ReCaptchaWidget({ onVerify, onExpire, className = '' }: ReCaptchaWidgetProps) {
-  const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+  const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LdAHncsAAAAAC85_0xpXPNlnMjcjUgNF9f1Gsa1';
 
   if (!siteKey) {
     console.warn('VITE_RECAPTCHA_SITE_KEY not set. ReCaptcha disabled.');
