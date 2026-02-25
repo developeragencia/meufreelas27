@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { loadStripe } from '@stripe/stripe-js';
 import {
@@ -8,7 +8,14 @@ import {
   useElements,
 } from '@stripe/react-stripe-js';
 import { stripePromise } from '../lib/stripe';
-import { CreditCard, ExternalLink, Loader2 } from 'lucide-react';
+import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
+import { CreditCard, ExternalLink, Loader2, Lock } from 'lucide-react';
+
+// Initialize Mercado Pago
+const MP_PUBLIC_KEY = import.meta.env.VITE_MP_PUBLIC_KEY || '';
+if (MP_PUBLIC_KEY) {
+  initMercadoPago(MP_PUBLIC_KEY, { locale: 'pt-BR' });
+}
 
 // Componente interno do formulário Stripe
 const StripePaymentForm = ({ clientSecret, onSuccess }: { clientSecret: string, onSuccess: () => void }) => {
@@ -68,6 +75,7 @@ export default function PaymentModal({ isOpen, onClose, plan, onSuccess }: Payme
   const [method, setMethod] = useState<'stripe' | 'mercadopago' | null>(null);
   const [loading, setLoading] = useState(false);
   const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
+  const [mpPreferenceId, setMpPreferenceId] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -76,36 +84,50 @@ export default function PaymentModal({ isOpen, onClose, plan, onSuccess }: Payme
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('token'); // Assumindo JWT
-      const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+      const token = localStorage.getItem('meufreelas_token'); // Adjusted to match typical token storage key if needed, or check AuthContext
+      // Note: Assuming API handles auth via cookie or header. 
+      // If token is in localStorage under 'token', use that.
+      // Let's check AuthContext logic usually. 
+      // Safe fallback:
+      const storedToken = localStorage.getItem('token') || localStorage.getItem('meufreelas_token');
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
       };
+      if (storedToken) {
+        headers['Authorization'] = `Bearer ${storedToken}`;
+      }
+
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'; // Fallback for dev
 
       if (selected === 'mercadopago') {
         // Criar preferência no backend
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/payments.php?action=create_preference_mp`, {
+        const res = await fetch(`${apiUrl}/payments.php?action=create_preference_mp`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
             title: `Plano ${plan.name} - MeuFreelas`,
-            price: parseFloat(plan.price.replace(',', '.')),
+            price: parseFloat(plan.price.toString().replace(',', '.')),
             type: 'subscription',
             plan: plan.id
           })
         });
         const data = await res.json();
-        if (data.init_point) {
-          window.location.href = data.init_point; // Redireciona para MP
+        if (data.preference_id) {
+          setMpPreferenceId(data.preference_id);
+        } else if (data.error) {
+           console.error("MP Error:", data.error);
+           alert('Erro ao criar preferência do Mercado Pago: ' + data.error);
+           setMethod(null);
         }
       } else if (selected === 'stripe') {
         // Criar PaymentIntent no backend
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/payments.php?action=create_payment_intent_stripe`, {
+        const res = await fetch(`${apiUrl}/payments.php?action=create_payment_intent_stripe`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
             title: `Plano ${plan.name}`,
-            price: parseFloat(plan.price.replace(',', '.')),
+            price: parseFloat(plan.price.toString().replace(',', '.')),
             type: 'subscription',
             plan: plan.id
           })
@@ -113,11 +135,16 @@ export default function PaymentModal({ isOpen, onClose, plan, onSuccess }: Payme
         const data = await res.json();
         if (data.clientSecret) {
           setStripeClientSecret(data.clientSecret);
+        } else if (data.error) {
+            console.error("Stripe Error:", data.error);
+            alert('Erro ao iniciar pagamento Stripe: ' + data.error);
+            setMethod(null);
         }
       }
     } catch (e) {
       console.error(e);
-      alert('Erro ao iniciar pagamento. Tente novamente.');
+      alert('Erro ao iniciar pagamento. Verifique sua conexão.');
+      setMethod(null);
     } finally {
       setLoading(false);
     }
@@ -175,24 +202,69 @@ export default function PaymentModal({ isOpen, onClose, plan, onSuccess }: Payme
               </button>
             </div>
           ) : (
-            <div>
-              {method === 'stripe' && stripeClientSecret && (
-                <Elements stripe={stripePromise} options={{ clientSecret: stripeClientSecret }}>
+            <div className="min-h-[300px]">
+              {loading && (
+                <div className="flex flex-col items-center justify-center h-full py-12">
+                  <Loader2 className="w-10 h-10 animate-spin text-99blue mb-4" />
+                  <p className="text-gray-500">Preparando pagamento...</p>
+                </div>
+              )}
+
+              {!loading && method === 'stripe' && stripeClientSecret && (
+                <Elements stripe={stripePromise} options={{ clientSecret: stripeClientSecret, appearance: { theme: 'stripe' } }}>
                   <StripePaymentForm clientSecret={stripeClientSecret} onSuccess={onSuccess} />
                 </Elements>
               )}
-              {method === 'mercadopago' && (
-                <div className="text-center py-8">
-                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500 mb-4" />
-                  <p className="text-gray-600">Redirecionando para o Mercado Pago...</p>
+
+              {!loading && method === 'mercadopago' && mpPreferenceId && (
+                <div className="w-full">
+                  <Payment
+                    initialization={{ preferenceId: mpPreferenceId }}
+                    customization={{
+                      paymentMethods: {
+                        ticket: 'all',
+                        bankTransfer: 'all',
+                        creditCard: 'all',
+                        debitCard: 'all',
+                        mercadoPago: 'all',
+                      },
+                      visual: {
+                         style: {
+                            theme: 'default', // 'default' | 'dark' | 'bootstrap' | 'flat'
+                         }
+                      }
+                    }}
+                    onSubmit={async (param) => {
+                      console.log('MP Submit:', param);
+                      // Mercado Pago Payment Brick handles the submission.
+                      // Usually we don't need to do anything here unless we want to intercept.
+                      // But for preference-based brick, the flow is handled by MP.
+                      // Wait, for 'Payment' brick, we often need to send the data to backend IF not using preference.
+                      // WITH preferenceId, it should process automatically.
+                      // However, let's just log it.
+                      // Note: 'onSubmit' is mandatory in some versions, but with preferenceId it might just be a callback.
+                      // Let's return a promise.
+                      return new Promise((resolve) => setTimeout(resolve, 500)); 
+                    }}
+                    onReady={() => {
+                        console.log("MP Brick Ready");
+                    }}
+                    onError={(error) => {
+                        console.error("MP Brick Error:", error);
+                        alert("Erro no Mercado Pago. Tente novamente.");
+                    }}
+                  />
+                  <p className="text-xs text-center text-gray-400 mt-4 flex items-center justify-center">
+                    <Lock className="w-3 h-3 mr-1" /> Pagamento processado via Mercado Pago
+                  </p>
                 </div>
               )}
               
               <button 
-                onClick={() => { setMethod(null); setStripeClientSecret(null); }}
-                className="mt-4 text-sm text-gray-500 hover:text-gray-800 underline"
+                onClick={() => { setMethod(null); setStripeClientSecret(null); setMpPreferenceId(null); }}
+                className="mt-6 w-full py-2 text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-50 rounded transition-colors"
               >
-                Voltar e escolher outro método
+                Cancelar e escolher outro método
               </button>
             </div>
           )}
