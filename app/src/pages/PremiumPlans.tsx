@@ -139,7 +139,7 @@ export default function PremiumPlans() {
   };
 
   const handleFreePlanActivation = (plan: Plan) => {
-    const updatedData = {
+    const updatedData: Partial<User> = {
       plan: 'free',
       connections: plan.features.connections,
       isPremium: false,
