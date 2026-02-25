@@ -155,6 +155,7 @@ export type ApiFreelancerPublic = {
   state?: string;
   country?: string;
   isOnline?: boolean;
+  type?: string;
 };
 
 export async function apiListFreelancersPublic(): Promise<{ ok: boolean; freelancers?: ApiFreelancerPublic[]; total?: number; error?: string }> {
