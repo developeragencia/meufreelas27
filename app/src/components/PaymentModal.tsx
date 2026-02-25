@@ -140,7 +140,7 @@ export default function PaymentModal({ isOpen, onClose, plan, onSuccess }: Payme
           </div>
 
           {!method ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <button
                 onClick={() => handleSelectMethod('stripe')}
                 className="w-full p-4 border border-gray-200 rounded-lg flex items-center justify-between hover:border-99blue hover:bg-blue-50 transition-all group"
@@ -149,7 +149,10 @@ export default function PaymentModal({ isOpen, onClose, plan, onSuccess }: Payme
                   <div className="bg-white p-2 rounded shadow-sm border border-gray-100">
                     <CreditCard className="w-6 h-6 text-gray-700" />
                   </div>
-                  <span className="font-medium text-gray-700 group-hover:text-99blue">Cartão de Crédito (Stripe)</span>
+                  <div className="text-left">
+                    <span className="block font-bold text-gray-800 group-hover:text-99blue">Stripe</span>
+                    <span className="text-sm text-gray-500">Cartão de Crédito</span>
+                  </div>
                 </div>
                 <div className="w-4 h-4 rounded-full border-2 border-gray-300 group-hover:border-99blue" />
               </button>
@@ -163,8 +166,8 @@ export default function PaymentModal({ isOpen, onClose, plan, onSuccess }: Payme
                     <img src="https://img.icons8.com/color/48/mercado-pago.png" alt="MP" className="w-6 h-6" />
                   </div>
                   <div className="text-left">
-                    <span className="block font-medium text-gray-700 group-hover:text-blue-600">Mercado Pago</span>
-                    <span className="text-xs text-gray-500">Pix, Boleto, Cartão</span>
+                    <span className="block font-bold text-gray-800 group-hover:text-blue-600">Mercado Pago</span>
+                    <span className="text-sm text-gray-500">Pix, Boleto, Cartão</span>
                   </div>
                 </div>
                 <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-blue-500" />
