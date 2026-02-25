@@ -9,7 +9,7 @@ import {
 } from '@stripe/react-stripe-js';
 import { stripePromise } from '../lib/stripe';
 import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
-import { CreditCard, ExternalLink, Loader2, Lock } from 'lucide-react';
+import { CreditCard, ExternalLink, Loader2, Lock, X } from 'lucide-react';
 
 // Initialize Mercado Pago
 const MP_PUBLIC_KEY = import.meta.env.VITE_MP_PUBLIC_KEY || '';
@@ -98,7 +98,21 @@ export default function PaymentModal({ isOpen, onClose, plan, onSuccess }: Payme
         headers['Authorization'] = `Bearer ${storedToken}`;
       }
 
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'; // Fallback for dev
+      // Force HTTPS logic or relative path
+      let apiUrl = import.meta.env.VITE_API_URL;
+      if (!apiUrl) {
+        if (window.location.hostname === 'localhost') {
+            apiUrl = 'http://localhost:8000/api';
+        } else {
+            // Production: Use absolute HTTPS URL to avoid mixed content or relative path issues
+            apiUrl = window.location.origin + '/api';
+        }
+      }
+      
+      console.log('Initiating payment with API URL:', apiUrl);
+
+      // 1. Check Health/Debug endpoint first (Optional, but good for diagnostics)
+      // try { await fetch(`${apiUrl}/debug_payment.php`); } catch (e) { console.warn('Debug endpoint failed'); }
 
       if (selected === 'mercadopago') {
         // Criar preferência no backend
@@ -158,20 +172,20 @@ export default function PaymentModal({ isOpen, onClose, plan, onSuccess }: Payme
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-          <h3 className="text-xl font-bold text-gray-900">Pagamento Seguro</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
-        </div>
+      <div className="bg-white rounded-xl max-w-md w-full p-6 relative animate-fade-in">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <X className="w-6 h-6" />
+        </button>
 
-        <div className="p-6">
-          <div className="mb-6">
-            <p className="text-sm text-gray-500 mb-1">Você está contratando:</p>
-            <div className="flex justify-between items-baseline">
-              <span className="text-lg font-bold text-gray-900">Plano {plan.name}</span>
-              <span className="text-xl font-bold text-99blue">R$ {plan.price}</span>
-            </div>
-          </div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Assinar {plan.name}</h2>
+        <p className="text-gray-600 mb-6">
+          Escolha como deseja pagar. O acesso é liberado imediatamente após a confirmação.
+          <span className="text-xs text-gray-400 block mt-1">Versão do Pagamento: 2.1 (Fix)</span>
+        </p>
+        <div>
 
           {!method ? (
             <div className="space-y-4">
