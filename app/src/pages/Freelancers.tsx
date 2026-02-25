@@ -564,24 +564,3 @@ export default function Freelancers() {
     </div>
   );
 }
-                      onClick={() => setCurrentPage(i + 1)}
-                      className={`px-3 py-1 rounded-sm text-sm font-bold border ${currentPage === i + 1 ? 'bg-99blue text-white border-99blue' : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'}`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                  <button 
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    className="px-3 py-1 border border-gray-300 bg-white rounded-sm hover:bg-gray-50 disabled:opacity-50 text-sm font-bold text-gray-600"
-                  >
-                    Próxima
-                  </button>
-                </div>
-              )}
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-}
