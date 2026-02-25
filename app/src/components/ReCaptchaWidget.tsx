@@ -1,3 +1,4 @@
+// @ts-ignore
 import ReCAPTCHA from 'react-google-recaptcha';
 
 interface ReCaptchaWidgetProps {
