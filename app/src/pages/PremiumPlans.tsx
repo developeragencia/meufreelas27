@@ -188,7 +188,9 @@ export default function PremiumPlans() {
 
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Erro de conexão.');
+      const msg = err.message || 'Erro de conexão.';
+      setError(msg);
+      alert('Erro ao iniciar assinatura: ' + msg); // Forçar alerta
       setLoadingPlanId(null);
     }
   };

@@ -10,9 +10,9 @@ error_reporting(E_ALL);
 header('Content-Type: application/json');
 
 // 2. Dependências
-require_once __DIR__ . '/../../api/vendor/autoload.php';
-require_once __DIR__ . '/../../api/config.php';
-require_once __DIR__ . '/../../api/db.php';
+require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/db.php';
 
 // 3. CORS
 if (isset($_SERVER['HTTP_ORIGIN'])) {
