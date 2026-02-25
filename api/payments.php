@@ -93,10 +93,13 @@ $action = $_GET['action'] ?? '';
 if ($method === 'POST') {
     $data = json_decode(file_get_contents('php://input'), true);
 
-    // 1. Criar PaymentIntent do Stripe (Única opção ativa)
-    if ($action === 'create_payment_intent_stripe') {
+    // 1. Criar Checkout Session do Stripe (Redirecionamento)
+    if ($action === 'create_checkout_session') {
         try {
             $amount = (int)($data['price'] * 100); // Em centavos
+            $title = $data['title'] ?? 'Plano Premium';
+            $successUrl = $data['successUrl'] ?? ($_ENV['FRONTEND_URL'] . "/payments/success");
+            $cancelUrl = $data['cancelUrl'] ?? ($_ENV['FRONTEND_URL'] . "/payments/cancel");
 
             // Criar registro de assinatura pendente no banco
             $subscriptionId = bin2hex(random_bytes(18));
@@ -106,12 +109,22 @@ if ($method === 'POST') {
             $stmtSub = $pdo->prepare("INSERT INTO user_subscriptions (id, user_id, plan_code, billing_cycle, provider, amount, status, created_at) VALUES (?, ?, ?, ?, 'stripe', ?, 'pending', NOW())");
             $stmtSub->execute([$subscriptionId, $user['id'], $planCode, $billingCycle, (float)$data['price']]);
 
-            $paymentIntent = \Stripe\PaymentIntent::create([
-                'amount' => $amount,
-                'currency' => 'brl',
-                'automatic_payment_methods' => [
-                    'enabled' => true,
-                ],
+            $session = \Stripe\Checkout\Session::create([
+                'payment_method_types' => ['card'],
+                'line_items' => [[
+                    'price_data' => [
+                        'currency' => 'brl',
+                        'product_data' => [
+                            'name' => $title,
+                        ],
+                        'unit_amount' => $amount,
+                    ],
+                    'quantity' => 1,
+                ]],
+                'mode' => 'payment',
+                'success_url' => $successUrl,
+                'cancel_url' => $cancelUrl,
+                'customer_email' => $user['email'],
                 'metadata' => [
                     'user_id' => $user['id'],
                     'type' => $data['type'], // subscription
@@ -119,17 +132,16 @@ if ($method === 'POST') {
                     'subscription_id' => $subscriptionId,
                     'project_id' => $data['project_id'] ?? null
                 ],
-                'receipt_email' => $user['email'],
             ]);
             
-            // Atualizar o registro com o ID externo (client_secret ou payment_intent_id)
-            $pdo->prepare("UPDATE user_subscriptions SET external_id = ? WHERE id = ?")
-                ->execute([$paymentIntent->id, $subscriptionId]);
+            // Atualizar o registro com o ID externo
+            $pdo->prepare("UPDATE user_subscriptions SET external_id = ?, checkout_url = ? WHERE id = ?")
+                ->execute([$session->id, $session->url, $subscriptionId]);
 
-            echo json_encode(['clientSecret' => $paymentIntent->client_secret]);
+            echo json_encode(['url' => $session->url]);
         } catch (Exception $e) {
             http_response_code(500);
-            echo json_encode(['error' => 'Stripe Error: ' . $e->getMessage()]);
+            echo json_encode(['error' => 'Stripe Checkout Error: ' . $e->getMessage()]);
         }
     }
     
