@@ -219,7 +219,7 @@ export default function PaymentModal({ isOpen, onClose, plan, onSuccess }: Payme
               {!loading && method === 'mercadopago' && mpPreferenceId && (
                 <div className="w-full">
                   <Payment
-                    initialization={{ preferenceId: mpPreferenceId }}
+                    initialization={{ preferenceId: mpPreferenceId, amount: parseFloat(plan.price.toString().replace(',', '.')) }}
                     customization={{
                       paymentMethods: {
                         ticket: 'all',
