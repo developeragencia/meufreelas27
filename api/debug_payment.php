@@ -49,7 +49,8 @@ if ($fileStatus['vendor/autoload.php']['exists']) {
         require_once __DIR__ . '/vendor/autoload.php';
         $diagnostics['classes'] = [
             'Stripe\Stripe' => class_exists('Stripe\Stripe'),
-            'MercadoPago\SDK' => class_exists('MercadoPago\SDK')
+            'MercadoPago\SDK (Legacy)' => class_exists('MercadoPago\SDK'),
+            'MercadoPago\MercadoPagoConfig (v3)' => class_exists('MercadoPago\MercadoPagoConfig')
         ];
     } catch (Throwable $e) {
         $diagnostics['autoload_error'] = $e->getMessage();

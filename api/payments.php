@@ -90,8 +90,10 @@ $action = $_GET['action'] ?? '';
 // Configurar Stripe
 \Stripe\Stripe::setApiKey($_ENV['STRIPE_SECRET_KEY']);
 
-// Configurar Mercado Pago
-MercadoPago\SDK::setAccessToken($_ENV['MERCADOPAGO_ACCESS_TOKEN']);
+// Configurar Mercado Pago (SDK v3)
+use MercadoPago\MercadoPagoConfig;
+use MercadoPago\Client\Preference\PreferenceClient;
+MercadoPagoConfig::setAccessToken($_ENV['MERCADOPAGO_ACCESS_TOKEN']);
 
 if ($method === 'POST') {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -99,54 +101,52 @@ if ($method === 'POST') {
     // 1. Criar Preferência do Mercado Pago
     if ($action === 'create_preference_mp') {
         try {
-            $preference = new MercadoPago\Preference();
+            $client = new PreferenceClient();
             
-            $item = new MercadoPago\Item();
-            $item->title = $data['title'];
-            $item->quantity = 1;
-            $item->unit_price = (float)$data['price'];
-            $item->currency_id = "BRL";
-            
-            $preference->items = array($item);
-            
-            // Dados do pagador
-            $payer = new MercadoPago\Payer();
-            $payer->email = $user['email'];
-            $payer->name = $user['name'];
-            $preference->payer = $payer;
+            $preferenceRequest = [
+                "items" => [
+                    [
+                        "title" => $data['title'],
+                        "quantity" => 1,
+                        "unit_price" => (float)$data['price'],
+                        "currency_id" => "BRL"
+                    ]
+                ],
+                "payer" => [
+                    "email" => $user['email'],
+                    "name" => $user['name']
+                ],
+                "back_urls" => [
+                    "success" => $_ENV['FRONTEND_URL'] . "/payments/success",
+                    "failure" => $_ENV['FRONTEND_URL'] . "/payments/failure",
+                    "pending" => $_ENV['FRONTEND_URL'] . "/payments/pending"
+                ],
+                "auto_return" => "approved",
+                "notification_url" => $_ENV['MERCADOPAGO_WEBHOOK_URL'],
+            ];
 
             // Criar registro de assinatura pendente no banco
             $subscriptionId = bin2hex(random_bytes(18));
-            $planCode = $data['plan'] ?? 'pro'; // pro, premium
-            $billingCycle = $data['cycle'] ?? 'monthly'; // monthly, yearly
+            $planCode = $data['plan'] ?? 'pro'; 
+            $billingCycle = $data['cycle'] ?? 'monthly'; 
             
             $stmtSub = $pdo->prepare("INSERT INTO user_subscriptions (id, user_id, plan_code, billing_cycle, provider, amount, status, created_at) VALUES (?, ?, ?, ?, 'mercadopago', ?, 'pending', NOW())");
             $stmtSub->execute([$subscriptionId, $user['id'], $planCode, $billingCycle, (float)$data['price']]);
 
-            // Back URLs
-            $preference->back_urls = array(
-                "success" => $_ENV['FRONTEND_URL'] . "/payments/success",
-                "failure" => $_ENV['FRONTEND_URL'] . "/payments/failure",
-                "pending" => $_ENV['FRONTEND_URL'] . "/payments/pending"
-            );
-            $preference->auto_return = "approved";
-            
-            // Webhook para notificação
-            $preference->notification_url = $_ENV['MERCADOPAGO_WEBHOOK_URL'];
-            
-            // External Reference: Agora usamos o ID da assinatura que acabamos de criar
-            $preference->external_reference = $subscriptionId;
+            // Add external reference to request
+            $preferenceRequest["external_reference"] = $subscriptionId;
 
-            $preference->save();
+            // Create preference
+            $preference = $client->create($preferenceRequest);
 
-            // Atualizar o registro com o ID externo (init_point ou id da preferencia se quiser)
+            // Atualizar o registro com o ID externo
             $pdo->prepare("UPDATE user_subscriptions SET external_id = ?, checkout_url = ? WHERE id = ?")
                 ->execute([$preference->id, $preference->init_point, $subscriptionId]);
 
             echo json_encode(['preference_id' => $preference->id, 'init_point' => $preference->init_point]);
         } catch (Exception $e) {
             http_response_code(500);
-            echo json_encode(['error' => $e->getMessage()]);
+            echo json_encode(['error' => 'MP Error: ' . $e->getMessage()]);
         }
     }
 
