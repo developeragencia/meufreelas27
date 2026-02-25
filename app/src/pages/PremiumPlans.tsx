@@ -39,7 +39,7 @@ interface Plan {
 
 const plans: Plan[] = [
   {
-    id: 'basic',
+    id: 'free',
     name: 'Básico',
     price: 0,
     period: 'Grátis',
@@ -126,7 +126,7 @@ const plans: Plan[] = [
 
 export default function PremiumPlans() {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, updateUser } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
@@ -147,6 +147,37 @@ export default function PremiumPlans() {
   };
 
   const selectedPlanData = plans.find(p => p.id === selectedPlan);
+
+  const handleSuccess = () => {
+    if (selectedPlanData) {
+      const updatedData = {
+        plan: selectedPlanData.id as 'free' | 'pro' | 'premium',
+        connections: (user?.connections || 0) + selectedPlanData.features.connections,
+        isPremium: selectedPlanData.id === 'premium',
+        isPro: selectedPlanData.id === 'pro' || selectedPlanData.id === 'premium',
+      };
+
+      if (updateUser) updateUser(updatedData);
+      
+      try {
+        const storedUsers = JSON.parse(localStorage.getItem('meufreelas_users') || '[]');
+        const updatedUsers = storedUsers.map((u: any) => 
+          u.id === user?.id ? { ...u, ...updatedData } : u
+        );
+        localStorage.setItem('meufreelas_users', JSON.stringify(updatedUsers));
+        
+        const profileKey = `profile_${user?.id}`;
+        const profile = JSON.parse(localStorage.getItem(profileKey) || '{}');
+        localStorage.setItem(profileKey, JSON.stringify({ ...profile, ...updatedData }));
+      } catch (e) {
+        console.error("Error persisting plan", e);
+      }
+
+      alert(`Parabéns! Você assinou o plano ${selectedPlanData.name} com sucesso.`);
+    }
+    setShowPaymentModal(false);
+    navigate('/freelancer/dashboard');
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
