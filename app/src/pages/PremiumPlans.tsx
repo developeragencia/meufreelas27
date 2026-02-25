@@ -188,7 +188,7 @@ export default function PremiumPlans() {
 
   const handleSuccess = () => {
     if (selectedPlanData) {
-      const updatedData: Partial<typeof user> = {
+      const updatedData: Partial<User> = {
         plan: selectedPlanData.id as 'free' | 'pro' | 'premium',
         connections: (user?.connections || 0) + selectedPlanData.features.connections,
         isPremium: selectedPlanData.id === 'premium',
