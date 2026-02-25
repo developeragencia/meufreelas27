@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Menu, Star, X } from 'lucide-react';
+import { Menu, Star, X, Clock, Heart, Flag, Send, MessageCircle, User, MapPin, Shield, ShieldCheck, FileText, ChevronDown, Calendar, DollarSign, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiEnsureConversation, apiGetProject, apiListProposals, apiSendMessage, hasApi, type ApiProject, type ApiProposal } from '../lib/api';
 import BrandLogo from '../components/BrandLogo';
