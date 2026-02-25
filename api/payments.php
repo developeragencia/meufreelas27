@@ -90,68 +90,11 @@ $action = $_GET['action'] ?? '';
 // Configurar Stripe
 \Stripe\Stripe::setApiKey($_ENV['STRIPE_SECRET_KEY']);
 
-// Configurar Mercado Pago (SDK v3)
-use MercadoPago\MercadoPagoConfig;
-use MercadoPago\Client\Preference\PreferenceClient;
-MercadoPagoConfig::setAccessToken($_ENV['MERCADOPAGO_ACCESS_TOKEN']);
-
 if ($method === 'POST') {
     $data = json_decode(file_get_contents('php://input'), true);
 
-    // 1. Criar Preferência do Mercado Pago
-    if ($action === 'create_preference_mp') {
-        try {
-            $client = new PreferenceClient();
-            
-            $preferenceRequest = [
-                "items" => [
-                    [
-                        "title" => $data['title'],
-                        "quantity" => 1,
-                        "unit_price" => (float)$data['price'],
-                        "currency_id" => "BRL"
-                    ]
-                ],
-                "payer" => [
-                    "email" => $user['email'],
-                    "name" => $user['name']
-                ],
-                "back_urls" => [
-                    "success" => $_ENV['FRONTEND_URL'] . "/payments/success",
-                    "failure" => $_ENV['FRONTEND_URL'] . "/payments/failure",
-                    "pending" => $_ENV['FRONTEND_URL'] . "/payments/pending"
-                ],
-                "auto_return" => "approved",
-                "notification_url" => $_ENV['MERCADOPAGO_WEBHOOK_URL'],
-            ];
-
-            // Criar registro de assinatura pendente no banco
-            $subscriptionId = bin2hex(random_bytes(18));
-            $planCode = $data['plan'] ?? 'pro'; 
-            $billingCycle = $data['cycle'] ?? 'monthly'; 
-            
-            $stmtSub = $pdo->prepare("INSERT INTO user_subscriptions (id, user_id, plan_code, billing_cycle, provider, amount, status, created_at) VALUES (?, ?, ?, ?, 'mercadopago', ?, 'pending', NOW())");
-            $stmtSub->execute([$subscriptionId, $user['id'], $planCode, $billingCycle, (float)$data['price']]);
-
-            // Add external reference to request
-            $preferenceRequest["external_reference"] = $subscriptionId;
-
-            // Create preference
-            $preference = $client->create($preferenceRequest);
-
-            // Atualizar o registro com o ID externo
-            $pdo->prepare("UPDATE user_subscriptions SET external_id = ?, checkout_url = ? WHERE id = ?")
-                ->execute([$preference->id, $preference->init_point, $subscriptionId]);
-
-            echo json_encode(['preference_id' => $preference->id, 'init_point' => $preference->init_point]);
-        } catch (Exception $e) {
-            http_response_code(500);
-            echo json_encode(['error' => 'MP Error: ' . $e->getMessage()]);
-        }
-    }
-
-    // 2. Criar PaymentIntent do Stripe
-    elseif ($action === 'create_payment_intent_stripe') {
+    // 1. Criar PaymentIntent do Stripe (Única opção ativa)
+    if ($action === 'create_payment_intent_stripe') {
         try {
             $amount = (int)($data['price'] * 100); // Em centavos
 
@@ -186,30 +129,16 @@ if ($method === 'POST') {
             echo json_encode(['clientSecret' => $paymentIntent->client_secret]);
         } catch (Exception $e) {
             http_response_code(500);
-            echo json_encode(['error' => $e->getMessage()]);
+            echo json_encode(['error' => 'Stripe Error: ' . $e->getMessage()]);
         }
     }
-
-    // 3. Create Checkout Session (Generic for MP/Stripe redirect flow)
-    elseif ($action === 'create_checkout') {
-        try {
-            $provider = $data['provider'] ?? 'mercadopago';
-            $amount = (float)($data['amount'] ?? 0);
-            $title = $data['title'] ?? 'Pagamento';
-            $successUrl = $data['successUrl'] ?? ($_ENV['FRONTEND_URL'] . "/payments/success");
-            $cancelUrl = $data['cancelUrl'] ?? ($_ENV['FRONTEND_URL'] . "/payments/cancel");
-            $proposalId = $data['proposalId'] ?? null;
-
-            if ($amount <= 0) {
-                throw new Exception('Valor inválido');
-            }
-
-            if ($provider === 'mercadopago') {
-                $preference = new MercadoPago\Preference();
-                $item = new MercadoPago\Item();
-                $item->title = $title;
-                $item->quantity = 1;
-                $item->unit_price = $amount;
+    
+    // Fallback para rotas inexistentes
+    else {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid action']);
+    }
+}
                 $item->currency_id = "BRL";
                 $preference->items = array($item);
                 
