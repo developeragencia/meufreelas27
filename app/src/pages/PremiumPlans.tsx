@@ -159,7 +159,7 @@ export default function PremiumPlans() {
       }
 
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/v2/checkout.php`, {
+      const res = await fetch(`${apiUrl}/checkout_v2.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
