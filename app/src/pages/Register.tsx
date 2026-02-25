@@ -1,7 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { ReCaptchaWidget, hasReCaptcha } from '../components/ReCaptchaWidget';
 import { Eye, EyeOff, Mail, Lock, User, Briefcase, ArrowRight } from 'lucide-react';
 
 type UserTypeOption = 'freelancer' | 'client';
@@ -19,10 +18,6 @@ export default function Register() {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
-
-  const handleRecaptchaVerify = useCallback((token: string | null) => setRecaptchaToken(token), []);
-  const handleRecaptchaExpire = useCallback(() => setRecaptchaToken(null), []);
 
   const handleTypeSelection = (type: UserTypeOption) => {
     setUserType(type);
@@ -341,12 +336,6 @@ export default function Register() {
                     <Link to="/privacidade" className="text-99blue hover:underline">Política de privacidade</Link>
                   </label>
                 </div>
-
-                <ReCaptchaWidget
-                  onVerify={handleRecaptchaVerify}
-                  onExpire={handleRecaptchaExpire}
-                  className="my-4 flex justify-center"
-                />
 
                 <button
                   type="submit"

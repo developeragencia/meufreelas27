@@ -1,8 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { apiResendActivation, hasApi } from '../lib/api';
-import { ReCaptchaWidget, hasReCaptcha } from '../components/ReCaptchaWidget';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 
 export default function Login() {
@@ -16,10 +15,6 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [isResendLoading, setIsResendLoading] = useState(false);
   const [notVerifiedEmail, setNotVerifiedEmail] = useState<string | null>(null);
-  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
-
-  const handleRecaptchaVerify = useCallback((token: string | null) => setRecaptchaToken(token), []);
-  const handleRecaptchaExpire = useCallback(() => setRecaptchaToken(null), []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,14 +26,11 @@ export default function Login() {
       setError('Preencha email e senha.');
       return;
     }
-    if (hasReCaptcha() && !recaptchaToken) {
-      setError('Complete a verificação de segurança (não sou um robô) antes de continuar.');
-      return;
-    }
+    
     setIsLoading(true);
 
     try {
-      const result = await login(trimmedEmail, password, recaptchaToken || undefined);
+      const result = await login(trimmedEmail, password);
       if (result.success) {
         const stored = localStorage.getItem('meufreelas_user');
         const u = stored ? (JSON.parse(stored) as { type?: string }) : null;
@@ -211,12 +203,6 @@ export default function Login() {
                 Esqueceu a senha?
               </Link>
             </div>
-
-            <ReCaptchaWidget
-              onVerify={handleRecaptchaVerify}
-              onExpire={handleRecaptchaExpire}
-              className="my-4 flex justify-center"
-            />
 
             <button
               type="submit"
