@@ -149,9 +149,10 @@ export default function PremiumPlans() {
     setLoadingPlanId(plan.id);
     setError(null);
 
+    let apiUrl = '';
     try {
       // Determine API URL with robust fallback
-      let apiUrl = import.meta.env.VITE_API_URL;
+      apiUrl = import.meta.env.VITE_API_URL;
       if (!apiUrl || apiUrl === '/') {
           if (window.location.hostname === 'localhost') {
             apiUrl = 'http://localhost:8000/api';
