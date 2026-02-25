@@ -188,7 +188,7 @@ export default function PremiumPlans() {
 
   const handleSuccess = () => {
     if (selectedPlanData) {
-      const updatedData = {
+      const updatedData: Partial<typeof user> = {
         plan: selectedPlanData.id as 'free' | 'pro' | 'premium',
         connections: (user?.connections || 0) + selectedPlanData.features.connections,
         isPremium: selectedPlanData.id === 'premium',
@@ -196,6 +196,7 @@ export default function PremiumPlans() {
       };
 
       if (updateUser) updateUser(updatedData);
+
       
       try {
         const storedUsers = JSON.parse(localStorage.getItem('meufreelas_users') || '[]');
