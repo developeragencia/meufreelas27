@@ -470,54 +470,6 @@ export default function PremiumPlans() {
           </div>
         </div>
       </div>
-
-      {/* Payment Modal */}
-      {showPaymentModal && selectedPlanData && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Assinar {selectedPlanData.name}</h2>
-              <button onClick={() => setShowPaymentModal(false)}>
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-            
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-600">Plano</span>
-                <span className="font-medium">{selectedPlanData.name}</span>
-              </div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-600">Ciclo</span>
-                <span className="font-medium">
-                  {billingCycle === 'monthly' ? 'Mensal' : 
-                   billingCycle === 'quarterly' ? 'Trimestral' : 'Anual'}
-                </span>
-              </div>
-              <div className="border-t border-gray-200 pt-2 mt-2">
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold">Total</span>
-                  <span className="text-2xl font-bold text-99blue">
-                    R$ {getDiscountedPrice(selectedPlanData.price).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <button className="w-full py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center">
-                Pagar com Pix
-              </button>
-              <button className="w-full py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center">
-                Pagar com Cartão
-              </button>
-              <button className="w-full py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-                Pagar com Boleto
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
