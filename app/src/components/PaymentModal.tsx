@@ -63,6 +63,7 @@ interface PaymentModalProps {
 }
 
 export default function PaymentModal({ isOpen, onClose, plan, onSuccess }: PaymentModalProps) {
+  // Production ready payment modal with Stripe and Mercado Pago
   const { user } = useAuth();
   const [method, setMethod] = useState<'stripe' | 'mercadopago' | null>(null);
   const [loading, setLoading] = useState(false);
