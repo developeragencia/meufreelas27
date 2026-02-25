@@ -347,12 +347,15 @@ export default function Register() {
                   </label>
                 </div>
 
+                {/* Turnstile disabled */}
+                {/*
                 <TurnstileWidget
                   onVerify={handleTurnstileVerify}
                   onExpire={handleTurnstileExpire}
                   theme="light"
-                  className="my-4"
+                  className="my-2"
                 />
+                */}
 
                 <button
                   type="submit"

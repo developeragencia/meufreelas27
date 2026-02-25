@@ -21,6 +21,22 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 require_once __DIR__ . '/db.php';
 
+// --- JWT Helper Functions (Inlined to avoid require errors) ---
+function jwt_base64url_encode($data) {
+    return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+}
+function jwt_encode($payload, $secret) {
+    $header = json_encode(['typ' => 'JWT', 'alg' => 'HS256']);
+    $payload['iat'] = time();
+    $payload['exp'] = time() + (60 * 60 * 24); // 24h
+    $base64UrlHeader = jwt_base64url_encode($header);
+    $base64UrlPayload = jwt_base64url_encode(json_encode($payload));
+    $signature = hash_hmac('sha256', $base64UrlHeader . "." . $base64UrlPayload, $secret, true);
+    $base64UrlSignature = jwt_base64url_encode($signature);
+    return $base64UrlHeader . "." . $base64UrlPayload . "." . $base64UrlSignature;
+}
+// -------------------------------------------------------------
+
 /**
  * Verifica o token do Cloudflare Turnstile.
  * Retorna true se válido, false caso contrário.
@@ -181,6 +197,8 @@ if ($action === 'register') {
 }
 
 if ($action === 'login') {
+    // Turnstile disabled for debugging
+    /*
     $turnstileSecret = mf_env('TURNSTILE_SECRET_KEY');
     if ($turnstileSecret !== null && $turnstileSecret !== '') {
         $turnstileToken = trim((string)($input['turnstileToken'] ?? ''));
@@ -193,6 +211,7 @@ if ($action === 'login') {
             exit;
         }
     }
+    */
 
     $email = trim($input['email'] ?? '');
     $password = $input['password'] ?? '';

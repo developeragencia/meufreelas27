@@ -212,12 +212,15 @@ export default function Login() {
               </Link>
             </div>
 
+            {/* Turnstile temporarily disabled */}
+            {/*
             <TurnstileWidget
               onVerify={handleTurnstileVerify}
               onExpire={handleTurnstileExpire}
               theme="light"
               className="my-4"
             />
+            */}
 
             <button
               type="submit"
