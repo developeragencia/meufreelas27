@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import PaymentModal from '../components/PaymentModal';
 import { 
   Check, 
   Zap, 
@@ -12,7 +13,7 @@ import {
   Users,
   Shield,
   ArrowRight,
-  X
+  HelpCircle
 } from 'lucide-react';
 
 interface Plan {
@@ -131,19 +132,56 @@ export default function PremiumPlans() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
 
+  const getDiscountedPrice = (basePrice: number) => {
+    if (billingCycle === 'quarterly') return basePrice * 0.90;
+    if (billingCycle === 'yearly') return basePrice * 0.75;
+    return basePrice;
+  };
+
+  const handleFreePlanActivation = (plan: Plan) => {
+    const updatedData = {
+      plan: 'free',
+      connections: plan.features.connections,
+      isPremium: false,
+      isPro: false,
+    };
+
+    if (updateUser) updateUser(updatedData);
+    
+    try {
+      const storedUsers = JSON.parse(localStorage.getItem('meufreelas_users') || '[]');
+      const updatedUsers = storedUsers.map((u: any) => 
+        u.id === user?.id ? { ...u, ...updatedData } : u
+      );
+      localStorage.setItem('meufreelas_users', JSON.stringify(updatedUsers));
+      
+      const profileKey = `profile_${user?.id}`;
+      const profile = JSON.parse(localStorage.getItem(profileKey) || '{}');
+      localStorage.setItem(profileKey, JSON.stringify({ ...profile, ...updatedData }));
+    } catch (e) {
+      console.error("Error persisting plan", e);
+    }
+
+    alert(`Plano ${plan.name} ativado com sucesso!`);
+    navigate('/freelancer/dashboard');
+  };
+
   const handleSelectPlan = (planId: string) => {
     if (!isAuthenticated) {
       navigate('/register?type=freelancer');
       return;
     }
+
+    const plan = plans.find(p => p.id === planId);
+    if (!plan) return;
+
+    if (plan.price === 0) {
+      handleFreePlanActivation(plan);
+      return;
+    }
+
     setSelectedPlan(planId);
     setShowPaymentModal(true);
-  };
-
-  const getDiscountedPrice = (basePrice: number) => {
-    if (billingCycle === 'quarterly') return basePrice * 0.90;
-    if (billingCycle === 'yearly') return basePrice * 0.75;
-    return basePrice;
   };
 
   const selectedPlanData = plans.find(p => p.id === selectedPlan);
@@ -180,327 +218,307 @@ export default function PremiumPlans() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 font-sans">
+      {/* Payment Modal */}
+      {selectedPlanData && (
+        <PaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          plan={{
+            ...selectedPlanData,
+            price: getDiscountedPrice(selectedPlanData.price).toFixed(2).replace('.', ',')
+          }}
+          onSuccess={handleSuccess}
+        />
+      )}
+
       {/* Header */}
-      <header className="bg-99dark text-white">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <a href="/" className="text-2xl font-bold">
-              meu<span className="font-light">freelas</span>
-            </a>
-            <nav className="flex items-center space-x-6">
-              <a href="/projects" className="text-gray-300 hover:text-white">Projetos</a>
-              <a href="/freelancers" className="text-gray-300 hover:text-white">Freelancers</a>
+      <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center cursor-pointer" onClick={() => navigate('/')}>
+              <span className="text-2xl font-bold text-gray-900">meu</span>
+              <span className="text-2xl font-light text-gray-900">freelas</span>
+            </div>
+            
+            <nav className="hidden md:flex space-x-8">
+              <a href="/projects" className="text-gray-500 hover:text-99blue transition-colors">Projetos</a>
+              <a href="/freelancers" className="text-gray-500 hover:text-99blue transition-colors">Freelancers</a>
               {isAuthenticated ? (
-                <a href={user?.type === 'freelancer' ? '/freelancer/dashboard' : '/dashboard'} 
-                  className="text-gray-300 hover:text-white">
-                  Dashboard
-                </a>
+                <button 
+                  onClick={() => navigate(user?.type === 'freelancer' ? '/freelancer/dashboard' : '/dashboard')}
+                  className="text-99blue font-medium hover:text-blue-700"
+                >
+                  Meu Painel
+                </button>
               ) : (
-                <a href="/login" className="text-gray-300 hover:text-white">Login</a>
+                <div className="flex items-center space-x-4">
+                  <button onClick={() => navigate('/login')} className="text-gray-500 hover:text-gray-900">
+                    Entrar
+                  </button>
+                  <button 
+                    onClick={() => navigate('/register')} 
+                    className="bg-99blue text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Cadastre-se
+                  </button>
+                </div>
               )}
             </nav>
           </div>
         </div>
       </header>
 
-      {/* Hero */}
-      <div className="bg-gradient-to-br from-99blue to-sky-600 text-white py-16">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            Escolha seu Plano
+      {/* Hero Section */}
+      <div className="relative bg-99dark overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-gradient-to-r from-99blue/20 to-purple-600/20 mix-blend-multiply" />
+          <div className="absolute -top-24 -left-24 w-96 h-96 bg-99blue/30 rounded-full blur-3xl" />
+          <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-purple-600/30 rounded-full blur-3xl" />
+        </div>
+        
+        <div className="relative max-w-7xl mx-auto px-4 py-24 sm:px-6 lg:px-8 text-center">
+          <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight mb-6">
+            Acelere sua carreira freelance
           </h1>
-          <p className="text-xl text-white/90 mb-6">
-            Invista na sua carreira freelance e aumente suas chances de sucesso
+          <p className="max-w-2xl mx-auto text-xl text-gray-300 mb-10">
+            Escolha o plano ideal para conseguir mais projetos, taxas menores e ferramentas exclusivas.
           </p>
-          <div className="flex items-center justify-center gap-2 text-sm">
-            <Shield className="w-5 h-5" />
-            <span>7 dias de garantia • Cancele quando quiser</span>
+          
+          <div className="inline-flex items-center bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 text-white text-sm border border-white/10">
+            <Shield className="w-4 h-4 mr-2 text-green-400" />
+            Garantia de satisfação ou seu dinheiro de volta em 7 dias
           </div>
         </div>
       </div>
 
-      {/* Billing Cycle Selector */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex justify-center mb-8">
-          <div className="bg-white rounded-lg shadow-sm p-1 inline-flex">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 -mt-12 relative z-10">
+        {/* Billing Cycle Toggle */}
+        <div className="flex justify-center mb-12">
+          <div className="bg-white p-1.5 rounded-xl shadow-lg border border-gray-100 inline-flex">
             <button
               onClick={() => setBillingCycle('monthly')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                billingCycle === 'monthly' ? 'bg-99blue text-white' : 'text-gray-600 hover:bg-gray-100'
+              className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                billingCycle === 'monthly' 
+                  ? 'bg-99blue text-white shadow-md' 
+                  : 'text-gray-500 hover:text-gray-900'
               }`}
             >
               Mensal
             </button>
             <button
               onClick={() => setBillingCycle('quarterly')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                billingCycle === 'quarterly' ? 'bg-99blue text-white' : 'text-gray-600 hover:bg-gray-100'
+              className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center ${
+                billingCycle === 'quarterly' 
+                  ? 'bg-99blue text-white shadow-md' 
+                  : 'text-gray-500 hover:text-gray-900'
               }`}
             >
               Trimestral
-              <span className="ml-1 text-xs bg-green-500 text-white px-1.5 py-0.5 rounded">-10%</span>
+              <span className="ml-2 text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                -10%
+              </span>
             </button>
             <button
               onClick={() => setBillingCycle('yearly')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                billingCycle === 'yearly' ? 'bg-99blue text-white' : 'text-gray-600 hover:bg-gray-100'
+              className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center ${
+                billingCycle === 'yearly' 
+                  ? 'bg-99blue text-white shadow-md' 
+                  : 'text-gray-500 hover:text-gray-900'
               }`}
             >
               Anual
-              <span className="ml-1 text-xs bg-green-500 text-white px-1.5 py-0.5 rounded">-25%</span>
+              <span className="ml-2 text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                -25%
+              </span>
             </button>
           </div>
         </div>
 
-        {/* Plans Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {/* Plans Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-24">
           {plans.map((plan) => {
             const Icon = plan.icon;
             const discountedPrice = getDiscountedPrice(plan.price);
-            
+            const isPopular = plan.highlighted;
+
             return (
-              <div
+              <div 
                 key={plan.id}
-                className={`relative bg-white rounded-2xl shadow-lg overflow-hidden transition-transform hover:scale-105 ${
-                  plan.highlighted ? 'ring-2 ring-99blue ring-offset-2' : ''
+                className={`relative flex flex-col bg-white rounded-2xl transition-all duration-300 ${
+                  isPopular 
+                    ? 'shadow-2xl ring-2 ring-99blue scale-105 md:-mt-4 z-10' 
+                    : 'shadow-lg hover:shadow-xl border border-gray-100'
                 }`}
               >
-                {plan.highlighted && (
-                  <div className="absolute top-0 left-0 right-0 bg-99blue text-white text-center py-2 text-sm font-medium">
-                    Mais Popular
+                {isPopular && (
+                  <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                    <span className="bg-99blue text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg uppercase tracking-wider">
+                      Mais Popular
+                    </span>
                   </div>
                 )}
-                
-                <div className={`p-6 ${plan.highlighted ? 'pt-14' : ''}`}>
-                  {/* Plan Header */}
-                  <div className="text-center mb-6">
-                    <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4 ${
-                      plan.id === 'basic' ? 'bg-gray-100' :
-                      plan.id === 'pro' ? 'bg-blue-100' : 'bg-purple-100'
+
+                <div className="p-8 flex-1">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className={`p-3 rounded-xl ${
+                      plan.id === 'free' ? 'bg-gray-100 text-gray-600' :
+                      plan.id === 'pro' ? 'bg-blue-50 text-99blue' :
+                      'bg-purple-50 text-purple-600'
                     }`}>
-                      <Icon className={`w-8 h-8 ${
-                        plan.id === 'basic' ? 'text-gray-600' :
-                        plan.id === 'pro' ? 'text-blue-600' : 'text-purple-600'
-                      }`} />
+                      <Icon className="w-8 h-8" />
                     </div>
-                    <h3 className="text-2xl font-bold text-gray-800">{plan.name}</h3>
-                    <p className="text-gray-500 text-sm mt-1">{plan.description}</p>
+                    <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
                   </div>
 
-                  {/* Price */}
-                  <div className="text-center mb-6">
-                    <div className="flex items-baseline justify-center">
-                      {plan.price > 0 && <span className="text-gray-500 text-lg">R$</span>}
-                      <span className="text-4xl font-bold text-gray-800">
-                        {plan.price === 0 ? 'Grátis' : discountedPrice.toFixed(2)}
+                  <div className="mb-6">
+                    <div className="flex items-baseline">
+                      <span className="text-gray-500 text-lg mr-1">R$</span>
+                      <span className="text-5xl font-extrabold text-gray-900">
+                        {plan.price === 0 ? '0' : discountedPrice.toFixed(2)}
                       </span>
+                      {plan.price > 0 && (
+                        <span className="text-gray-500 ml-2">
+                          {billingCycle === 'monthly' ? '/mês' : 
+                           billingCycle === 'quarterly' ? '/trimestre' : '/ano'}
+                        </span>
+                      )}
                     </div>
-                    {plan.price > 0 && (
-                      <span className="text-gray-500">
-                        {billingCycle === 'monthly' ? '/mês' : 
-                         billingCycle === 'quarterly' ? '/trimestre' : '/ano'}
-                      </span>
-                    )}
                     {plan.price > 0 && billingCycle !== 'monthly' && (
-                      <p className="text-sm text-green-600 mt-1">
+                      <p className="text-sm text-green-600 font-medium mt-2 flex items-center">
+                        <TrendingUp className="w-4 h-4 mr-1" />
                         Economia de R$ {((plan.price - discountedPrice) * (billingCycle === 'quarterly' ? 3 : 12)).toFixed(2)}
                       </p>
                     )}
+                    <p className="text-gray-500 mt-4 text-sm leading-relaxed">{plan.description}</p>
                   </div>
 
-                  {/* Features */}
-                  <div className="space-y-3 mb-6">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center text-gray-600">
-                        <TrendingUp className="w-4 h-4 mr-2" />
-                        Conexões/mês
-                      </span>
-                      <span className="font-semibold">{plan.features.connections}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center text-gray-600">
-                        <Clock className="w-4 h-4 mr-2" />
-                        Recebimento
-                      </span>
-                      <span className="font-semibold">{plan.features.paymentDays} dias</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center text-gray-600">
-                        <Briefcase className="w-4 h-4 mr-2" />
-                        Taxa de intermediação
-                      </span>
-                      <span className="font-semibold">{plan.features.fee}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center text-gray-600">
-                        <Users className="w-4 h-4 mr-2" />
-                        Áreas de interesse
-                      </span>
-                      <span className="font-semibold">{plan.features.areas}</span>
-                    </div>
-                  </div>
-
-                  {/* Benefits */}
-                  <div className="space-y-2 mb-6">
-                    {plan.benefits.map((benefit, index) => (
-                      <div key={index} className="flex items-start text-sm">
-                        <Check className={`w-4 h-4 mr-2 mt-0.5 flex-shrink-0 ${
-                          plan.id === 'basic' ? 'text-gray-400' :
-                          plan.id === 'pro' ? 'text-blue-500' : 'text-purple-500'
-                        }`} />
-                        <span className="text-gray-600">{benefit}</span>
+                  <div className="space-y-4 mb-8">
+                    {plan.benefits.map((benefit, idx) => (
+                      <div key={idx} className="flex items-start">
+                        <div className={`mt-1 mr-3 flex-shrink-0 rounded-full p-0.5 ${
+                          plan.id === 'free' ? 'bg-gray-100 text-gray-400' :
+                          'bg-green-100 text-green-600'
+                        }`}>
+                          <Check className="w-3 h-3" />
+                        </div>
+                        <span className="text-gray-600 text-sm">{benefit}</span>
                       </div>
                     ))}
                   </div>
+                </div>
 
-                  {/* CTA Button */}
+                <div className="p-8 pt-0 mt-auto">
                   <button
                     onClick={() => handleSelectPlan(plan.id)}
-                    className={`w-full py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${
-                      plan.id === 'basic'
-                        ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    className={`w-full py-4 rounded-xl font-bold text-sm uppercase tracking-wide transition-all duration-200 shadow-md hover:shadow-lg ${
+                      plan.id === 'free'
+                        ? 'bg-gray-100 text-gray-800 hover:bg-gray-200'
                         : plan.id === 'pro'
-                        ? 'bg-99blue text-white hover:bg-sky-400'
-                        : 'bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700'
+                        ? 'bg-99blue text-white hover:bg-blue-700'
+                        : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700'
                     }`}
                   >
                     {plan.price === 0 ? 'Começar Grátis' : 'Assinar Agora'}
-                    <ArrowRight className="w-4 h-4 ml-2" />
                   </button>
+                  <p className="text-center text-xs text-gray-400 mt-4">
+                    {plan.price === 0 ? 'Sempre gratuito' : 'Renovação automática. Cancele quando quiser.'}
+                  </p>
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* Comparison Table */}
-        <div className="mt-16">
-          <h2 className="text-2xl font-bold text-center text-gray-800 mb-8">
-            Compare os Planos
-          </h2>
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-gray-600 font-medium">Recurso</th>
-                    <th className="px-6 py-4 text-center text-gray-600 font-medium">Básico</th>
-                    <th className="px-6 py-4 text-center text-99blue font-medium bg-blue-50">Pro</th>
-                    <th className="px-6 py-4 text-center text-purple-600 font-medium">Premium</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  <tr>
-                    <td className="px-6 py-4 text-gray-700">Conexões mensais</td>
-                    <td className="px-6 py-4 text-center">10</td>
-                    <td className="px-6 py-4 text-center bg-blue-50 font-medium">120</td>
-                    <td className="px-6 py-4 text-center font-medium">240</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-gray-700">Prazo para receber</td>
-                    <td className="px-6 py-4 text-center">10 dias úteis</td>
-                    <td className="px-6 py-4 text-center bg-blue-50 font-medium">7 dias úteis</td>
-                    <td className="px-6 py-4 text-center font-medium">3 dias úteis</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-gray-700">Taxa de intermediação</td>
-                    <td className="px-6 py-4 text-center">20%</td>
-                    <td className="px-6 py-4 text-center bg-blue-50 font-medium text-green-600">15%</td>
-                    <td className="px-6 py-4 text-center font-medium text-green-600">10%</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-gray-700">Áreas de interesse</td>
-                    <td className="px-6 py-4 text-center">5</td>
-                    <td className="px-6 py-4 text-center bg-blue-50 font-medium">20</td>
-                    <td className="px-6 py-4 text-center font-medium">30</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-gray-700">Habilidades</td>
-                    <td className="px-6 py-4 text-center">10</td>
-                    <td className="px-6 py-4 text-center bg-blue-50 font-medium">30</td>
-                    <td className="px-6 py-4 text-center font-medium">50</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-gray-700">Trabalhos no portfólio</td>
-                    <td className="px-6 py-4 text-center">3</td>
-                    <td className="px-6 py-4 text-center bg-blue-50 font-medium">12</td>
-                    <td className="px-6 py-4 text-center font-medium">15</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-gray-700">Propostas promovidas/mês</td>
-                    <td className="px-6 py-4 text-center">-</td>
-                    <td className="px-6 py-4 text-center bg-blue-50 font-medium">2</td>
-                    <td className="px-6 py-4 text-center font-medium">5</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-gray-700">Clientes para seguir</td>
-                    <td className="px-6 py-4 text-center">-</td>
-                    <td className="px-6 py-4 text-center bg-blue-50 font-medium">3</td>
-                    <td className="px-6 py-4 text-center font-medium">10</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-gray-700">Destaque nas pesquisas</td>
-                    <td className="px-6 py-4 text-center">-</td>
-                    <td className="px-6 py-4 text-center bg-blue-50"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
-                    <td className="px-6 py-4 text-center"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-gray-700">Projetos exclusivos</td>
-                    <td className="px-6 py-4 text-center">-</td>
-                    <td className="px-6 py-4 text-center bg-blue-50"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
-                    <td className="px-6 py-4 text-center"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-gray-700">Valor médio das propostas</td>
-                    <td className="px-6 py-4 text-center">-</td>
-                    <td className="px-6 py-4 text-center bg-blue-50"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
-                    <td className="px-6 py-4 text-center"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-gray-700">Notificação imediata de projetos</td>
-                    <td className="px-6 py-4 text-center">-</td>
-                    <td className="px-6 py-4 text-center bg-blue-50"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
-                    <td className="px-6 py-4 text-center"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+        {/* Features Table */}
+        <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 mb-24">
+          <div className="p-8 border-b border-gray-100 bg-gray-50/50">
+            <h2 className="text-2xl font-bold text-gray-900 text-center">Compare todos os recursos</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="px-8 py-6 text-left text-sm font-semibold text-gray-500 uppercase tracking-wider w-1/4">Recurso</th>
+                  <th className="px-8 py-6 text-center text-sm font-bold text-gray-900 w-1/4">Básico</th>
+                  <th className="px-8 py-6 text-center text-sm font-bold text-99blue w-1/4 bg-blue-50/30">Pro</th>
+                  <th className="px-8 py-6 text-center text-sm font-bold text-purple-600 w-1/4">Premium</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                <tr className="hover:bg-gray-50/50 transition-colors">
+                  <td className="px-8 py-5 text-gray-700 font-medium">Conexões mensais</td>
+                  <td className="px-8 py-5 text-center text-gray-600">10</td>
+                  <td className="px-8 py-5 text-center font-bold text-99blue bg-blue-50/30">120</td>
+                  <td className="px-8 py-5 text-center font-bold text-purple-600">240</td>
+                </tr>
+                <tr className="hover:bg-gray-50/50 transition-colors">
+                  <td className="px-8 py-5 text-gray-700 font-medium">Prazo de recebimento</td>
+                  <td className="px-8 py-5 text-center text-gray-600">10 dias</td>
+                  <td className="px-8 py-5 text-center font-bold text-99blue bg-blue-50/30">7 dias</td>
+                  <td className="px-8 py-5 text-center font-bold text-purple-600">3 dias</td>
+                </tr>
+                <tr className="hover:bg-gray-50/50 transition-colors">
+                  <td className="px-8 py-5 text-gray-700 font-medium">Taxa de serviço</td>
+                  <td className="px-8 py-5 text-center text-gray-600">20%</td>
+                  <td className="px-8 py-5 text-center font-bold text-green-600 bg-blue-50/30">15%</td>
+                  <td className="px-8 py-5 text-center font-bold text-green-600">10%</td>
+                </tr>
+                <tr className="hover:bg-gray-50/50 transition-colors">
+                  <td className="px-8 py-5 text-gray-700 font-medium">Áreas de atuação</td>
+                  <td className="px-8 py-5 text-center text-gray-600">5</td>
+                  <td className="px-8 py-5 text-center font-bold text-99blue bg-blue-50/30">20</td>
+                  <td className="px-8 py-5 text-center font-bold text-purple-600">30</td>
+                </tr>
+                <tr className="hover:bg-gray-50/50 transition-colors">
+                  <td className="px-8 py-5 text-gray-700 font-medium">Destaque nas buscas</td>
+                  <td className="px-8 py-5 text-center text-gray-400">-</td>
+                  <td className="px-8 py-5 text-center bg-blue-50/30"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
+                  <td className="px-8 py-5 text-center"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
+                </tr>
+                <tr className="hover:bg-gray-50/50 transition-colors">
+                  <td className="px-8 py-5 text-gray-700 font-medium">Projetos exclusivos</td>
+                  <td className="px-8 py-5 text-center text-gray-400">-</td>
+                  <td className="px-8 py-5 text-center bg-blue-50/30"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
+                  <td className="px-8 py-5 text-center"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* FAQ */}
-        <div className="mt-16 max-w-3xl mx-auto">
-          <h2 className="text-2xl font-bold text-center text-gray-800 mb-8">
-            Perguntas Frequentes
-          </h2>
+        {/* FAQ Section */}
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Dúvidas Frequentes</h2>
+            <p className="text-gray-500">Tudo o que você precisa saber sobre nossos planos</p>
+          </div>
+          
           <div className="space-y-4">
             {[
-              {
-                q: 'Posso cancelar a qualquer momento?',
-                a: 'Sim! Você pode cancelar sua assinatura a qualquer momento. O plano permanecerá ativo até o final do período pago.'
-              },
-              {
-                q: 'O que são conexões?',
-                a: 'Conexões são o número de propostas que você pode enviar por mês. Cada proposta enviada consome uma conexão.'
-              },
-              {
-                q: 'Como funciona a taxa de intermediação?',
-                a: 'A taxa é calculada sobre o valor final do projeto e é paga pelo cliente. Quanto menor a taxa, mais competitivo é o seu preço.'
-              },
-              {
-                q: 'Posso mudar de plano?',
-                a: 'Sim! Você pode fazer upgrade ou downgrade do seu plano a qualquer momento. A mudança entra em vigor imediatamente.'
-              }
-            ].map((faq, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="font-semibold text-gray-800 mb-2">{faq.q}</h3>
-                <p className="text-gray-600">{faq.a}</p>
+              { q: 'Posso cancelar quando quiser?', a: 'Sim, não há fidelidade. Você pode cancelar sua assinatura a qualquer momento e continuará com acesso até o fim do período pago.' },
+              { q: 'Como funcionam as conexões?', a: 'Conexões são créditos usados para enviar propostas. Cada plano tem um limite mensal que renova automaticamente.' },
+              { q: 'Posso mudar de plano depois?', a: 'Com certeza. Você pode fazer upgrade ou downgrade do seu plano a qualquer momento através do seu painel.' },
+              { q: 'Quais formas de pagamento aceitas?', a: 'Aceitamos cartão de crédito (via Stripe), Pix e Boleto (via Mercado Pago) para sua comodidade.' }
+            ].map((item, i) => (
+              <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+                <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center">
+                  <HelpCircle className="w-5 h-5 text-99blue mr-3" />
+                  {item.q}
+                </h3>
+                <p className="text-gray-600 ml-8">{item.a}</p>
               </div>
             ))}
           </div>
         </div>
-      </div>
+      </main>
+
+      {/* Footer Simple */}
+      <footer className="bg-white border-t border-gray-100 py-12 mt-12">
+        <div className="max-w-7xl mx-auto px-4 text-center">
+          <p className="text-gray-400 text-sm">© 2026 MeuFreelas. Todos os direitos reservados.</p>
+        </div>
+      </footer>
     </div>
   );
 }
