@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { apiResendActivation, hasApi } from '../lib/api';
-import { TurnstileWidget, hasTurnstile } from '../components/TurnstileWidget';
+import { ReCaptchaWidget, hasReCaptcha } from '../components/ReCaptchaWidget';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 
 export default function Login() {

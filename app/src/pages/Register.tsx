@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { TurnstileWidget, hasTurnstile } from '../components/TurnstileWidget';
+import { ReCaptchaWidget, hasReCaptcha } from '../components/ReCaptchaWidget';
 import { Eye, EyeOff, Mail, Lock, User, Briefcase, ArrowRight } from 'lucide-react';
 
 type UserTypeOption = 'freelancer' | 'client';
@@ -74,8 +74,8 @@ export default function Register() {
       return;
     }
 
-    if (hasTurnstile() && !turnstileToken.trim()) {
-      setError('Complete a verificação de segurança (caixa abaixo) antes de continuar. Se não aparecer, atualize a página.');
+    if (hasReCaptcha() && !recaptchaToken) {
+      setError('Complete a verificação de segurança (não sou um robô) antes de continuar.');
       return;
     }
 
@@ -83,7 +83,7 @@ export default function Register() {
 
     try {
       setSuccessMessage('');
-      const result = await register(trimmedName, trimmedEmail, password, userType, turnstileToken.trim() || undefined);
+      const result = await register(trimmedName, trimmedEmail, password, userType, recaptchaToken || undefined);
       if (result.success && result.requiresActivation) {
         setSuccessMessage(result.message || 'Enviamos um e-mail de ativação. Clique no link para ativar sua conta e depois faça login.');
         return;
