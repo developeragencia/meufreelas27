@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, User } from '../contexts/AuthContext';
+import { useAuth, type User } from '../contexts/AuthContext';
 import PaymentModal from '../components/PaymentModal';
 import { 
   Check, 
