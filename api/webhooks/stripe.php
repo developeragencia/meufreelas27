@@ -32,7 +32,10 @@ if ($stripeWebhookSecret !== '' && $sigHeader !== '') {
 }
 
 $event = json_decode($payload, true) ?? [];
-if (($event['type'] ?? '') !== 'checkout.session.completed') {
+$eventType = $event['type'] ?? '';
+
+// Aceitar tanto checkout.session.completed quanto payment_intent.succeeded
+if ($eventType !== 'checkout.session.completed' && $eventType !== 'payment_intent.succeeded') {
     echo json_encode(['ok' => true, 'ignored' => true]);
     exit;
 }
@@ -47,13 +50,20 @@ if ($subscriptionId !== '') {
     $stmt = $pdo->prepare('SELECT id, user_id, plan_code, billing_cycle FROM user_subscriptions WHERE id = ? AND status = ? LIMIT 1');
     $stmt->execute([$subscriptionId, 'pending']);
     $sub = $stmt->fetch();
+    
     if ($sub) {
         $interval = ($sub['billing_cycle'] ?? '') === 'yearly' ? '1 YEAR' : '1 MONTH';
+        
+        // Atualiza status da assinatura
         $pdo->prepare('UPDATE user_subscriptions SET status = ?, started_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL ' . $interval . '), external_id = ? WHERE id = ?')
             ->execute(['active', $externalId, $subscriptionId]);
+            
+        // Atualiza usuário: Plano + Conexões
         $planType = (string)($sub['plan_code'] ?? 'pro');
-        $pdo->prepare('UPDATE users SET is_premium = 1, plan_type = ?, plan_expires_at = DATE_ADD(NOW(), INTERVAL ' . $interval . ') WHERE id = ?')
-            ->execute([$planType, $sub['user_id']]);
+        $connectionsToAdd = ($planType === 'premium') ? 300 : 100; // Premium: 300, Pro: 100
+        
+        $pdo->prepare('UPDATE users SET is_premium = 1, plan_type = ?, plan_expires_at = DATE_ADD(NOW(), INTERVAL ' . $interval . '), connections = connections + ? WHERE id = ?')
+            ->execute([$planType, $connectionsToAdd, $sub['user_id']]);
     }
     echo json_encode(['ok' => true]);
     exit;

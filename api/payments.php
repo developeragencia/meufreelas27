@@ -155,6 +155,14 @@ if ($method === 'POST') {
         try {
             $amount = (int)($data['price'] * 100); // Em centavos
 
+            // Criar registro de assinatura pendente no banco
+            $subscriptionId = bin2hex(random_bytes(18));
+            $planCode = $data['plan'] ?? 'pro'; // pro, premium
+            $billingCycle = $data['cycle'] ?? 'monthly'; // monthly, yearly
+            
+            $stmtSub = $pdo->prepare("INSERT INTO user_subscriptions (id, user_id, plan_code, billing_cycle, provider, amount, status, created_at) VALUES (?, ?, ?, ?, 'stripe', ?, 'pending', NOW())");
+            $stmtSub->execute([$subscriptionId, $user['id'], $planCode, $billingCycle, (float)$data['price']]);
+
             $paymentIntent = \Stripe\PaymentIntent::create([
                 'amount' => $amount,
                 'currency' => 'brl',
@@ -163,12 +171,17 @@ if ($method === 'POST') {
                 ],
                 'metadata' => [
                     'user_id' => $user['id'],
-                    'type' => $data['type'],
-                    'plan' => $data['plan'] ?? null,
+                    'type' => $data['type'], // subscription
+                    'plan' => $planCode,
+                    'subscription_id' => $subscriptionId,
                     'project_id' => $data['project_id'] ?? null
                 ],
                 'receipt_email' => $user['email'],
             ]);
+            
+            // Atualizar o registro com o ID externo (client_secret ou payment_intent_id)
+            $pdo->prepare("UPDATE user_subscriptions SET external_id = ? WHERE id = ?")
+                ->execute([$paymentIntent->id, $subscriptionId]);
 
             echo json_encode(['clientSecret' => $paymentIntent->client_secret]);
         } catch (Exception $e) {
