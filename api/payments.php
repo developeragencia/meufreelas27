@@ -176,9 +176,10 @@ if ($method === 'POST') {
         }
     }
     
+    // Caso nenhuma ação corresponda
     else {
         http_response_code(400);
-        echo json_encode(['error' => 'Invalid action']);
+        echo json_encode(['error' => 'Ação inválida. Use action: create_preference_mp ou create_payment_intent_stripe.']);
     }
 } else {
     http_response_code(405);
