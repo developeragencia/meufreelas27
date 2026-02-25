@@ -1,9 +1,30 @@
 <?php
 require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/jwt_helper.php';
 
 header('Content-Type: application/json');
+
+// Função de autenticação local (substitui a do auth.php)
+function authenticate() {
+    $token = get_bearer_token();
+    if (!$token) return null;
+    
+    $secret = $_ENV['JWT_SECRET'] ?? 'meufreelas_secret_key_change_this';
+    $payload = jwt_decode($token, $secret);
+    
+    if (!$payload || !isset($payload['sub'])) return null;
+    
+    try {
+        $pdo = mf_pdo();
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+        $stmt->execute([$payload['sub']]);
+        return $stmt->fetch();
+    } catch (Exception $e) {
+        return null;
+    }
+}
 
 // Verificar autenticação
 $user = authenticate();

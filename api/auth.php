@@ -230,7 +230,8 @@ if ($action === 'login') {
         'isPremium' => (int)($row['is_premium'] ?? 0) === 1,
         'planType' => (string)($row['plan_type'] ?? 'free'),
     ];
-    echo json_encode(['ok' => true, 'user' => $user]);
+    $token = jwt_encode(['sub' => $user['id'], 'email' => $user['email']], $_ENV['JWT_SECRET'] ?? 'meufreelas_secret_key_change_this');
+    echo json_encode(['ok' => true, 'user' => $user, 'token' => $token]);
     exit;
 }
 
