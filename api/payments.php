@@ -5,6 +5,7 @@ ob_start();
 // Force error reporting to be hidden from output, we will catch them
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/stripe_errors.log');
 error_reporting(E_ALL);
 
 header('Content-Type: application/json');
