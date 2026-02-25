@@ -74,6 +74,7 @@ export default function UserProfile() {
             ranking: Number(f.ranking) || 0,
             profileCompletion: Number(f.profileCompletion) || 0,
             planTier: (f.planTier || 'free') as 'free' | 'pro' | 'premium',
+            type: (f.type || 'freelancer') as 'freelancer' | 'client',
           });
           return;
         }
